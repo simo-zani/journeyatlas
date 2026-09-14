@@ -1,0 +1,41 @@
+{
+  "common": {
+    "appName": "JourneyAtlas",
+    "save": "Salva",
+    "cancel": "Annulla",
+    "delete": "Elimina",
+    "edit": "Modifica",
+    "close": "Chiudi",
+    "loading": "Caricamento...",
+    "error": "Si è verificato un errore",
+    "success": "Successo!"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "myTrips": "I Miei Viaggi",
+    "profile": "Profilo",
+    "logout": "Esci",
+    "settings": "Impostazioni",
+    "theme": "Cambia tema"
+  },
+  "dashboard": {
+    "welcome": "Benvenuto, {{name}}!",
+    "createTrip": "Crea Nuovo Viaggio",
+    "noTrips": "Nessun viaggio ancora. Inizia a pianificare la tua prossima avventura!",
+    "statistics": "Statistiche di Viaggio",
+    "countriesVisited": "Paesi Visitati",
+    "citiesVisited": "Città Visitate"
+  },
+  "trip": {
+    "name": "Nome Viaggio",
+    "destination": "Destinazione",
+    "startDate": "Data Inizio",
+    "endDate": "Data Fine",
+    "budget": "Budget",
+    "participants": "Partecipanti"
+  },
+  "expenses": {
+    "youOwe": "Devi {{amount}} {{currency}} a {{person}}",
+    "owesYou": "{{person}} ti deve {{amount}} {{currency}}"
+  }
+}

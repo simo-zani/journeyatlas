@@ -6,6 +6,7 @@
     "delete": "Delete",
     "edit": "Edit",
     "close": "Close",
+    "confirm": "Confirm",
     "loading": "Loading...",
     "error": "An error occurred",
     "success": "Success!"
@@ -18,21 +19,135 @@
     "settings": "Settings",
     "theme": "Toggle theme"
   },
+  "auth": {
+    "email": "Email",
+    "password": "Password",
+    "confirmPassword": "Confirm password",
+    "login": {
+      "title": "Log in",
+      "subtitle": "Welcome back, plan your next journey",
+      "submit": "Log in",
+      "noAccount": "Don't have an account?"
+    },
+    "signup": {
+      "title": "Sign up",
+      "subtitle": "Create your free account",
+      "submit": "Create account",
+      "hasAccount": "Already have an account?"
+    },
+    "errors": {
+      "passwordMismatch": "Passwords do not match",
+      "passwordTooShort": "Password must be at least 6 characters"
+    }
+  },
   "dashboard": {
+    "title": "My Trips",
     "welcome": "Welcome, {{name}}!",
     "createTrip": "Create New Trip",
     "noTrips": "No trips yet. Start planning your next adventure!",
+    "noTripsSub": "Create your first trip to begin collaborating with friends.",
     "statistics": "Travel Statistics",
     "countriesVisited": "Countries Visited",
     "citiesVisited": "Cities Visited"
   },
   "trip": {
     "name": "Trip Name",
+    "namePlaceholder": "e.g. Summer in Italy",
     "destination": "Destination",
+    "destinations": "Destinations",
+    "destinationsPlaceholder": "e.g. Rome, Italy; Paris, France",
     "startDate": "Start Date",
     "endDate": "End Date",
     "budget": "Budget",
-    "participants": "Participants"
+    "participants": "Participants",
+    "upcoming": "Upcoming",
+    "archived": "Archived",
+    "notFound": "Trip not found",
+    "dateOutOfRange": "The date must be within the trip dates ({{range}})"
+  },
+  "tripSection": {
+    "activities": "Activities",
+    "accommodations": "Accommodations",
+    "flights": "Flights",
+    "packing": "Packing",
+    "expenses": "Expenses",
+    "info": "Country Info",
+    "documents": "Documents",
+    "chat": "Chat",
+    "report": "Report"
+  },
+  "activity": {
+    "add": "Add Activity",
+    "edit": "Edit Activity",
+    "empty": "No activities yet",
+    "emptySub": "Add activities, restaurants or events to start planning your days.",
+    "filterAllStatus": "All statuses",
+    "filterAllCategory": "All categories",
+    "name": "Name",
+    "date": "Date",
+    "time": "Time",
+    "city": "City",
+    "category": "Category",
+    "categoryLabel": "Category",
+    "statusTitle": "Status",
+    "bookingRef": "Booking ref",
+    "bookingRefPlaceholder": "e.g. booking confirmation",
+    "description": "Description",
+    "notes": "Notes",
+    "status": {
+      "planned": "Planned",
+      "booked": "Booked",
+      "completed": "Completed"
+    },
+    "category": {
+      "attrazione": "Attraction",
+      "ristorante": "Restaurant",
+      "transport": "Transport",
+      "evento": "Event",
+      "altro": "Other"
+    }
+  },
+  "accommodation": {
+    "add": "Add Accommodation",
+    "edit": "Edit Accommodation",
+    "empty": "No accommodations yet",
+    "emptySub": "Add where you're staying during the trip.",
+    "name": "Property Name",
+    "typeLabel": "Type",
+    "address": "Address",
+    "checkInDate": "Check-in Date",
+    "checkInTime": "Check-in Time",
+    "checkOutDate": "Check-out Date",
+    "checkOutTime": "Check-out Time",
+    "cost": "Total Cost",
+    "currency": "Currency",
+    "bookingRef": "Booking ref",
+    "bookingRefPlaceholder": "e.g. booking confirmation",
+    "contactInfo": "Contacts",
+    "notes": "Notes",
+    "type": {
+      "hotel": "Hotel",
+      "airbnb": "Airbnb",
+      "house": "House",
+      "apartment": "Apartment"
+    }
+  },
+  "flight": {
+    "add": "Add Flight",
+    "edit": "Edit Flight",
+    "empty": "No flights yet",
+    "emptySub": "Add the flights of this journey.",
+    "departureAirport": "Departure Airport",
+    "arrivalAirport": "Arrival Airport",
+    "departure": "Departure",
+    "arrival": "Arrival",
+    "departureAt": "Departure Date & Time",
+    "arrivalAt": "Arrival Date & Time",
+    "airline": "Airline",
+    "flightNumber": "Flight Number",
+    "bookingRef": "Booking ref",
+    "bookingRefPlaceholder": "e.g. booking confirmation",
+    "notes": "Notes"
   },
   "expenses": {
     "youOwe": "You owe {{amount}} {{currency}} to {{person}}",

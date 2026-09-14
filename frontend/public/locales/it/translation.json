@@ -6,6 +6,7 @@
     "delete": "Elimina",
     "edit": "Modifica",
     "close": "Chiudi",
+    "confirm": "Conferma",
     "loading": "Caricamento...",
     "error": "Si è verificato un errore",
     "success": "Successo!"
@@ -18,21 +19,135 @@
     "settings": "Impostazioni",
     "theme": "Cambia tema"
   },
+  "auth": {
+    "email": "Email",
+    "password": "Password",
+    "confirmPassword": "Conferma password",
+    "login": {
+      "title": "Accedi",
+      "subtitle": "Bentornato, pianifica il tuo prossimo viaggio",
+      "submit": "Accedi",
+      "noAccount": "Non hai un account?"
+    },
+    "signup": {
+      "title": "Registrati",
+      "subtitle": "Crea il tuo account gratuito",
+      "submit": "Crea account",
+      "hasAccount": "Hai già un account?"
+    },
+    "errors": {
+      "passwordMismatch": "Le password non coincidono",
+      "passwordTooShort": "La password deve avere almeno 6 caratteri"
+    }
+  },
   "dashboard": {
+    "title": "I Miei Viaggi",
     "welcome": "Benvenuto, {{name}}!",
     "createTrip": "Crea Nuovo Viaggio",
     "noTrips": "Nessun viaggio ancora. Inizia a pianificare la tua prossima avventura!",
+    "noTripsSub": "Crea il tuo primo viaggio per iniziare a collaborare con gli amici.",
     "statistics": "Statistiche di Viaggio",
     "countriesVisited": "Paesi Visitati",
     "citiesVisited": "Città Visitate"
   },
   "trip": {
     "name": "Nome Viaggio",
+    "namePlaceholder": "es. Estate in Italia",
     "destination": "Destinazione",
+    "destinations": "Mete",
+    "destinationsPlaceholder": "es. Roma, Italia; Parigi, Francia",
     "startDate": "Data Inizio",
     "endDate": "Data Fine",
     "budget": "Budget",
-    "participants": "Partecipanti"
+    "participants": "Partecipanti",
+    "upcoming": "In programma",
+    "archived": "Archiviato",
+    "notFound": "Viaggio non trovato",
+    "dateOutOfRange": "La data deve essere compresa tra le date del viaggio ({{range}})"
+  },
+  "tripSection": {
+    "activities": "Attività",
+    "accommodations": "Alloggi",
+    "flights": "Voli",
+    "packing": "Packing",
+    "expenses": "Spese",
+    "info": "Info Paese",
+    "documents": "Documenti",
+    "chat": "Chat",
+    "report": "Report"
+  },
+  "activity": {
+    "add": "Aggiungi Attività",
+    "edit": "Modifica Attività",
+    "empty": "Nessuna attività ancora",
+    "emptySub": "Aggiungi attività, ristoranti o eventi per iniziare a pianificare le giornate.",
+    "filterAllStatus": "Tutti gli stati",
+    "filterAllCategory": "Tutte le categorie",
+    "name": "Nome",
+    "date": "Data",
+    "time": "Orario",
+    "city": "Città",
+    "category": "Categoria",
+    "categoryLabel": "Categoria",
+    "statusTitle": "Stato",
+    "bookingRef": "Rif. prenotazione",
+    "bookingRefPlaceholder": "es. numero di conferma",
+    "description": "Descrizione",
+    "notes": "Note",
+    "status": {
+      "planned": "Pianificata",
+      "booked": "Prenotata",
+      "completed": "Completata"
+    },
+    "category": {
+      "attrazione": "Attrazione",
+      "ristorante": "Ristorante",
+      "transport": "Trasporto",
+      "evento": "Evento",
+      "altro": "Altro"
+    }
+  },
+  "accommodation": {
+    "add": "Aggiungi Alloggio",
+    "edit": "Modifica Alloggio",
+    "empty": "Nessun alloggio ancora",
+    "emptySub": "Aggiungi dove alloggerai durante il viaggio.",
+    "name": "Nome Struttura",
+    "typeLabel": "Tipo",
+    "address": "Indirizzo",
+    "checkInDate": "Data Check-in",
+    "checkInTime": "Orario Check-in",
+    "checkOutDate": "Data Check-out",
+    "checkOutTime": "Orario Check-out",
+    "cost": "Costo Totale",
+    "currency": "Valuta",
+    "bookingRef": "Rif. prenotazione",
+    "bookingRefPlaceholder": "es. numero di conferma",
+    "contactInfo": "Contatti",
+    "notes": "Note",
+    "type": {
+      "hotel": "Hotel",
+      "airbnb": "Airbnb",
+      "house": "Casa",
+      "apartment": "Appartamento"
+    }
+  },
+  "flight": {
+    "add": "Aggiungi Volo",
+    "edit": "Modifica Volo",
+    "empty": "Nessun volo ancora",
+    "emptySub": "Aggiungi i voli di questo viaggio.",
+    "departureAirport": "Aeroporto Partenza",
+    "arrivalAirport": "Aeroporto Arrivo",
+    "departure": "Partenza",
+    "arrival": "Arrivo",
+    "departureAt": "Data e Ora Partenza",
+    "arrivalAt": "Data e Ora Arrivo",
+    "airline": "Compagnia",
+    "flightNumber": "Numero Volo",
+    "bookingRef": "Rif. prenotazione",
+    "bookingRefPlaceholder": "es. numero di conferma",
+    "notes": "Note"
   },
   "expenses": {
     "youOwe": "Devi {{amount}} {{currency}} a {{person}}",

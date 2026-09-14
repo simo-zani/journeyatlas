@@ -4,14 +4,14 @@
 
 | Fase | Nome | Status | Completamento |
 |------|------|--------|----------------|
-| 1 | MVP Core (Auth + Viaggio Base) | ⏳ Not Started | 0% |
+| 1 | MVP Core (Auth + Viaggio Base) | 🟡 In Progress | 30% |
 | 2 | Packing + Expense Split | ⏳ Not Started | 0% |
 | 3 | Info Paese + Documenti + Chat | ⏳ Not Started | 0% |
 | 4 | Timeline + Notifiche + Post-Report | ⏳ Not Started | 0% |
 | 5 | Dashboard Analytics + Scratch Map | ⏳ Not Started | 0% |
 
 **Ultimo aggiornamento:** 2024-09-14  
-**Prossima milestone:** Fase 1 inizio
+**Prossima milestone:** Fase 1 — fondazioni (auth + dashboard base) in corso
 
 ---
 
@@ -21,54 +21,54 @@
 **Deliverable:** Web app funzionante con viaggio basic, inviti, attività/alloggi/voli
 
 ### 1.1 Setup Infrastruttura
-- [ ] Creare progetto ASP.NET Core (Minimal APIs)
-- [ ] Setup React TypeScript + Tailwind + shadcn
-- [ ] Supabase project setup (database, auth, storage)
-- [ ] Environment variables e secrets management
+- [x] Creare progetto ASP.NET Core (Minimal APIs)
+- [x] Setup React TypeScript + Tailwind + shadcn
+- [~] Supabase project setup (database, auth, storage) — migration `supabase/migrations/0001_init.sql` pronta, da applicare nel SQL Editor
+- [x] Environment variables e secrets management (`frontend/.env.local` + `.env.example`)
 - [ ] Docker setup (opzionale per dev)
-- [ ] PWA setup: manifest.json, service worker, icons
-- [ ] i18next + react-i18next setup
-- [ ] Tailwind dark mode config
-- **Status:** ⏳ Not Started
+- [~] PWA setup: manifest.json fatto, service worker e icone mancanti
+- [x] i18next + react-i18next setup
+- [x] Tailwind dark mode config
+- **Status:** 🟡 In Progress
 
 ### 1.1b Design System & Branding
-- [ ] Importare font Poppins e Inter (Google Fonts)
-- [ ] Configurare Tailwind per palette blu/oro/cream
-- [ ] Creare componenti base styled (Button, Card, Input)
-- [ ] Setup tema dark mode (localStorage persistence)
-- [ ] Test colori su light e dark mode
-- **Status:** ⏳ Not Started
+- [x] Importare font Poppins e Inter (Google Fonts)
+- [x] Configurare Tailwind per palette blu/oro/cream
+- [x] Creare componenti base styled (Button, Card, Input)
+- [x] Setup tema dark mode (localStorage persistence)
+- [~] Test colori su light e dark mode
+- **Status:** 🟢 Done
 
 ### 1.1c Internazionalizzazione (i18n)
-- [ ] Creare struttura /public/locales/{en,it}/translation.json
-- [ ] Scrivere traduzioni base (common, nav, dashboard, trip sections)
-- [ ] Setup i18n config nel progetto React
-- [ ] Language selector nel header/settings
-- [ ] Test switch language (reload UI)
-- [ ] Assicurare localStorage persistence lingua
-- **Status:** ⏳ Not Started
+- [x] Creare struttura /public/locales/{en,it}/translation.json
+- [~] Scrivere traduzioni base (common, nav, dashboard, trip sections) — auth e dashboard aggiunte, espandere con le nuove sezioni
+- [x] Setup i18n config nel progetto React
+- [x] Language selector nel header/settings
+- [x] Test switch language (reload UI)
+- [x] Assicurare localStorage persistence lingua
+- **Status:** 🟡 In Progress
 
 ### 1.2 Autenticazione
-- [ ] Supabase Auth integration (email/password)
+- [~] Supabase Auth integration (email/password) — client + AuthProvider pronti, test al primo avvio
 - [ ] OAuth Google setup
 - [ ] OAuth Apple setup
-- [ ] Login form UI (shadcn/ui)
-- [ ] Signup form UI
-- [ ] Logout + session management
-- [ ] Protected routes (redirect if not authenticated)
+- [x] Login form UI (shadcn/ui)
+- [x] Signup form UI
+- [x] Logout + session management
+- [x] Protected routes (redirect if not authenticated)
 - [ ] User profile API endpoint
-- **Status:** ⏳ Not Started
+- **Status:** 🟡 In Progress
 
 ### 1.3 Database & Migrations
-- [ ] Creare tabelle: users, trips, trip_participants, activities, flights, accommodations, destination_info
-- [ ] Row-level security policies
-- [ ] Indexes su foreign keys
-- [ ] Triggers per updated_at auto
-- **Status:** ⏳ Not Started
+- [~] Creare tabelle: trips, trip_participants, activities, flights, accommodations (profile incluso) — da applicare `0001_init.sql`
+- [~] Row-level security policies — incluse nella migration
+- [x] Indexes su foreign keys
+- [x] Triggers per updated_at auto
+- **Status:** 🟡 In Progress
 
 ### 1.4 Responsive Mobile & PWA UI
-- [ ] Verificare layout mobile-first (mobile 0-640px)
-- [ ] Test touch-friendly buttons (min 44x44px)
+- [~] Verificare layout mobile-first (mobile 0-640px) — header/sidebar/forms responsive, test su device pendente
+- [~] Test touch-friendly buttons (min 44x44px) — rispettato nei componenti
 - [ ] "Add to Home Screen" prompt (custom UI o WebKit)
 - [ ] Test su iPhone real device (o simulator)
 - [ ] Test dark/light mode toggle on mobile
@@ -77,45 +77,46 @@
 - **Status:** ⏳ Not Started
 
 ### 1.5 Dashboard Principale
-- [ ] Layout dashboard (header con logo/theme toggle/language, sidebar, main area)
-- [ ] Logo + branding in header (premium blue/gold)
-- [ ] Lista viaggi corrente (card grid, responsive 1-2-3 columns)
-- [ ] Button "Crea Nuovo Viaggio" (prominent, gold accent)
-- [ ] Modal/form creazione viaggio
-  - Input: nome, mete (autocomplete paesi), date, budget
-  - Integrazione REST Countries API (autocomplete)
-  - Integrazione Unsplash API (suggerimento immagine)
-  - Salva a DB
-- [ ] Card styling: deep blue border, gold accents
-- [ ] Redirect a viaggio dopo creazione
-- **Status:** ⏳ Not Started
+- [x] Layout dashboard (header con logo/theme toggle/language, sidebar, main area)
+- [x] Logo + branding in header (premium blue/gold)
+- [x] Lista viaggi corrente (card grid, responsive 1-2-3 columns)
+- [x] Button "Crea Nuovo Viaggio" (prominent, gold accent)
+- [~] Modal/form creazione viaggio
+  - [x] Input: nome, mete, date, budget
+  - [ ] Integrazione REST Countries API (autocomplete)
+  - [ ] Integrazione Unsplash API (suggerimento immagine)
+  - [x] Salva a DB
+- [x] Card styling: deep blue border, gold accents
+- [x] Redirect a viaggio dopo creazione
+- **Status:** 🟡 In Progress
 
 ### 1.5 Dettaglio Viaggio - Layout Base
 - [ ] Sidebar con 9 sezioni (Attività, Alloggi, Voli, Packing, Expense, Info, Documenti, Chat, Report)
-- [ ] Header con nome viaggio, date, partecipanti
-- [ ] Tab/accordion navigation
-- **Status:** ⏳ Not Started
+- [x] Header con nome viaggio, date, partecipanti
+- [x] Tab navigation (Attività/Alloggi/Voli attivi, altre sectioni disabilitate "coming soon")
+- **Status:** 🟡 In Progress (sidebar pro futuro, per ora tab bar)
 
 ### 1.6 Sezione Attività
-- [ ] Form aggiungi attività (nome, descrizione, data, orario, luogo, categoria, status)
-- [ ] Lista attività con filtri (per data, per status, per categoria)
-- [ ] Edit/delete attività
-- [ ] API endpoints (CRUD)
-- **Status:** ⏳ Not Started
+- [x] Form aggiungi attività (nome, descrizione, data, orario, luogo, categoria, status)
+- [x] Lista attività con filtri (per status, per categoria)
+- [x] Edit/delete attività
+- [x] API endpoints (CRUD - supabase direct, senza backend esterno per ora)
+- **Status:** ✅ Done
 
 ### 1.7 Sezione Alloggi
-- [ ] Form aggiungi alloggio (nome, tipo, indirizzo, check-in/out, costo, contatti, note)
-- [ ] Lista alloggi
-- [ ] Edit/delete
-- [ ] API endpoints
-- **Status:** ⏳ Not Started
+- [x] Form aggiungi alloggio (nome, tipo, indirizzo, check-in/out, costo, contatti, note)
+- [x] Lista alloggi
+- [x] Edit/delete
+- [x] API endpoints
+- **Status:** ✅ Done
 
 ### 1.8 Sezione Voli
-- [ ] Form aggiungi volo (aeroporti, date/orari, compagnia, flight number, booking ref, passeggeri, bagagli)
-- [ ] Lista voli
-- [ ] Edit/delete
-- [ ] API endpoints
-- **Status:** ⏳ Not Started
+- [ ] Form aggiungi volo (passeggeri, bagagli - da aggiungere)
+- [x] Form aggiungi volo (aeroporti, date/orari, compagnia, flight number, booking ref)
+- [x] Lista voli
+- [x] Edit/delete
+- [x] API endpoints
+- **Status:** ✅ Done (mancano solo passeggeri/bagagli)
 
 ### 1.9 Inviti e Condivisione
 - [ ] API per invitare partecipante (email)

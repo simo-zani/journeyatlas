@@ -55,5 +55,12 @@ L'health check è disponibile su `GET /health`; in sviluppo Swagger UI è su `/s
 - [x] Setup repository e struttura cartelle
 - [x] Scaffolding frontend (Vite + React + TS + Tailwind + i18n + componenti base)
 - [x] Scaffolding backend (ASP.NET Core Minimal API + CORS + health check)
-- [ ] Configurazione Supabase (DB + Auth + Storage)
-- [ ] Fase 1 — vedi `specifiche/TRAVEL_APP_PHASES.md`
+- [x] Fondazioni Fase 1: routing, auth Supabase (login/signup/logout + protected routes), dashboard con lista viaggi e creazione, layout responsive con dark mode
+- [~] Migration Supabase `supabase/migrations/0001_init.sql` da applicare nel SQL Editor
+- [~] Fase 1 — vedi `specifiche/TRAVEL_APP_PHASES.md`
+
+## Configurazione Supabase
+
+1. Crea un progetto su [supabase.com](https://supabase.com)
+2. Applica `supabase/migrations/0001_init.sql` nel **SQL Editor**
+3. Copia `frontend/.env.example` in `frontend/.env.local` e inserisci URL progetto + anon key

@@ -8,7 +8,7 @@ export const GuestRoute: React.FC<{ children: React.ReactNode }> = ({ children }
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-cream dark:bg-dark-navy flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: 'var(--surface-0)' }}>
         <Loader2 className="w-8 h-8 text-gold animate-spin" />
       </div>
     );

@@ -1,5 +1,6 @@
 import React from 'react';
-import { AlertCircle, CheckCircle, Info, AlertTriangle } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { AlertCircle, CheckCircle, Info, AlertTriangle, X } from 'lucide-react';
 
 type AlertType = 'success' | 'error' | 'warning' | 'info';
 
@@ -19,19 +20,24 @@ export const Alert: React.FC<AlertProps> = ({ type = 'info', title, message, onC
   };
 
   return (
-    <div className={`alert alert-${type} animate-slide-in`}>
-      <div className="flex-shrink-0">
-        {icons[type]}
-      </div>
+    <motion.div
+      className={`alert alert-${type}`}
+      initial={{ opacity: 0, y: -6, scale: 0.98 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: -6, scale: 0.98 }}
+      transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+      role="alert"
+    >
+      <div className="flex-shrink-0">{icons[type]}</div>
       <div className="flex-1">
         {title && <p className="font-semibold">{title}</p>}
         <p className="text-sm">{message}</p>
       </div>
       {onClose && (
-        <button onClick={onClose} className="flex-shrink-0 ml-2">
-          ×
+        <button onClick={onClose} className="flex-shrink-0 ml-2 p-0.5 rounded hover:bg-current/10 transition-colors" aria-label="Dismiss">
+          <X className="w-4 h-4" />
         </button>
       )}
-    </div>
+    </motion.div>
   );
 };

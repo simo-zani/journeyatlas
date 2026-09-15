@@ -1,61 +1,142 @@
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Poppins:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Base Styles */
+/* ==========================================================================
+   Design tokens
+   Surfaces/borders/shadows live as CSS variables (not Tailwind colors) so a
+   theme switch is a single, uniformly-transitioning value swap instead of
+   dozens of independent `dark:` utility toggles racing each other.
+   ========================================================================== */
+:root {
+  --surface-0: #F6F3ED; /* page background */
+  --surface-1: #FFFFFF; /* card / raised surface */
+  --surface-2: #FBFAF7; /* hover / subtle alt surface */
+  --surface-3: #F1EEE7; /* pressed / recessed surface */
+  --border-subtle: rgba(15, 23, 42, 0.08);
+  --border-strong: rgba(15, 23, 42, 0.16);
+  --overlay: rgba(10, 14, 26, 0.45);
+  --ring-gold: rgba(212, 175, 55, 0.35);
+  color-scheme: light;
+}
+
+.dark {
+  --surface-0: #0A0E1A;
+  --surface-1: #10162A;
+  --surface-2: #151C34;
+  --surface-3: #1B2340;
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.16);
+  --overlay: rgba(2, 4, 10, 0.65);
+  --ring-gold: rgba(212, 175, 55, 0.45);
+  color-scheme: dark;
+}
+
+/* ==========================================================================
+   Base
+   ========================================================================== */
 html {
   scroll-behavior: smooth;
 }
 
 body {
-  @apply bg-cream dark:bg-dark-navy text-slate-900 dark:text-slate-100 font-inter;
-  transition: background-color 300ms, color 300ms;
+  background-color: var(--surface-0);
+  @apply text-slate-900 dark:text-slate-100 font-inter antialiased;
+}
+
+/* A single, deliberate set of properties transitions on theme change —
+   applied broadly so nothing lags behind and the switch reads as one
+   instant, cohesive shift rather than pieces flipping at different times. */
+*,
+*::before,
+*::after {
+  transition-property: background-color, border-color, color, box-shadow, fill, stroke;
+  transition-duration: 300ms;
+  transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+::selection {
+  background-color: rgba(212, 175, 55, 0.35);
+  color: inherit;
+}
+
+/* Custom scrollbar — a small detail generic templates skip */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background-color: var(--border-strong);
+  border-radius: 9999px;
+  border: 2px solid var(--surface-0);
+}
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--gold, #D4AF37);
+}
+
+:focus-visible {
+  outline: 2px solid rgba(212, 175, 55, 0.7);
+  outline-offset: 2px;
+  border-radius: 4px;
 }
 
 h1, h2, h3, h4, h5, h6 {
-  @apply font-poppins font-bold;
+  @apply font-poppins font-bold tracking-tight;
 }
 
 h1 {
-  @apply text-5xl text-deep-blue dark:text-slate-50;
+  @apply font-display font-semibold text-4xl sm:text-5xl tracking-tight text-deep-blue dark:text-slate-50;
 }
 
 h2 {
-  @apply text-4xl text-deep-blue dark:text-slate-100;
+  @apply text-3xl sm:text-4xl text-deep-blue dark:text-slate-100;
 }
 
 h3 {
-  @apply text-2xl text-deep-blue dark:text-slate-200;
+  @apply text-xl sm:text-2xl text-deep-blue dark:text-slate-200;
 }
 
-/* Component Classes */
+/* ==========================================================================
+   Buttons
+   ========================================================================== */
 .btn-primary {
-  @apply bg-deep-blue hover:bg-blue-950 text-white font-semibold py-3 px-6 rounded-lg
-    border-2 border-gold hover:border-yellow-400 transition-all duration-200
-    touch-none min-h-[44px] min-w-[44px] flex items-center justify-center gap-2;
+  @apply relative bg-deep-blue text-white font-semibold py-3 px-6 rounded-lg
+    transition-all duration-300 ease-premium
+    touch-none min-h-[44px] min-w-[44px] flex items-center justify-center gap-2
+    shadow-md hover:shadow-glow-gold hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98]
+    ring-1 ring-inset ring-gold/60 hover:ring-gold;
 }
 
 .btn-primary:disabled {
-  @apply opacity-50 cursor-not-allowed;
+  @apply opacity-50 cursor-not-allowed hover:translate-y-0 hover:shadow-md;
 }
 
 .btn-secondary {
-  @apply bg-transparent hover:bg-gold/10 text-gold font-semibold py-3 px-6 rounded-lg
-    border-2 border-gold hover:border-yellow-400 transition-all duration-200
-    touch-none min-h-[44px] min-w-[44px] flex items-center justify-center gap-2;
+  @apply bg-transparent text-gold-dark dark:text-gold font-semibold py-3 px-6 rounded-lg
+    border border-gold/50 hover:border-gold hover:bg-gold/10
+    transition-all duration-300 ease-premium
+    touch-none min-h-[44px] min-w-[44px] flex items-center justify-center gap-2
+    hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98];
 }
 
 .btn-secondary:disabled {
-  @apply opacity-50 cursor-not-allowed;
+  @apply opacity-50 cursor-not-allowed hover:translate-y-0;
 }
 
 .btn-tertiary {
-  @apply bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600
-    text-slate-900 dark:text-slate-100 py-3 px-6 rounded-lg
-    transition-all duration-200 min-h-[44px] min-w-[44px]
+  @apply bg-slate-900/5 hover:bg-slate-900/10 dark:bg-white/5 dark:hover:bg-white/10
+    text-slate-700 dark:text-slate-100 py-3 px-6 rounded-lg
+    transition-all duration-300 ease-premium min-h-[44px] min-w-[44px]
     flex items-center justify-center gap-2;
+}
+
+.btn-tertiary:disabled {
+  @apply opacity-50 cursor-not-allowed;
 }
 
 .btn-sm {
@@ -66,27 +147,67 @@ h3 {
   @apply py-4 px-8 text-lg min-h-[48px];
 }
 
-/* Card Styling */
+/* ==========================================================================
+   Cards
+   A slim gradient top edge (visible on hover) replaces the heavy gold
+   left-border look — same accent, quieter until it matters.
+   ========================================================================== */
 .card {
-  @apply bg-white dark:bg-slate-800 rounded-lg shadow-lg
-    border-l-4 border-gold p-6 transition-shadow hover:shadow-xl;
+  position: relative;
+  background-color: var(--surface-1);
+  border: 1px solid var(--border-subtle);
+  @apply rounded-xl p-6 shadow-md transition-all duration-350 ease-premium overflow-hidden;
+}
+
+.card::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #D4AF37, transparent);
+  opacity: 0;
+  transform: translateY(-2px);
+  transition: opacity 350ms cubic-bezier(0.16, 1, 0.3, 1), transform 350ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.card:hover {
+  transform: translateY(-3px);
+  border-color: var(--border-strong);
+  @apply shadow-lg;
+}
+
+.card:hover::before {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 .card-compact {
   @apply p-4 gap-2;
 }
 
-.card:hover {
-  @apply shadow-xl;
+/* Static raised surface (modals, dropdowns) — same materials as .card
+   without its hover lift/accent line, which would look like a bug on
+   non-card containers. */
+.surface-panel {
+  background-color: var(--surface-1);
+  border: 1px solid var(--border-subtle);
+  @apply rounded-xl shadow-xl;
 }
 
-/* Input Fields */
+/* ==========================================================================
+   Inputs
+   ========================================================================== */
 .input-field {
-  @apply w-full px-4 py-3 rounded-lg border-2 border-slate-300 dark:border-slate-600
-    focus:border-gold dark:focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/20
-    bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100
+  background-color: var(--surface-1);
+  border: 1px solid var(--border-subtle);
+  @apply w-full px-4 py-3 rounded-lg text-slate-900 dark:text-slate-100
     placeholder-slate-500 dark:placeholder-slate-400
-    transition-all duration-200;
+    transition-all duration-200 ease-premium
+    focus:outline-none focus:border-gold focus:ring-4 focus:ring-gold/15;
+}
+
+.input-field:hover:not(:disabled):not(:focus) {
+  border-color: var(--border-strong);
 }
 
 .input-field:disabled {
@@ -107,56 +228,60 @@ h3 {
   @apply text-error;
 }
 
-/* Badge */
+/* ==========================================================================
+   Badges — soft tinted pills instead of solid color blocks
+   ========================================================================== */
 .badge {
-  @apply inline-block px-3 py-1 rounded-full text-xs font-semibold;
+  @apply inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold tracking-wide;
 }
 
 .badge-gold {
-  @apply bg-gold text-deep-blue;
+  @apply bg-gold/15 text-gold-dark dark:text-gold-light;
 }
 
 .badge-success {
-  @apply bg-success text-white;
+  @apply bg-success/15 text-emerald-700 dark:text-emerald-300;
 }
 
 .badge-warning {
-  @apply bg-warning text-white;
+  @apply bg-warning/15 text-amber-700 dark:text-amber-300;
 }
 
 .badge-error {
-  @apply bg-error text-white;
+  @apply bg-error/15 text-red-700 dark:text-red-300;
 }
 
 .badge-info {
-  @apply bg-info text-white;
+  @apply bg-info/15 text-blue-700 dark:text-blue-300;
 }
 
 /* Alert / Toast */
 .alert {
-  @apply p-4 rounded-lg border-l-4 flex gap-3 items-start;
+  background-color: var(--surface-1);
+  border: 1px solid var(--border-subtle);
+  @apply p-4 rounded-lg border-l-4 flex gap-3 items-start shadow-sm;
 }
 
 .alert-success {
-  @apply bg-success/10 border-success text-success;
+  @apply border-l-success text-emerald-700 dark:text-emerald-300;
 }
 
 .alert-error {
-  @apply bg-error/10 border-error text-error;
+  @apply border-l-error text-red-700 dark:text-red-300;
 }
 
 .alert-warning {
-  @apply bg-warning/10 border-warning text-warning;
+  @apply border-l-warning text-amber-700 dark:text-amber-300;
 }
 
 .alert-info {
-  @apply bg-info/10 border-info text-info;
+  @apply border-l-info text-blue-700 dark:text-blue-300;
 }
 
 /* Loading Spinner */
 .spinner {
   @apply inline-block animate-spin;
-  border: 3px solid rgba(212, 175, 55, 0.3);
+  border: 3px solid rgba(212, 175, 55, 0.25);
   border-top-color: #D4AF37;
   border-radius: 50%;
   width: 24px;
@@ -171,11 +296,12 @@ h3 {
 
 /* Empty State */
 .empty-state {
-  @apply flex flex-col items-center justify-center py-12 px-4 text-center;
+  @apply flex flex-col items-center justify-center py-16 px-4 text-center;
 }
 
 .empty-state-icon {
-  @apply text-gold text-6xl mb-4 opacity-50;
+  background: radial-gradient(circle at 30% 30%, rgba(212, 175, 55, 0.25), transparent 70%);
+  @apply w-20 h-20 flex items-center justify-center rounded-full text-4xl mb-4;
 }
 
 .empty-state-title {
@@ -188,17 +314,31 @@ h3 {
 
 /* Divider */
 .divider {
-  @apply border-t border-slate-200 dark:border-slate-700 my-4;
+  border-top: 1px solid var(--border-subtle);
+  @apply my-4;
+}
+
+/* Segmented tab control (trip detail sections) */
+.tab-pill {
+  @apply shrink-0 px-4 py-2.5 rounded-full font-semibold text-sm min-h-[44px] transition-all duration-300 ease-premium;
 }
 
 /* Link Styling */
 a {
-  @apply text-light-blue hover:text-deep-blue dark:text-light-blue dark:hover:text-gold
-    underline transition-colors;
+  @apply text-light-blue hover:text-deep-blue dark:text-light-blue dark:hover:text-gold-light
+    underline decoration-transparent hover:decoration-current underline-offset-4 transition-colors duration-200;
 }
 
 a:not([class]) {
   @apply no-underline;
+}
+
+/* Glass surface used by header / sidebar */
+.glass-surface {
+  background-color: color-mix(in srgb, var(--surface-1) 72%, transparent);
+  backdrop-filter: blur(16px) saturate(160%);
+  -webkit-backdrop-filter: blur(16px) saturate(160%);
+  border-color: var(--border-subtle);
 }
 
 /* Responsive Helpers */
@@ -216,11 +356,10 @@ a:not([class]) {
   }
 }
 
-/* Dark Mode Smooth Transition */
-html.dark {
-  color-scheme: dark;
-}
-
-html:not(.dark) {
-  color-scheme: light;
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

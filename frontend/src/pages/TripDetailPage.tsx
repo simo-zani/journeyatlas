@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { Calendar, Loader2 } from 'lucide-react';
 import { Card } from '@/components/Card';
 import { ActivitySection } from '@/components/trip/ActivitySection';
@@ -93,15 +94,22 @@ export const TripDetailPage: React.FC = () => {
                   key={section}
                   onClick={() => isEnabled && setActiveSection(section)}
                   disabled={!isEnabled}
-                  className={`shrink-0 px-4 py-2 rounded-lg font-semibold min-h-[44px] transition-colors ${
+                  className={`tab-pill relative ${
                     isActiveSection
-                      ? 'bg-deep-blue text-white border-2 border-gold'
+                      ? 'text-deep-blue dark:text-gold-light'
                       : isEnabled
-                        ? 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-gold'
-                        : 'bg-transparent text-slate-400 dark:text-slate-500 border border-dashed border-slate-300 dark:border-slate-600 cursor-not-allowed'
+                        ? 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
+                        : 'text-slate-400 dark:text-slate-600 cursor-not-allowed opacity-60'
                   }`}
                 >
-                  {sectionLabel(section)}
+                  {isActiveSection && (
+                    <motion.span
+                      layoutId="trip-tab-active"
+                      className="absolute inset-0 rounded-full bg-gold/15 ring-1 ring-gold/40"
+                      transition={{ type: 'spring', stiffness: 380, damping: 32 }}
+                    />
+                  )}
+                  <span className="relative">{sectionLabel(section)}</span>
                 </button>
               );
             })}

@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
+import { AnimatePresence, motion } from 'framer-motion';
 import { Plus, MapPin, Calendar, Wallet, Loader2 } from 'lucide-react';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
@@ -14,6 +15,16 @@ import type { Trip } from '@/lib/types';
 const formatDate = (date: string | null): string => {
   if (!date) return '';
   return new Date(date).toLocaleDateString();
+};
+
+const gridVariants = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.06 } },
+};
+
+const cardVariants = {
+  hidden: { opacity: 0, y: 14 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.4, ease: [0.16, 1, 0.3, 1] } },
 };
 
 export const DashboardPage: React.FC = () => {
@@ -66,18 +77,30 @@ export const DashboardPage: React.FC = () => {
         </Button>
       </div>
 
-      {error && (
-        <div className="mb-6">
-          <p className="text-error">{error}</p>
-        </div>
-      )}
+      <AnimatePresence>
+        {error && (
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="text-error mb-6"
+          >
+            {error}
+          </motion.p>
+        )}
+      </AnimatePresence>
 
       {loading ? (
         <div className="flex items-center justify-center py-16">
           <Loader2 className="w-8 h-8 text-gold animate-spin" />
         </div>
       ) : trips.length === 0 ? (
-        <div className="empty-state">
+        <motion.div
+          className="empty-state"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+        >
           <div className="empty-state-icon">✈️</div>
           <p className="empty-state-title">{t('dashboard.noTrips')}</p>
           <p className="empty-state-message">{t('dashboard.noTripsSub')}</p>
@@ -85,42 +108,49 @@ export const DashboardPage: React.FC = () => {
             <Plus className="w-5 h-5" />
             {t('dashboard.createTrip')}
           </Button>
-        </div>
+        </motion.div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+        <motion.div
+          className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6"
+          variants={gridVariants}
+          initial="hidden"
+          animate="show"
+        >
           {trips.map((trip) => (
-            <Card key={trip.id} compact onClick={() => navigate(`/trips/${trip.id}`)}>
-              <div className="flex items-start justify-between gap-2 mb-2">
-                <h3 className="text-lg">{trip.name}</h3>
-                <Badge variant={trip.archived_at ? 'warning' : 'gold'}>
-                  {trip.archived_at ? t('trip.archived') : t('trip.upcoming')}
-                </Badge>
-              </div>
+            <motion.div key={trip.id} variants={cardVariants}>
+              <Card compact onClick={() => navigate(`/trips/${trip.id}`)} className="h-full">
+                <div className="flex items-start justify-between gap-2 mb-2">
+                  <h3 className="text-lg">{trip.name}</h3>
+                  <Badge variant={trip.archived_at ? 'warning' : 'gold'}>
+                    {trip.archived_at ? t('trip.archived') : t('trip.upcoming')}
+                  </Badge>
+                </div>
 
-              {(trip.start_date || trip.end_date) && (
-                <p className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400 mb-1">
-                  <Calendar className="w-4 h-4" />
-                  {formatDate(trip.start_date)}
-                  {trip.end_date ? ` — ${formatDate(trip.end_date)}` : ''}
-                </p>
-              )}
+                {(trip.start_date || trip.end_date) && (
+                  <p className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400 mb-1">
+                    <Calendar className="w-4 h-4" />
+                    {formatDate(trip.start_date)}
+                    {trip.end_date ? ` — ${formatDate(trip.end_date)}` : ''}
+                  </p>
+                )}
 
-              {trip.destinations && trip.destinations.length > 0 && (
-                <p className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400 mb-1">
-                  <MapPin className="w-4 h-4" />
-                  {trip.destinations.map((d) => d.city).filter(Boolean).join(', ')}
-                </p>
-              )}
+                {trip.destinations && trip.destinations.length > 0 && (
+                  <p className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400 mb-1">
+                    <MapPin className="w-4 h-4" />
+                    {trip.destinations.map((d) => d.city).filter(Boolean).join(', ')}
+                  </p>
+                )}
 
-              {trip.budget_planned != null && (
-                <p className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
-                  <Wallet className="w-4 h-4" />
-                  {t('trip.budget')}: {trip.budget_planned}
-                </p>
-              )}
-            </Card>
+                {trip.budget_planned != null && (
+                  <p className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
+                    <Wallet className="w-4 h-4" />
+                    {t('trip.budget')}: {trip.budget_planned}
+                  </p>
+                )}
+              </Card>
+            </motion.div>
           ))}
-        </div>
+        </motion.div>
       )}
 
       <Modal open={createOpen} onClose={() => setCreateOpen(false)} title={t('dashboard.createTrip')}>

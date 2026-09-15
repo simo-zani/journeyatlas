@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { AnimatePresence, motion } from 'framer-motion';
 import { Loader2, Plane } from 'lucide-react';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
@@ -34,47 +35,68 @@ export const LoginPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-cream dark:bg-dark-navy flex items-center justify-center p-6 transition-colors">
-      <Card className="max-w-md w-full">
-        <div className="text-center mb-6">
-          <Plane className="w-10 h-10 text-deep-blue dark:text-gold mx-auto mb-2" />
-          <h1 className="mb-1">{t('common.appName')}</h1>
-          <p className="text-slate-600 dark:text-slate-400 text-sm">
-            {t('auth.login.subtitle')}
+    <div
+      className="min-h-screen flex items-center justify-center p-6 relative overflow-hidden"
+      style={{ backgroundColor: 'var(--surface-0)' }}
+    >
+      <div
+        className="pointer-events-none absolute -top-32 -left-24 w-96 h-96 rounded-full blur-3xl opacity-30"
+        style={{ background: 'radial-gradient(circle, #D4AF37, transparent 70%)' }}
+      />
+      <div
+        className="pointer-events-none absolute -bottom-32 -right-24 w-96 h-96 rounded-full blur-3xl opacity-20"
+        style={{ background: 'radial-gradient(circle, #003366, transparent 70%)' }}
+      />
+
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+        className="relative w-full max-w-md"
+      >
+        <Card>
+          <div className="text-center mb-6">
+            <Plane className="w-9 h-9 text-gold mx-auto mb-3" />
+            <h1 className="mb-1 text-3xl sm:text-4xl">{t('common.appName')}</h1>
+            <p className="text-slate-600 dark:text-slate-400 text-sm">
+              {t('auth.login.subtitle')}
+            </p>
+          </div>
+
+          <AnimatePresence>
+            {error && <Alert type="error" message={error} onClose={() => setError(null)} />}
+          </AnimatePresence>
+
+          <form onSubmit={handleSubmit} className="space-y-4 mt-4">
+            <Input
+              label={t('auth.email')}
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              autoComplete="email"
+              placeholder="you@example.com"
+            />
+            <Input
+              label={t('auth.password')}
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              autoComplete="current-password"
+            />
+            <Button type="submit" className="w-full" disabled={submitting}>
+              {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
+              {t('auth.login.submit')}
+            </Button>
+          </form>
+
+          <p className="text-center text-sm mt-4 text-slate-600 dark:text-slate-400">
+            {t('auth.login.noAccount')}{' '}
+            <Link to="/signup">{t('auth.signup.title')}</Link>
           </p>
-        </div>
-
-        {error && <Alert type="error" message={error} onClose={() => setError(null)} />}
-
-        <form onSubmit={handleSubmit} className="space-y-4 mt-4">
-          <Input
-            label={t('auth.email')}
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            autoComplete="email"
-            placeholder="you@example.com"
-          />
-          <Input
-            label={t('auth.password')}
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            autoComplete="current-password"
-          />
-          <Button type="submit" className="w-full" disabled={submitting}>
-            {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
-            {t('auth.login.submit')}
-          </Button>
-        </form>
-
-        <p className="text-center text-sm mt-4 text-slate-600 dark:text-slate-400">
-          {t('auth.login.noAccount')}{' '}
-          <Link to="/signup">{t('auth.signup.title')}</Link>
-        </p>
-      </Card>
+        </Card>
+      </motion.div>
     </div>
   );
 };

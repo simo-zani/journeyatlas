@@ -8,12 +8,14 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Premium Blue & Gold Palette
+        // Premium Blue & Gold Palette (kept — only its application changes)
         'deep-blue': '#003366',
         'light-blue': '#4A90E2',
         'gold': '#D4AF37',
-        'cream': '#F5F3F0',
-        'dark-navy': '#0F172A',
+        'gold-light': '#E8CC6D',
+        'gold-dark': '#A9821F',
+        'cream': '#F6F3ED',
+        'dark-navy': '#0A0E1A',
 
         // Semantic colors (inherit defaults, but add custom names)
         'success': '#10B981',
@@ -24,6 +26,10 @@ export default {
       fontFamily: {
         'poppins': ['Poppins', 'sans-serif'],
         'inter': ['Inter', 'sans-serif'],
+        // Editorial serif used sparingly for hero/display headings — the
+        // contrast against the clean sans UI is what reads as "premium"
+        // rather than generic dashboard.
+        'display': ['Fraunces', 'ui-serif', 'serif'],
       },
       fontSize: {
         'xs': '0.75rem',
@@ -33,8 +39,8 @@ export default {
         'xl': '1.25rem',
         '2xl': '1.5rem',
         '3xl': '1.875rem',
-        '4xl': '2rem',
-        '5xl': '2.5rem',
+        '4xl': '2.25rem',
+        '5xl': '3rem',
       },
       spacing: {
         '4': '4px',
@@ -47,24 +53,37 @@ export default {
       },
       borderRadius: {
         'none': '0',
-        'sm': '4px',
-        'base': '6px',
-        'md': '8px',
-        'lg': '12px',
-        'xl': '16px',
+        'sm': '6px',
+        'base': '8px',
+        'md': '10px',
+        'lg': '14px',
+        'xl': '20px',
+        '2xl': '28px',
         'full': '9999px',
       },
       boxShadow: {
-        'sm': '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
-        'base': '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)',
-        'md': '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-        'lg': '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
-        'xl': '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+        'sm': '0 1px 2px 0 rgba(15, 23, 42, 0.05)',
+        'base': '0 1px 3px 0 rgba(15, 23, 42, 0.08), 0 1px 2px 0 rgba(15, 23, 42, 0.04)',
+        'md': '0 6px 16px -4px rgba(15, 23, 42, 0.12), 0 3px 6px -3px rgba(15, 23, 42, 0.08)',
+        'lg': '0 20px 40px -12px rgba(15, 23, 42, 0.18), 0 8px 16px -8px rgba(15, 23, 42, 0.1)',
+        'xl': '0 30px 60px -15px rgba(15, 23, 42, 0.25), 0 12px 24px -8px rgba(15, 23, 42, 0.12)',
+        'glow-gold': '0 0 0 1px rgba(212, 175, 55, 0.25), 0 8px 24px -4px rgba(212, 175, 55, 0.25)',
+      },
+      transitionTimingFunction: {
+        // "ease-out-expo" — the snappy-then-settle curve used across most
+        // premium product UI for hovers, modals and page transitions.
+        'premium': 'cubic-bezier(0.16, 1, 0.3, 1)',
+      },
+      transitionDuration: {
+        '350': '350ms',
+        '450': '450ms',
       },
       animation: {
-        'fade-in': 'fadeIn 300ms ease-in-out',
-        'slide-in': 'slideIn 300ms ease-in-out',
-        'spin-gold': 'spin 2s linear infinite',
+        'fade-in': 'fadeIn 400ms cubic-bezier(0.16, 1, 0.3, 1)',
+        'slide-in': 'slideIn 400ms cubic-bezier(0.16, 1, 0.3, 1)',
+        'scale-in': 'scaleIn 300ms cubic-bezier(0.16, 1, 0.3, 1)',
+        'rise-in': 'riseIn 500ms cubic-bezier(0.16, 1, 0.3, 1) both',
+        'shimmer': 'shimmer 2s linear infinite',
       },
       keyframes: {
         fadeIn: {
@@ -72,8 +91,20 @@ export default {
           '100%': { opacity: '1' },
         },
         slideIn: {
-          '0%': { transform: 'translateY(-10px)', opacity: '0' },
+          '0%': { transform: 'translateY(-8px)', opacity: '0' },
           '100%': { transform: 'translateY(0)', opacity: '1' },
+        },
+        scaleIn: {
+          '0%': { transform: 'scale(0.96)', opacity: '0' },
+          '100%': { transform: 'scale(1)', opacity: '1' },
+        },
+        riseIn: {
+          '0%': { transform: 'translateY(14px)', opacity: '0' },
+          '100%': { transform: 'translateY(0)', opacity: '1' },
+        },
+        shimmer: {
+          '0%': { backgroundPosition: '-200% 0' },
+          '100%': { backgroundPosition: '200% 0' },
         },
       },
     },

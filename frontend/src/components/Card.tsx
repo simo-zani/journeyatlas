@@ -5,19 +5,27 @@ interface CardProps {
   className?: string;
   compact?: boolean;
   onClick?: () => void;
+  style?: React.CSSProperties;
 }
 
-export const Card: React.FC<CardProps> = ({ children, className = '', compact = false, onClick }) => {
+export const Card: React.FC<CardProps> = ({ children, className = '', compact = false, onClick, style }) => {
   return (
     <div
-      className={`
-        bg-white dark:bg-slate-800 rounded-lg shadow-lg
-        border-l-4 border-gold p-6 transition-all hover:shadow-xl
-        ${compact ? 'p-4' : ''}
-        ${onClick ? 'cursor-pointer hover:scale-105' : ''}
-        ${className}
-      `}
+      className={`card ${compact ? 'card-compact' : ''} ${onClick ? 'cursor-pointer' : ''} ${className}`}
+      style={style}
       onClick={onClick}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={
+        onClick
+          ? (e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                onClick();
+              }
+            }
+          : undefined
+      }
     >
       {children}
     </div>

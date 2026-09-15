@@ -10,7 +10,7 @@ export const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ childr
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: 'var(--surface-0)' }}>
-        <Loader2 className="w-8 h-8 text-gold animate-spin" />
+        <Loader2 className="w-16 h-16 text-gold animate-spin" />
       </div>
     );
   }

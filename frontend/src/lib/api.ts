@@ -2,8 +2,11 @@ import { supabase } from '@/lib/supabase';
 import type {
   AccommodationRow,
   ActivityRow,
+  ChecklistCategoryRow,
+  ChecklistItemRow,
   Destination,
-  FlightRow,
+  TransportRow,
+  TransportType,
   Trip,
 } from '@/lib/types';
 
@@ -48,6 +51,26 @@ export const fetchMyTrips = async (userId: string): Promise<Trip[]> => {
   }
 
   return [...(owned ?? []), ...shared] as Trip[];
+};
+
+export const updateTrip = async (id: string, input: Partial<CreateTripInput>): Promise<Trip> => {
+  const patch: Partial<CreateTripInput> = {};
+  if (input.name !== undefined) patch.name = input.name;
+  if (input.start_date !== undefined) patch.start_date = input.start_date;
+  if (input.end_date !== undefined) patch.end_date = input.end_date;
+  if (input.destinations !== undefined) patch.destinations = input.destinations;
+  if (input.budget_planned !== undefined) patch.budget_planned = input.budget_planned;
+  if (input.cover_image_url !== undefined) patch.cover_image_url = input.cover_image_url;
+
+  const { data, error } = await supabase
+    .from('trips')
+    .update(patch)
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as Trip;
 };
 
 export const createTrip = async (userId: string, input: CreateTripInput): Promise<Trip> => {
@@ -257,10 +280,11 @@ export const deleteAccommodation = async (id: string): Promise<void> => {
 };
 
 // ----------------------------------------------------------------------------
-// Flights
+// Transports
 // ----------------------------------------------------------------------------
 
-export interface FlightInput {
+export interface TransportInput {
+  transport_type: TransportType;
   departure_airport: string;
   arrival_airport: string;
   departure_datetime?: string | null;
@@ -271,24 +295,25 @@ export interface FlightInput {
   notes?: string | null;
 }
 
-export const fetchFlights = async (tripId: string): Promise<FlightRow[]> => {
+export const fetchTransports = async (tripId: string): Promise<TransportRow[]> => {
   const { data, error } = await supabase
     .from('flights')
     .select('*')
     .eq('trip_id', tripId)
     .order('departure_datetime', { ascending: true, nullsFirst: true });
   if (error) throw error;
-  return (data ?? []) as FlightRow[];
+  return (data ?? []) as TransportRow[];
 };
 
-export const createFlight = async (
+export const createTransport = async (
   tripId: string,
-  input: FlightInput
-): Promise<FlightRow> => {
+  input: TransportInput
+): Promise<TransportRow> => {
   const { data, error } = await supabase
     .from('flights')
     .insert({
       trip_id: tripId,
+      transport_type: input.transport_type,
       departure_airport: input.departure_airport,
       arrival_airport: input.arrival_airport,
       departure_datetime: input.departure_datetime ?? null,
@@ -301,16 +326,17 @@ export const createFlight = async (
     .select()
     .single();
   if (error) throw error;
-  return data as FlightRow;
+  return data as TransportRow;
 };
 
-export const updateFlight = async (
+export const updateTransport = async (
   id: string,
-  input: Partial<FlightInput>
-): Promise<FlightRow> => {
+  input: Partial<TransportInput>
+): Promise<TransportRow> => {
   const { data, error } = await supabase
     .from('flights')
     .update({
+      transport_type: input.transport_type,
       departure_airport: input.departure_airport,
       arrival_airport: input.arrival_airport,
       departure_datetime: input.departure_datetime ?? null,
@@ -324,10 +350,134 @@ export const updateFlight = async (
     .select()
     .single();
   if (error) throw error;
-  return data as FlightRow;
+  return data as TransportRow;
 };
 
-export const deleteFlight = async (id: string): Promise<void> => {
+export const deleteTransport = async (id: string): Promise<void> => {
   const { error } = await supabase.from('flights').delete().eq('id', id);
   if (error) throw error;
+};
+
+// ----------------------------------------------------------------------------
+// Checklist items
+// ----------------------------------------------------------------------------
+
+export interface ChecklistItemInput {
+  name: string;
+  category?: string | null;
+  quantity?: number;
+  notes?: string | null;
+}
+
+export const CHECKLIST_CATEGORIES = [
+  'documenti',
+  'abbigliamento',
+  'toilette',
+  'elettronica',
+  'salute',
+  'altro',
+] as const;
+
+export const fetchChecklistItems = async (tripId: string): Promise<ChecklistItemRow[]> => {
+  const { data, error } = await supabase
+    .from('checklist_items')
+    .select('*')
+    .eq('trip_id', tripId)
+    .order('category', { ascending: true, nullsFirst: false })
+    .order('created_at', { ascending: true });
+  if (error) throw error;
+  return (data ?? []) as ChecklistItemRow[];
+};
+
+export const createChecklistItem = async (
+  tripId: string,
+  userId: string,
+  input: ChecklistItemInput
+): Promise<ChecklistItemRow> => {
+  const { data, error } = await supabase
+    .from('checklist_items')
+    .insert({
+      trip_id: tripId,
+      created_by_user_id: userId,
+      name: input.name,
+      category: input.category ?? null,
+      quantity: input.quantity ?? 1,
+      notes: input.notes ?? null,
+    })
+    .select()
+    .single();
+  if (error) throw error;
+  return data as ChecklistItemRow;
+};
+
+export const updateChecklistItem = async (
+  id: string,
+  input: Partial<ChecklistItemInput>
+): Promise<ChecklistItemRow> => {
+  const { data, error } = await supabase
+    .from('checklist_items')
+    .update({
+      name: input.name,
+      category: input.category ?? null,
+      quantity: input.quantity ?? 1,
+      notes: input.notes ?? null,
+    })
+    .eq('id', id)
+    .select()
+    .single();
+  if (error) throw error;
+  return data as ChecklistItemRow;
+};
+
+export const toggleChecklistItem = async (
+  item: ChecklistItemRow,
+  userId: string
+): Promise<ChecklistItemRow> => {
+  const now = new Date().toISOString();
+  const becomingPacked = !item.packed;
+  const { data, error } = await supabase
+    .from('checklist_items')
+    .update({
+      packed: becomingPacked,
+      packed_by_user_id: becomingPacked ? userId : null,
+      packed_at: becomingPacked ? now : null,
+    })
+    .eq('id', item.id)
+    .select()
+    .single();
+  if (error) throw error;
+  return data as ChecklistItemRow;
+};
+
+export const deleteChecklistItem = async (id: string): Promise<void> => {
+  const { error } = await supabase.from('checklist_items').delete().eq('id', id);
+  if (error) throw error;
+};
+
+// ----------------------------------------------------------------------------
+// Checklist categories (custom, with icon)
+// ----------------------------------------------------------------------------
+
+export const fetchChecklistCategories = async (tripId: string): Promise<ChecklistCategoryRow[]> => {
+  const { data, error } = await supabase
+    .from('checklist_categories')
+    .select('*')
+    .eq('trip_id', tripId)
+    .order('created_at', { ascending: true });
+  if (error) throw error;
+  return (data ?? []) as ChecklistCategoryRow[];
+};
+
+export const createChecklistCategory = async (
+  tripId: string,
+  name: string,
+  icon: string
+): Promise<ChecklistCategoryRow> => {
+  const { data, error } = await supabase
+    .from('checklist_categories')
+    .insert({ trip_id: tripId, name, icon })
+    .select()
+    .single();
+  if (error) throw error;
+  return data as ChecklistCategoryRow;
 };

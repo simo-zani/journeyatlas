@@ -320,7 +320,7 @@ h3 {
 
 /* Segmented tab control (trip detail sections) */
 .tab-pill {
-  @apply shrink-0 px-4 py-2.5 rounded-full font-semibold text-sm min-h-[44px] transition-all duration-300 ease-premium;
+  @apply inline-flex items-center gap-2 justify-center px-4 py-2.5 rounded-full font-semibold text-sm min-h-[44px] transition-all duration-300 ease-premium;
 }
 
 /* Link Styling */

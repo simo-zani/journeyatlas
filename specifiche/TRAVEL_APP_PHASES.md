@@ -4,14 +4,14 @@
 
 | Fase | Nome | Status | Completamento |
 |------|------|--------|----------------|
-| 1 | MVP Core (Auth + Viaggio Base) | 🟡 In Progress | 30% |
+| 1 | MVP Core (Auth + Viaggio Base) | 🟡 In Progress | 65% |
 | 2 | Packing + Expense Split | ⏳ Not Started | 0% |
 | 3 | Info Paese + Documenti + Chat | ⏳ Not Started | 0% |
 | 4 | Timeline + Notifiche + Post-Report | ⏳ Not Started | 0% |
 | 5 | Dashboard Analytics + Scratch Map | ⏳ Not Started | 0% |
 
-**Ultimo aggiornamento:** 2024-09-14  
-**Prossima milestone:** Fase 1 — fondazioni (auth + dashboard base) in corso
+**Ultimo aggiornamento:** 2026-09-16  
+**Prossima milestone:** Fase 1 — inviti/condivisione partecipanti (1.9), poi import Notion (1.11) e PWA mobile (1.4)
 
 ---
 
@@ -80,10 +80,13 @@
 - [x] Layout dashboard (header con logo/theme toggle/language, sidebar, main area)
 - [x] Logo + branding in header (premium blue/gold)
 - [x] Lista viaggi corrente (card grid, responsive 1-2-3 columns)
+- [x] Card viaggio con bandiere dei paesi delle mete (`TripFlags`, deduplicate)
+- [x] Viaggi raggruppati per stato: In corso / Programmati / Completati (in base alla data odierna)
 - [x] Button "Crea Nuovo Viaggio" (prominent, gold accent)
 - [~] Modal/form creazione viaggio
   - [x] Input: nome, mete, date, budget
-  - [ ] Integrazione REST Countries API (autocomplete)
+  - [x] Integrazione geocoder mete (Nominatim/OSM) — trova città reali (es. "New York", "Venezia"), nomi in italiano via accept-language, nessuna chiave
+  - [x] Bandiere come immagini dal CDN gratuito REST Countries (emoji non renderizzate su Windows) — niente chiave
   - [ ] Integrazione Unsplash API (suggerimento immagine)
   - [x] Salva a DB
 - [x] Card styling: deep blue border, gold accents
@@ -93,7 +96,9 @@
 ### 1.5 Dettaglio Viaggio - Layout Base
 - [ ] Sidebar con 9 sezioni (Attività, Alloggi, Voli, Packing, Expense, Info, Documenti, Chat, Report)
 - [x] Header con nome viaggio, date, partecipanti
-- [x] Tab navigation (Attività/Alloggi/Voli attivi, altre sectioni disabilitate "coming soon")
+- [x] Tab navigation (Attività/Alloggi/Voli/Check List attive, altre sezioni disabilitate "coming soon")
+- [x] Modifica viaggio dal dettaglio (nome, date, mete, budget) — modal `TripForm` in modalità edit, `updateTrip` API
+- [x] Bandiere dei paesi delle mete nel header del viaggio (una per paese, deduplicate; codice paese salvato in `countryCode` e risolto via Nominatim per i viaggi esistenti, con cache localStorage)
 - **Status:** 🟡 In Progress (sidebar pro futuro, per ora tab bar)
 
 ### 1.6 Sezione Attività
@@ -110,13 +115,34 @@
 - [x] API endpoints
 - **Status:** ✅ Done
 
-### 1.8 Sezione Voli
-- [ ] Form aggiungi volo (passeggeri, bagagli - da aggiungere)
-- [x] Form aggiungi volo (aeroporti, date/orari, compagnia, flight number, booking ref)
-- [x] Lista voli
+### 1.8 Sezione Mezzi (ex Voli)
+- [x] Tab rinominata da "Voli" a "Mezzi" (i18n IT/EN)
+- [x] Migration `0005_transport_type.sql` (colonna `transport_type` con valori flight/train/bus/ferry/car/other)
+- [x] Selettore tipo di mezzo nel form (aereo, treno, pullman, traghetto, auto, altro) con icone
+- [x] Etichette dinamiche: aeroporti per voli, stazione/città per gli altri mezzi
+- [x] Badge tipo mezzo nelle card
+- [x] Form aggiungi mezzo (passeggeri, bagagli - da aggiungere)
+- [x] Form aggiungi mezzo (aeroporti, date/orari, compagnia, numero, booking ref)
+- [x] Lista mezzi
 - [x] Edit/delete
 - [x] API endpoints
 - **Status:** ✅ Done (mancano solo passeggeri/bagagli)
+
+### 1.8b Sezione Check List (ex Packing)
+- [x] Tab rinominato da "Packing" a "Check List" (i18n IT/EN)
+- [x] Migration `0002_checklist.sql` (tabella `checklist_items` + RLS)
+- [x] Form aggiungi voce (nome, categoria, quantità, note)
+- [x] Checkbox "preparato" (toggle packed + chi/quando)
+- [x] Barra di progresso (X/Y preparato)
+- [x] Filtri per categoria e stato (da preparare/preparato)
+- [x] Edit/delete voci
+- [x] API endpoints CRUD
+- [x] Durata viaggio nel header (giorni, notti)
+- [x] Icona calendario ingrandita nel header, separatore data senza em-dash
+- [x] Categorie personalizzabili (migration `0003` rimuove il CHECK constraint)
+- [x] Icona personalizzabile per categoria (migration `0004` tabella `checklist_categories`, set Lucide)
+- **Status:** ✅ Done
+- **Nota:** funzioni avanzate (per persona, template condivisi) in Fase 2
 
 ### 1.9 Inviti e Condivisione
 - [ ] API per invitare partecipante (email)
@@ -148,11 +174,18 @@
 - [ ] Test con Notion export example
 - **Status:** ⏳ Not Started
 
+### 1.12a API esterne & privacy (prerequisito al deploy)
+- [x] Ricerca mete via Nominatim/OSM — nessuna chiave API, nessun segreto nel bundle JS
+- [x] Bandiere via CDN immagini REST Countries (gratis) — nessuna chiave
+- [ ] Verificare Nominatim Usage Policy (≤ 1 req/s, Referer) e usare solo per dev/testing; se l'uso cresce valutare un proxy/memoizzazione (Edge Function) per il deploy
+- **Status:** 🟡 In Progress (nessuna chiave da proteggere; resta da valutare il proxy se l'uso cresce)
+
 ### 1.12 Deployment
 - [ ] Deploy backend (es. Azure, Heroku)
 - [ ] Deploy frontend (es. Vercel)
 - [ ] Setup custom domain (opzionale)
 - **Status:** ⏳ Not Started
+- **Nota:** non è più necessario aggiungere alcun dominio/whitelist su REST Countries: l'autocomplete usa Nominatim/OSM senza chiave
 
 **Checkpoint Fase 1:** Utente può creare un viaggio, invitare partecipanti, aggiungere attività/alloggi/voli, importare da Notion, collaborazione in tempo reale.
 

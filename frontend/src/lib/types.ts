@@ -3,6 +3,7 @@ export type Role = 'owner' | 'editor' | 'viewer';
 export type Destination = {
   city: string;
   country: string;
+  countryCode?: string | null;
   coords?: { lat: number; lon: number } | null;
 };
 
@@ -49,9 +50,18 @@ export type ActivityRow = {
   created_at: string;
 };
 
-export type FlightRow = {
+export type TransportType =
+  | 'flight'
+  | 'train'
+  | 'bus'
+  | 'ferry'
+  | 'car'
+  | 'other';
+
+export type TransportRow = {
   id: string;
   trip_id: string;
+  transport_type: TransportType;
   departure_airport: string;
   arrival_airport: string;
   departure_datetime: string | null;
@@ -84,6 +94,36 @@ export type AccommodationRow = {
   created_at: string;
 };
 
+export type ChecklistItemRow = {
+  id: string;
+  trip_id: string;
+  name: string;
+  category: string | null;
+  quantity: number;
+  notes: string | null;
+  packed: boolean;
+  packed_by_user_id: string | null;
+  packed_at: string | null;
+  created_by_user_id: string;
+  created_at: string;
+};
+
+export type ChecklistItemCategory =
+  | 'documenti'
+  | 'abbigliamento'
+  | 'toilette'
+  | 'elettronica'
+  | 'salute'
+  | 'altro';
+
+export type ChecklistCategoryRow = {
+  id: string;
+  trip_id: string;
+  name: string;
+  icon: string;
+  created_at: string;
+};
+
 export type Trip = TripRow & { participants?: TripParticipantRow[] };
 
 export type Database = {
@@ -108,15 +148,27 @@ export type Database = {
         Relationships: [];
       };
       flights: {
-        Row: FlightRow;
-        Insert: Partial<FlightRow>;
-        Update: Partial<FlightRow>;
+        Row: TransportRow;
+        Insert: Partial<TransportRow>;
+        Update: Partial<TransportRow>;
         Relationships: [];
       };
       accommodations: {
         Row: AccommodationRow;
         Insert: Partial<AccommodationRow>;
         Update: Partial<AccommodationRow>;
+        Relationships: [];
+      };
+      checklist_items: {
+        Row: ChecklistItemRow;
+        Insert: Partial<ChecklistItemRow>;
+        Update: Partial<ChecklistItemRow>;
+        Relationships: [];
+      };
+      checklist_categories: {
+        Row: ChecklistCategoryRow;
+        Insert: Partial<ChecklistCategoryRow>;
+        Update: Partial<ChecklistCategoryRow>;
         Relationships: [];
       };
     };

@@ -89,7 +89,7 @@ export const AccommodationSection: React.FC<AccommodationSectionProps> = ({ trip
 
       {loading ? (
         <div className="flex items-center justify-center py-12">
-          <Loader2 className="w-8 h-8 text-gold animate-spin" />
+          <Loader2 className="w-16 h-16 text-gold animate-spin" />
         </div>
       ) : items.length === 0 ? (
         <div className="empty-state">

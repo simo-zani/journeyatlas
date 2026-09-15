@@ -4,12 +4,14 @@ import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/Button';
 import { Input } from '@/components/Input';
 import { Alert } from '@/components/Alert';
+import { DestinationPicker } from '@/components/DestinationPicker';
 import { useAuth } from '@/auth/AuthContext';
-import { createTrip } from '@/lib/api';
-import type { Trip } from '@/lib/types';
+import { createTrip, updateTrip } from '@/lib/api';
+import type { Destination, Trip } from '@/lib/types';
 
 interface TripFormProps {
   onSuccess: (trip: Trip) => void;
+  initial?: Trip | null;
 }
 
 const isValidIsoDate = (value: string): boolean => {
@@ -20,18 +22,22 @@ const isValidIsoDate = (value: string): boolean => {
   return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day;
 };
 
-export const TripForm: React.FC<TripFormProps> = ({ onSuccess }) => {
+export const TripForm: React.FC<TripFormProps> = ({ onSuccess, initial }) => {
   const { t } = useTranslation();
   const { user } = useAuth();
 
-  const [name, setName] = useState('');
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
+  const [name, setName] = useState(initial?.name ?? '');
+  const [startDate, setStartDate] = useState(initial?.start_date ?? '');
+  const [endDate, setEndDate] = useState(initial?.end_date ?? '');
+  const [destinations, setDestinations] = useState<Destination[]>(initial?.destinations ?? []);
+  const [budget, setBudget] = useState(
+    initial?.budget_planned != null ? String(initial.budget_planned) : ''
+  );
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   const canSubmit =
-    name.trim().length > 0 && isValidIsoDate(startDate) && (!endDate || (isValidIsoDate(endDate) && endDate >= startDate));
+    name.trim().length > 0 && isValidIsoDate(startDate) && (!endDate || (isValidIsoDate(endDate) && endDate >= startDate)) && (budget === '' || Number(budget) >= 0);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,12 +46,18 @@ export const TripForm: React.FC<TripFormProps> = ({ onSuccess }) => {
     setError(null);
     setSubmitting(true);
 
+    const input = {
+      name,
+      start_date: startDate || null,
+      end_date: endDate || null,
+      destinations,
+      budget_planned: budget === '' ? null : Number(budget),
+    };
+
     try {
-      const trip = await createTrip(user.id, {
-        name,
-        start_date: startDate || null,
-        end_date: endDate || null,
-      });
+      const trip = initial
+        ? await updateTrip(initial.id, input)
+        : await createTrip(user.id, input);
       onSuccess(trip);
     } catch (err) {
       const message =
@@ -86,6 +98,18 @@ export const TripForm: React.FC<TripFormProps> = ({ onSuccess }) => {
         value={endDate}
         min={isValidIsoDate(startDate) ? startDate : undefined}
         onChange={(e) => setEndDate(e.target.value)}
+      />
+
+      <DestinationPicker value={destinations} onChange={setDestinations} />
+
+      <Input
+        label={t('trip.budget')}
+        type="number"
+        min="0"
+        step="0.01"
+        value={budget}
+        onChange={(e) => setBudget(e.target.value)}
+        placeholder={t('trip.budgetPlaceholder')}
       />
 
       <div className="flex justify-end gap-3 pt-2">

@@ -9,6 +9,7 @@
 | 3 | Info Paese + Documenti + Chat | ⏳ Not Started | 0% |
 | 4 | Timeline + Notifiche + Post-Report | ⏳ Not Started | 0% |
 | 5 | Dashboard Analytics + Scratch Map | ⏳ Not Started | 0% |
+| 6 | Admin Dashboard (metriche servizio) | ⏳ Not Started | 0% |
 
 **Ultimo aggiornamento:** 2026-09-16  
 **Prossima milestone:** Fase 1 — inviti/condivisione partecipanti (1.9), poi import Notion (1.11) e PWA mobile (1.4)
@@ -144,15 +145,56 @@
 - **Status:** ✅ Done
 - **Nota:** funzioni avanzate (per persona, template condivisi) in Fase 2
 
-### 1.9 Inviti e Condivisione
-- [ ] API per invitare partecipante (email)
-- [ ] Salvataggio invite nel DB (pending)
-- [ ] Email notifica (SendGrid o Supabase built-in)
-- [ ] Magic link per accettare invite (se non registrato, crea account prima)
-- [ ] Aggiunta automatica al viaggio una volta accepted
-- [ ] Gestione ruoli (owner, editor, viewer)
-- [ ] Lista partecipanti nel viaggio detail
+### 1.9 Condivisione Viaggio & Partecipanti
+
+#### Architettura dati
+- Il viaggio **non viene duplicato**: esiste un'unica riga in `trips`.  
+- La tabella `trip_participants` (già in `0001_init.sql`) è la **join table** che associa utenti a un viaggio con il proprio ruolo.
+- Ogni utente che ha accesso al viaggio (owner + partecipanti accettati) lo vede nella propria dashboard tramite una query su `trip_participants`.
+- La dashboard già esegue `fetchMyTrips` filtrata per `owner_id = me` — va estesa a includere anche i viaggi dove `trip_participants.user_id = me AND joined_at IS NOT NULL`.
+
+#### Username univoco (prerequisito)
+- [ ] Migration `0006_username.sql`: aggiungere colonna `username text unique` a `public.profiles`
+  - Constraint: solo `[a-z0-9_.]`, min 3 char, max 30 char
+  - Index `idx_profiles_username` per ricerca veloce
+- [ ] Trigger `handle_new_user` aggiornato: genera username di default da email (parte prima di `@`) + suffisso numerico se già esistente
+- [ ] Pagina/modal impostazioni profilo: campo per scegliere/modificare username
+- [ ] Validazione realtime: debounce 300ms, check disponibilità via Supabase query, feedback visivo (✓ / ✗)
 - **Status:** ⏳ Not Started
+
+#### Flusso invito
+- [ ] UI "Condividi viaggio" nel dettaglio viaggio (pulsante nella header, visibile solo all'owner)
+- [ ] Modal di invito: campo di ricerca username (autocomplete dopo 2 caratteri, debounce 300ms)
+  - Query `profiles` per `username ILIKE 'query%'` (case-insensitive prefix)
+  - Mostra avatar, display_name e @username nei risultati
+  - Esclude utenti già partecipanti al viaggio
+- [ ] Selezione ruolo al momento dell'invito: **Editor** (modifica tutto) o **Viewer** (sola lettura)
+- [ ] Click "Invita": crea riga in `trip_participants` con `status = 'pending'`, `invited_by = owner_uid`, `role` scelto
+  - Migration `0007_invite_status.sql`: aggiungere colonna `status text check ('pending','accepted','declined') default 'pending'` e `invited_by uuid`
+- [ ] Notifica in-app all'invitato (badge su icona campanella o sezione "Notifiche" — da definire in Fase 3; per ora basta un banner nella dashboard)
+- **Status:** ⏳ Not Started
+
+#### Accettazione / Rifiuto
+- [ ] Sezione "Inviti in sospeso" in dashboard (sopra la lista viaggi, visibile solo se ci sono pending)
+- [ ] Card invito: nome viaggio, owner che ha invitato, ruolo proposto, pulsanti **Accetta** / **Rifiuta**
+- [ ] Accetta → `trip_participants.status = 'accepted'`, `joined_at = now()` → viaggio appare nella dashboard dell'invitato
+- [ ] Rifiuta → `trip_participants.status = 'declined'` (row resta per audit, non viene riproposta)
+- **Status:** ⏳ Not Started
+
+#### Gestione partecipanti (owner only)
+- [ ] Lista partecipanti nel dettaglio viaggio (avatar, username, ruolo, data join)
+- [ ] Owner può cambiare ruolo di un partecipante (Editor ↔ Viewer) in qualsiasi momento
+- [ ] Owner può rimuovere un partecipante (delete row da `trip_participants`)
+- [ ] Owner non può rimuovere sé stesso (protezione lato DB via RLS + lato UI)
+- **Status:** ⏳ Not Started
+
+#### RLS & sicurezza
+- Già presenti in `0001_init.sql`: `is_trip_participant()`, `can_edit_trip()`, `is_trip_owner()`
+- Aggiornare le policy `SELECT` di `trips` per includere i partecipanti con `status = 'accepted'`
+- Policy `INSERT/UPDATE/DELETE` su `activities`, `accommodations`, `transport`, `checklist_items`: solo `can_edit_trip(trip_id) = true`
+- Viewer: `SELECT` su tutte le sezioni, nessun `INSERT/UPDATE/DELETE`
+- **Status:** ⏳ Not Started (policy di base presenti, da estendere con status check)
+
 
 ### 1.10 Testing & Bugfix
 - [ ] Test login/logout
@@ -179,6 +221,50 @@
 - [x] Bandiere via CDN immagini REST Countries (gratis) — nessuna chiave
 - [ ] Verificare Nominatim Usage Policy (≤ 1 req/s, Referer) e usare solo per dev/testing; se l'uso cresce valutare un proxy/memoizzazione (Edge Function) per il deploy
 - **Status:** 🟡 In Progress (nessuna chiave da proteggere; resta da valutare il proxy se l'uso cresce)
+
+### 1.12b Storage & Compressione Immagini
+
+> **Obiettivo:** contenere il consumo di Supabase Storage (limite free: 1 GB) facendo in modo che ogni immagine di copertina pesi al massimo ~200 KB, indipendentemente dal file originale caricato dall'utente.
+
+#### Strategia: compressione client-side prima dell'upload
+- Tutta la riduzione avviene nel browser via **Canvas API** — nessuna dipendenza esterna necessaria
+- Nessun dato transita su server solo per essere ridimensionato
+- Il file inviato a Supabase Storage è già compresso → nessun post-processing lato server
+
+#### Parametri target per le immagini di copertina
+| Parametro | Valore | Motivo |
+|---|---|---|
+| Formato output | **WebP** | miglior rapporto qualità/peso; supportato da tutti i browser moderni |
+| Aspect ratio | **16:9** (es. 960×540) | si adatta perfettamente alle card e al futuro dettaglio viaggio |
+| Dimensioni max | 960 × 540 px | sufficiente per display retina su card; non eccessive |
+| Dimensione file max | **200 KB** | ~5.000 immagini per esaurire 1 GB Storage → ampio margine |
+| Qualità WebP | 0.82 (dinamica) | si abbassa automaticamente finché non si raggiunge il target KB |
+
+#### Implementazione (lato frontend)
+- [ ] Utility `compressCoverImage(file: File): Promise<Blob>` in `src/lib/imageUtils.ts`:
+  1. Carica il file in un `<img>` element (URL.createObjectURL)
+  2. Disegna su `<canvas>` con resize a 960×540 (crop centrato sul lato corto — `object-cover`)
+  3. Esporta con `canvas.toBlob('image/webp', quality)` in loop finché `blob.size ≤ 200 KB` (abbassa quality di 0.05 per iterazione, min 0.4)
+  4. Ritorna il `Blob` finale
+- [ ] Il componente di upload (modale trip, futuro campo cover) chiama `compressCoverImage` prima di `supabase.storage.from('trip-covers').upload(...)`
+- [ ] Preview istantanea dell'immagine compressa prima del salvataggio (mostra peso risultante)
+- [ ] Feedback visivo durante compressione (spinner leggero)
+- **Status:** ⏳ Not Started
+
+#### Guardia lato Supabase Storage (difesa in profondità)
+- [ ] Bucket `trip-covers`: impostare `maxFileSizeBytes = 512000` (512 KB) come ulteriore guard server-side — se per qualsiasi motivo la compressione client non gira, il server rifiuta
+- [ ] RLS bucket: solo l'utente autenticato può caricare nel proprio path (`{user_id}/{trip_id}.webp`)
+- [ ] Naming convention file: `{user_id}/{trip_id}.webp` — sovrascrivibile (update) senza proliferare copie
+- **Status:** ⏳ Not Started
+
+#### Impatto stimato sullo storage
+| Scenario | Immagini | Peso medio | Totale |
+|---|---|---|---|
+| 100 utenti × 5 viaggi | 500 | 150 KB | **~75 MB** |
+| 1.000 utenti × 5 viaggi | 5.000 | 150 KB | **~750 MB** |
+| Soglia attenzione (75%) | — | — | 750 MB / 1 GB |
+
+
 
 ### 1.12 Deployment
 - [ ] Deploy backend (es. Azure, Heroku)
@@ -527,6 +613,89 @@
 
 ---
 
+## FASE 6: Admin Dashboard — Metriche Servizio
+
+**Durata stimata:** 0.5 settimane  
+**Prerequisiti:** Fase 1 completata (auth + profili)  
+**Deliverable:** Pannello web privato per admin — metriche aggregate anonime + stima consumi Supabase free tier
+
+> ⚠️ **Privacy by design**: nessun dato personale esposto, nessun viaggio, nessun contenuto utente.
+> Tutte le query restituiscono solo contatori aggregati.
+
+### 6.1 Ruolo Admin
+
+#### Schema DB
+- [ ] Migration `0008_admin_role.sql`: aggiungere colonna `is_admin boolean not null default false` a `public.profiles`
+  - Solo un superuser Postgres o il proprietario del progetto Supabase può settare `is_admin = true` via SQL diretto (mai via UI pubblica)
+  - Index `idx_profiles_is_admin` (sparse, pochissime righe `true`)
+- [ ] RLS: nessuna policy espone `is_admin` agli utenti normali; le funzioni admin usano `security definer`
+- **Status:** ⏳ Not Started
+
+#### Protezione route
+- [ ] Hook React `useAdminGuard`: legge `profile.is_admin` dall’AuthContext; se `false` o `null` → redirect a `/` con toast "accesso negato"
+- [ ] Route `/admin` protetta da `AdminRoute` component (simile a `ProtectedRoute` già presente)
+- [ ] Nessun link visibile nell’UI per utenti non-admin (la route esiste ma non è navigabile)
+- **Status:** ⏳ Not Started
+
+### 6.2 Metriche Aggregate (anonime)
+
+Tutte le query sono funzioni Postgres `security definer` richiamabili solo da admin.
+
+#### Utenti
+- [ ] **Totale utenti registrati** — `count(*) from auth.users`
+- [ ] **Nuovi utenti ultimi 30 giorni** — `count(*) where created_at >= now()-interval '30 days'`
+- [ ] **Utenti attivi ultimi 7 / 30 giorni** — da `auth.users.last_sign_in_at` (già in Supabase Auth, nessun dato aggiuntivo)
+- [ ] **Tasso di ritorno** — utenti con `last_sign_in_at` > `created_at + 1 day` / totale (anonimo)
+- **Status:** ⏳ Not Started
+
+#### Contenuti (solo aggregati)
+- [ ] Totale viaggi creati
+- [ ] Totale attività / alloggi / mezzi / checklist items
+- [ ] Media elementi per viaggio (aggregato globale, non per utente)
+- [ ] Totale partecipanti shared (quante volte un viaggio è stato condiviso)
+- **Status:** ⏳ Not Started
+
+### 6.3 Stima Consumi Supabase Free Tier
+
+I limiti del **Free Tier Supabase (2024)** da monitorare:
+
+| Risorsa | Limite Free | Come stimarlo |
+|---|---|---|
+| Database size | 500 MB | `pg_database_size('postgres')` via RPC |
+| Monthly Active Users | 50.000 | `count(distinct user_id from auth.users where last_sign_in >= now()-30d)` |
+| Storage (immagini) | 1 GB | `sum(metadata->>'size')` da `storage.objects` |
+| Bandwidth | 5 GB/mese | Non misurabile lato DB; stima: N immagini × 400 KB |
+| Edge Functions invocations | 500.000/mese | (futuro) |
+
+- [ ] Funzione RPC `admin_get_db_size()` — `security definer`, ritorna `pg_database_size` in MB
+- [ ] Funzione RPC `admin_get_storage_used()` — somma `size` da `storage.objects` dove bucket = 'trip-covers'
+- [ ] Stima bandwidth: `(numero immagini × 400 KB) + (numero utenti attivi × 50 KB per sessione media)` calcolata lato frontend con le metriche sopra
+- [ ] Barre di progresso visive per ogni risorsa (es. `243 MB / 500 MB = 48%`)
+- [ ] Soglie colorate: verde < 60%, giallo 60-85%, rosso > 85%
+- [ ] Nota disclaimer: "Stime approssimative. Verificare sul pannello Supabase per dati esatti."
+- **Status:** ⏳ Not Started
+
+### 6.4 UI Admin Dashboard
+
+- [ ] Layout dedicato `/admin` — sidebar minimal, header con badge "ADMIN"
+- [ ] Sezione **Utenti**: KPI cards (totale, nuovi 30gg, attivi 7gg, attivi 30gg)
+- [ ] Sezione **Contenuti**: contatori aggregati in tabella o card grid
+- [ ] Sezione **Consumi Supabase**: barre progresso per ogni risorsa monitorata
+- [ ] Refresh manuale (button) + timestamp "ultimo aggiornamento"
+- [ ] Export CSV dei dati aggregati (per storico manuale)
+- [ ] Nessun campo utente esposto: niente email, username, niente lista viaggi
+- **Status:** ⏳ Not Started
+
+### 6.5 Sicurezza & Audit
+- [ ] Tutte le funzioni admin usano `security definer` + check esplicito `auth.uid() IN (SELECT id FROM profiles WHERE is_admin = true)` — doppia protezione
+- [ ] Log degli accessi admin in tabella `admin_access_log` (timestamp, admin_uid, action) — niente PII
+- [ ] Review semestrale: verificare che nessuna query esponga dati utente individuali
+- **Status:** ⏳ Not Started
+
+**Checkpoint Fase 6:** Admin può accedere a `/admin`, vedere metriche aggregate anonime e stimare i consumi Supabase senza mai toccare dati personali degli utenti.
+
+---
+
 ## Post-Launch (Opzionale)
 
 - [ ] Mobile app native (React Native)
@@ -548,6 +717,7 @@
 | 3 | 1.75 | 4.5 | ⏳ |
 | 4 | 1 | 5.5 | ⏳ |
 | 5 | 1.25 | 6.75 | ⏳ |
+| 6 | 0.5 | 7.25 | ⏳ |
 
 **Totale: ~7 settimane** (caso ottimista, parallelizzando dove possibile)
 

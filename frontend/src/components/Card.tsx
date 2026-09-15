@@ -4,14 +4,15 @@ interface CardProps {
   children: React.ReactNode;
   className?: string;
   compact?: boolean;
+  noPadding?: boolean;
   onClick?: () => void;
   style?: React.CSSProperties;
 }
 
-export const Card: React.FC<CardProps> = ({ children, className = '', compact = false, onClick, style }) => {
+export const Card: React.FC<CardProps> = ({ children, className = '', compact = false, noPadding = false, onClick, style }) => {
   return (
     <div
-      className={`card ${compact ? 'card-compact' : ''} ${onClick ? 'cursor-pointer' : ''} ${className}`}
+      className={`card ${compact ? 'card-compact' : ''} ${noPadding ? 'card-no-padding' : ''} ${onClick ? 'cursor-pointer' : ''} ${className}`}
       style={style}
       onClick={onClick}
       role={onClick ? 'button' : undefined}

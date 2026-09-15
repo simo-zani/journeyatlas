@@ -2,10 +2,10 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Plus, MapPin, Calendar, Wallet, Loader2 } from 'lucide-react';
+import { Plus, Loader2 } from 'lucide-react';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
-import { Badge } from '@/components/Badge';
+
 import { Modal } from '@/components/Modal';
 import { TripForm } from '@/components/TripForm';
 import { TripFlags } from '@/components/TripFlags';
@@ -37,11 +37,8 @@ const getStatus = (trip: Trip): TravelStatus => {
 
 const STATUS_ORDER: TravelStatus[] = ['ongoing', 'planned', 'completed'];
 
-const STATUS_BADGE_VARIANT: Record<TravelStatus, 'gold' | 'success' | 'warning' | 'error' | 'info'> = {
-  ongoing: 'success',
-  planned: 'gold',
-  completed: 'info',
-};
+
+
 
 const gridVariants = {
   hidden: {},
@@ -101,46 +98,64 @@ export const DashboardPage: React.FC = () => {
     navigate(`/trips/${trip.id}`);
   };
 
-  const renderTripCard = (trip: Trip) => (
-    <motion.div key={trip.id} variants={cardVariants}>
-      <Card compact onClick={() => navigate(`/trips/${trip.id}`)} className="h-full">
-        <div className="flex items-start justify-between gap-2 mb-2">
-          <div className="flex items-center gap-2 min-w-0">
-            <TripFlags destinations={trip.destinations} size="sm" />
-            <h3 className="text-lg truncate">{trip.name}</h3>
+  const renderTripCard = (trip: Trip) => {
+    const dateStr = [
+      trip.start_date ? formatDate(trip.start_date) : null,
+      trip.end_date ? formatDate(trip.end_date) : null,
+    ]
+      .filter(Boolean)
+      .join('  ·  ');
+
+    return (
+      <motion.div key={trip.id} variants={cardVariants} className="h-full">
+        <Card
+          noPadding
+          onClick={() => navigate(`/trips/${trip.id}`)}
+          className="h-full overflow-hidden"
+        >
+          {/* Cover area */}
+          <div className="relative flex-shrink-0" style={{ height: '176px' }}>
+            {/* Immagine di copertina */}
+            <img
+              src="/images/placeholder.webp"
+              alt=""
+              className="absolute inset-0 w-full h-full object-cover"
+              draggable={false}
+            />
+
+            {/* Overlay sfumato multi-stop — effetto cinematografico */}
+            <div
+              className="absolute inset-0"
+              style={{
+                background:
+                  'linear-gradient(to top, rgba(0,0,0,0.92) 0%, rgba(0,0,0,0.70) 25%, rgba(0,0,0,0.35) 50%, rgba(0,0,0,0.08) 75%, transparent 100%)',
+              }}
+            />
+
+            {/* Contenuto in basso */}
+            <div className="absolute bottom-0 left-0 right-0 px-5 pb-4">
+              {/* Bandiera + titolo */}
+              <div className="flex items-center gap-2.5 mb-1">
+                <TripFlags destinations={trip.destinations} size="sm" />
+                <h3 className="text-white text-base font-semibold truncate leading-snug drop-shadow">
+                  {trip.archived_at ? <span className="opacity-60">[Archiviato] </span> : null}
+                  {trip.name}
+                </h3>
+              </div>
+
+              {/* Date */}
+              {dateStr && (
+                <p className="text-white/60 text-xs tracking-wide">{dateStr}</p>
+              )}
+            </div>
           </div>
-          <Badge
-            variant={trip.archived_at ? 'warning' : STATUS_BADGE_VARIANT[getStatus(trip)]}
-            className="shrink-0"
-          >
-            {trip.archived_at ? t('trip.archived') : statusLabel(getStatus(trip))}
-          </Badge>
-        </div>
+        </Card>
+      </motion.div>
+    );
+  };
 
-        {(trip.start_date || trip.end_date) && (
-          <p className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400 mb-1">
-            <Calendar className="w-4 h-4 shrink-0" />
-            {formatDate(trip.start_date)}
-            {trip.end_date ? ` — ${formatDate(trip.end_date)}` : ''}
-          </p>
-        )}
 
-        {trip.destinations && trip.destinations.length > 0 && (
-          <p className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400 mb-1">
-            <MapPin className="w-4 h-4 shrink-0" />
-            {trip.destinations.map((d) => d.city).filter(Boolean).join(', ')}
-          </p>
-        )}
 
-        {trip.budget_planned != null && (
-          <p className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
-            <Wallet className="w-4 h-4 shrink-0" />
-            {t('trip.budget')}: {trip.budget_planned}
-          </p>
-        )}
-      </Card>
-    </motion.div>
-  );
 
   const renderSection = (status: TravelStatus) => {
     const sectionTrips = groups[status];
@@ -179,12 +194,7 @@ export const DashboardPage: React.FC = () => {
     <div className="max-w-6xl mx-auto">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
         <div>
-          <h1 className="mb-1">{t('dashboard.title')}</h1>
-          {user?.email && (
-            <p className="text-slate-600 dark:text-slate-400 text-sm">
-              {t('dashboard.welcome', { name: user.email })}
-            </p>
-          )}
+          <h1>{t('dashboard.title')}</h1>
         </div>
         <Button onClick={() => setCreateOpen(true)}>
           <Plus className="w-5 h-5" />

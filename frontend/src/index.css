@@ -185,6 +185,10 @@ h3 {
   @apply p-4 gap-2;
 }
 
+.card-no-padding {
+  @apply p-0;
+}
+
 /* Static raised surface (modals, dropdowns) — same materials as .card
    without its hover lift/accent line, which would look like a bug on
    non-card containers. */

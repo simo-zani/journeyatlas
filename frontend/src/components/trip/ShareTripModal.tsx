@@ -25,9 +25,9 @@ const ParticipantAvatar: React.FC<{ avatarUrl: string | null; username: string |
   username,
 }) =>
   avatarUrl ? (
-    <img src={avatarUrl} alt="" className="w-8 h-8 rounded-full object-cover shrink-0" />
+    <img src={avatarUrl} alt="" className="w-10 h-10 rounded-full object-cover shrink-0" />
   ) : (
-    <div className="w-8 h-8 rounded-full bg-gold/20 flex items-center justify-center text-gold text-xs font-bold shrink-0">
+    <div className="w-10 h-10 rounded-full bg-gold/20 flex items-center justify-center text-gold text-sm font-bold shrink-0">
       {(username ?? '?').charAt(0).toUpperCase()}
     </div>
   );
@@ -140,14 +140,14 @@ export const ShareTripModal: React.FC<ShareTripModalProps> = ({
         {isOwner && (
           <div className="space-y-3">
             <div className="input-field flex items-center gap-2">
-              <Search className="w-4 h-4 text-slate-400 shrink-0" />
+              <Search className="w-5 h-5 text-slate-400 shrink-0" />
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder={t('share.searchPlaceholder')}
                 className="w-full bg-transparent outline-none placeholder:text-slate-400"
               />
-              {searching && <Loader2 className="w-4 h-4 text-gold animate-spin shrink-0" />}
+              {searching && <Loader2 className="w-5 h-5 text-gold animate-spin shrink-0" />}
             </div>
 
             <div className="flex items-center gap-2 p-1 rounded-xl bg-slate-900/5 dark:bg-white/5 w-fit">

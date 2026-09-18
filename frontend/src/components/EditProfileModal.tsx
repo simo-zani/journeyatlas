@@ -232,10 +232,10 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
               <button
                 type="button"
                 onClick={handleRemoveAvatar}
-                className="absolute -top-1 -right-1 w-8 h-8 rounded-full bg-black/70 hover:bg-black/90 text-white flex items-center justify-center transition-all cursor-pointer shadow-lg hover:scale-105 active:scale-95"
+                className="absolute -top-1 -right-1 w-10 h-10 rounded-full bg-black/70 hover:bg-black/90 text-white flex items-center justify-center transition-all cursor-pointer shadow-lg hover:scale-105 active:scale-95"
                 title={t('common.remove')}
               >
-                <X className="w-4 h-4" strokeWidth={2.5} />
+                <X className="w-5 h-5" strokeWidth={2.5} />
               </button>
             </div>
           ) : (
@@ -273,7 +273,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
           {/* Minimal handle-style username: "@" is a static prefix, never part
               of the editable value. Read-only until the pencil is clicked —
               that's the only affordance that it can be changed at all. */}
-          <div className="flex items-center gap-1 text-lg">
+          <div className="flex items-center gap-1 text-xs">
             <span className="italic text-slate-400 dark:text-slate-500">@</span>
             {usernameEditing ? (
               <input
@@ -300,11 +300,11 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
               className="p-1 rounded-lg text-slate-400 hover:text-gold hover:bg-gold/10 transition-colors cursor-pointer"
               title={t('auth.username')}
             >
-              <Pencil className="w-3.5 h-3.5" />
+              <Pencil className="w-3 h-3" />
             </button>
           </div>
 
-          <div className="w-full space-y-3">
+          <div className="w-full space-y-3 mt-2">
             {profileError && <Alert type="error" message={profileError} onClose={() => setProfileError(null)} />}
 
             <Button type="button" className="w-full" onClick={handleSaveProfile} disabled={savingProfile}>

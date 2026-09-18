@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ImagePlus, Loader2, X } from 'lucide-react';
+import { ImagePlus, Loader2, Pencil, X } from 'lucide-react';
 import { Modal } from '@/components/Modal';
 import { Button } from '@/components/Button';
 import { Input } from '@/components/Input';
@@ -15,6 +15,7 @@ interface EditProfileModalProps {
   open: boolean;
   onClose: () => void;
   userId: string;
+  email: string;
   currentAvatarUrl: string | null;
   currentUsername: string | null;
   onSaved: (next: { avatarUrl: string | null; username: string }) => void;
@@ -24,12 +25,14 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
   open,
   onClose,
   userId,
+  email,
   currentAvatarUrl,
   currentUsername,
   onSaved,
 }) => {
   const { t } = useTranslation();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const usernameInputRef = useRef<HTMLInputElement>(null);
 
   // Avatar + username
   const [preview, setPreview] = useState<string | null>(currentAvatarUrl);
@@ -37,6 +40,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
   const [avatarRemoved, setAvatarRemoved] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [username, setUsername] = useState(currentUsername ?? '');
+  const [usernameEditing, setUsernameEditing] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
   const [savingProfile, setSavingProfile] = useState(false);
 
@@ -58,6 +62,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
     setFile(null);
     setAvatarRemoved(false);
     setUsername(currentUsername ?? '');
+    setUsernameEditing(false);
     setProfileError(null);
     setShowPasswordFields(false);
     setNewPassword('');
@@ -205,11 +210,11 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
           {passwordError && <Alert type="error" message={passwordError} onClose={() => setPasswordError(null)} />}
           {passwordSuccess && <Alert type="success" message={t('profile.passwordUpdated')} />}
 
-          <div className="flex gap-3">
-            <Button type="button" variant="tertiary" className="flex-1" onClick={resetPasswordSection}>
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="tertiary" size="sm" onClick={resetPasswordSection}>
               {t('common.cancel')}
             </Button>
-            <Button type="button" className="flex-1" onClick={handleChangePassword} disabled={changingPassword}>
+            <Button type="button" size="sm" onClick={handleChangePassword} disabled={changingPassword}>
               {changingPassword && <Loader2 className="w-4 h-4 animate-spin" />}
               {t('profile.updatePassword')}
             </Button>
@@ -263,19 +268,40 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
             onChange={(e) => handleFileSelect(e.target.files?.[0] ?? null)}
           />
 
+          <p className="text-xs text-slate-500 dark:text-slate-400">{email}</p>
+
           {/* Minimal handle-style username: "@" is a static prefix, never part
-              of the editable value, in keeping with it never being accepted
-              as input. */}
-          <div className="flex items-center justify-center gap-0.5 text-lg">
+              of the editable value. Read-only until the pencil is clicked —
+              that's the only affordance that it can be changed at all. */}
+          <div className="flex items-center gap-1 text-lg">
             <span className="italic text-slate-400 dark:text-slate-500">@</span>
-            <input
-              value={username}
-              onChange={(e) => setUsername(e.target.value.replace(/[^A-Za-z0-9_.-]/g, ''))}
-              required
-              autoComplete="username"
-              aria-label={t('auth.username')}
-              className="italic font-semibold text-slate-900 dark:text-slate-100 bg-transparent border-b border-transparent focus:border-gold outline-none text-center w-36 py-0.5 transition-colors"
-            />
+            {usernameEditing ? (
+              <input
+                ref={usernameInputRef}
+                value={username}
+                onChange={(e) => setUsername(e.target.value.replace(/[^A-Za-z0-9_.-]/g, ''))}
+                onBlur={() => setUsernameEditing(false)}
+                autoFocus
+                required
+                autoComplete="username"
+                aria-label={t('auth.username')}
+                size={Math.max(username.length, 1)}
+                className="italic font-semibold text-slate-900 dark:text-slate-100 bg-transparent border-b border-gold outline-none py-0.5"
+              />
+            ) : (
+              <span className="italic font-semibold text-slate-900 dark:text-slate-100">{username}</span>
+            )}
+            <button
+              type="button"
+              onClick={() => {
+                setUsernameEditing(true);
+                requestAnimationFrame(() => usernameInputRef.current?.focus());
+              }}
+              className="p-1 rounded-lg text-slate-400 hover:text-gold hover:bg-gold/10 transition-colors cursor-pointer"
+              title={t('auth.username')}
+            >
+              <Pencil className="w-3.5 h-3.5" />
+            </button>
           </div>
 
           <div className="w-full space-y-3">

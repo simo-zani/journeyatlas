@@ -635,6 +635,7 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
           open={profileModalOpen}
           onClose={() => setProfileModalOpen(false)}
           userId={user.id}
+          email={user.email ?? ''}
           currentAvatarUrl={avatarUrl}
           currentUsername={username}
           onSaved={(next) => {

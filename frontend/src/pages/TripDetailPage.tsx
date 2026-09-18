@@ -66,7 +66,7 @@ export const TripDetailPage: React.FC = () => {
   const [trip, setTrip] = useState<Trip | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeSection, setActiveSection] = useState<TripSection>('activities');
+  const [activeSection, setActiveSection] = useState<TripSection>('calendar');
   const [editOpen, setEditOpen] = useState(false);
   const [tabsScrolled, setTabsScrolled] = useState(false);
   const sentinelRef = useRef<HTMLDivElement>(null);
@@ -110,7 +110,7 @@ export const TripDetailPage: React.FC = () => {
     const end = new Date(`${trip.end_date}T00:00:00`).getTime();
     if (Number.isNaN(start) || Number.isNaN(end) || end < start) return null;
     const days = Math.round((end - start) / 86400000) + 1;
-    return { days, nights: days - 1 };
+    return { nights: days - 1 };
   }, [trip]);
 
   const sectionLabel = (section: TripSection) => t(`tripSection.${section}`);
@@ -129,7 +129,7 @@ export const TripDetailPage: React.FC = () => {
           {/* ── Cover image background fading downward ── */}
           {hasCover && (
             <div
-              className="pointer-events-none absolute -top-[clamp(16px,2.5%,40px)] -left-[clamp(16px,2.5%,48px)] -right-[clamp(16px,2.5%,48px)] h-80 sm:h-96 overflow-hidden z-0"
+              className="pointer-events-none absolute -top-[clamp(16px,2.5vw,40px)] -left-[clamp(16px,2.5vw,48px)] -right-[clamp(16px,2.5vw,48px)] h-80 sm:h-96 overflow-hidden z-0"
               style={{
                 backgroundImage: `url(${trip.cover_image_url})`,
                 backgroundSize: 'cover',
@@ -167,7 +167,7 @@ export const TripDetailPage: React.FC = () => {
 
               {(trip.start_date || trip.end_date) && (
                 <div
-                  className={`flex items-center gap-2 mt-1.5 text-sm sm:text-base font-medium ${
+                  className={`flex flex-col gap-0.5 mt-1.5 text-sm sm:text-base font-medium ${
                     hasCover ? 'text-white/75 drop-shadow' : 'text-slate-500 dark:text-slate-400'
                   }`}
                 >
@@ -177,11 +177,18 @@ export const TripDetailPage: React.FC = () => {
                   </span>
                   {duration && (
                     <span
-                      className={`text-xs sm:text-sm ${
+                      className={`inline-flex items-center gap-1 text-xs sm:text-sm ${
                         hasCover ? 'text-white/50' : 'text-slate-400 dark:text-slate-500'
                       }`}
                     >
-                      · {t('trip.durationDays', { days: duration.days, nights: duration.nights })}
+                      {/* Rising, shrinking "zzz" — lucide-react has no sleep icon, so this is a
+                          small hand-built substitute rather than an unrelated bed/moon icon. */}
+                      <span className="inline-flex items-end gap-px leading-none" aria-hidden="true">
+                        <span className="text-[10px]">z</span>
+                        <span className="text-[8px] -translate-y-0.5">z</span>
+                        <span className="text-[6px] -translate-y-[3px]">z</span>
+                      </span>
+                      {t('trip.durationNights', { nights: duration.nights })}
                     </span>
                   )}
                 </div>
@@ -246,7 +253,7 @@ export const TripDetailPage: React.FC = () => {
 
           {/* ── Section Tabs ── */}
           <nav
-            className={`sticky top-0 z-20 flex gap-1 sm:gap-1.5 py-2.5 mb-6 w-full items-center overflow-x-auto overflow-y-hidden px-1.5 rounded-2xl backdrop-blur-xl bg-[var(--surface-0)]/90 border border-slate-200/50 dark:border-white/10 transition-all ${tabsScrolled ? 'shadow-lg shadow-black/15 border-slate-300/60 dark:border-white/20' : 'shadow-sm'}`}
+            className={`sticky top-0 z-20 flex gap-1 sm:gap-1.5 mb-6 w-full items-center overflow-x-auto overflow-y-hidden p-1.5 rounded-full backdrop-blur-xl backdrop-saturate-150 bg-[var(--surface-0)]/65 border border-slate-200/50 dark:border-white/10 transition-all ${tabsScrolled ? 'shadow-lg shadow-black/15 border-slate-300/60 dark:border-white/20' : 'shadow-sm'}`}
             aria-label="Trip sections"
           >
             {[...ACTIVE_SECTIONS, ...INACTIVE_SECTIONS].map((section) => {

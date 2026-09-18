@@ -57,6 +57,10 @@ export default {
         'base': '8px',
         'md': '10px',
         'lg': '14px',
+        // The app's single "brand radius" constant — cards, modals, tab
+        // pills, filter pills and flag chips all use `rounded-xl` so every
+        // rounded corner in the app reads as one consistent system. Change
+        // it here once instead of touching each component.
         'xl': '20px',
         '2xl': '28px',
         'full': '9999px',

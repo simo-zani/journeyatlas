@@ -79,6 +79,20 @@ body {
   background-color: var(--gold, #D4AF37);
 }
 
+/* Hides the native scrollbar on containers that render their own overlay
+   thumb (OverlayScrollbar component) so scrolling never reserves layout
+   width — otherwise content/background reflows narrower whenever a tab's
+   content grows tall enough to need a scrollbar. */
+.scroll-overlay-host {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scroll-overlay-host::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
 :focus-visible {
   outline: 2px solid rgba(212, 175, 55, 0.7);
   outline-offset: 2px;
@@ -105,7 +119,7 @@ h3 {
    Buttons
    ========================================================================== */
 .btn-primary {
-  @apply relative bg-deep-blue text-white font-semibold py-3 px-6 rounded-lg
+  @apply relative bg-deep-blue text-white font-semibold py-3 px-6 rounded-xl
     transition-all duration-300 ease-premium
     touch-none min-h-[44px] min-w-[44px] flex items-center justify-center gap-2
     shadow-md hover:shadow-glow-gold hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98]
@@ -117,7 +131,7 @@ h3 {
 }
 
 .btn-secondary {
-  @apply bg-transparent text-gold-dark dark:text-gold font-semibold py-3 px-6 rounded-lg
+  @apply bg-transparent text-gold-dark dark:text-gold font-semibold py-3 px-6 rounded-xl
     border border-gold/50 hover:border-gold hover:bg-gold/10
     transition-all duration-300 ease-premium
     touch-none min-h-[44px] min-w-[44px] flex items-center justify-center gap-2
@@ -130,7 +144,7 @@ h3 {
 
 .btn-tertiary {
   @apply bg-slate-900/5 hover:bg-slate-900/10 dark:bg-white/5 dark:hover:bg-white/10
-    text-slate-700 dark:text-slate-100 py-3 px-6 rounded-lg
+    text-slate-700 dark:text-slate-100 py-3 px-6 rounded-xl
     transition-all duration-300 ease-premium min-h-[44px] min-w-[44px]
     flex items-center justify-center gap-2;
 }
@@ -219,7 +233,7 @@ h3 {
 .input-field {
   background-color: var(--surface-1);
   border: 1px solid var(--border-subtle);
-  @apply w-full px-4 py-3 rounded-lg text-slate-900 dark:text-slate-100
+  @apply w-full px-4 py-3 rounded-xl text-slate-900 dark:text-slate-100
     placeholder-slate-500 dark:placeholder-slate-400
     transition-all duration-200 ease-premium
     focus:outline-none focus:border-gold focus:ring-4 focus:ring-gold/15;
@@ -278,7 +292,7 @@ h3 {
 .alert {
   background-color: var(--surface-1);
   border: 1px solid var(--border-subtle);
-  @apply p-4 rounded-lg border-l-4 flex gap-3 items-start shadow-sm;
+  @apply p-4 rounded-xl border-l-4 flex gap-3 items-start shadow-sm;
 }
 
 .alert-success {
@@ -337,7 +351,13 @@ h3 {
   @apply my-4;
 }
 
-/* Segmented tab control (trip detail sections) */
+/* Segmented tab control (trip detail sections)
+   rounded-full here (not the rounded-xl "brand radius" used by cards and
+   modals) because its parent nav is itself rounded-full with uniform
+   padding on every side — nesting two rounded-full shapes with a constant
+   margin is what actually reads as concentric/parallel corners. Pairing
+   rounded-full with a fixed-px radius (or vice versa) on boxes of very
+   different sizes is what looked mismatched before. */
 .tab-pill {
   @apply inline-flex items-center gap-2 justify-center px-4 py-2.5 rounded-full font-semibold text-sm min-h-[44px] transition-all duration-300 ease-premium;
 }

@@ -25,6 +25,17 @@ export type TripRow = {
   archived_at: string | null;
 };
 
+export type ProfileRow = {
+  id: string;
+  email: string;
+  username: string | null;
+  display_name: string | null;
+  avatar_url: string | null;
+  default_currency: string | null;
+  timezone: string | null;
+  created_at: string;
+};
+
 export type TripParticipantRow = {
   id: string;
   trip_id: string;
@@ -130,6 +141,12 @@ export type Trip = TripRow & { participants?: TripParticipantRow[] };
 export type Database = {
   public: {
     Tables: {
+      profiles: {
+        Row: ProfileRow;
+        Insert: Partial<ProfileRow>;
+        Update: Partial<ProfileRow>;
+        Relationships: [];
+      };
       trips: {
         Row: TripRow;
         Insert: Partial<TripRow>;
@@ -174,7 +191,12 @@ export type Database = {
       };
     };
     Views: Record<string, never>;
-    Functions: Record<string, never>;
+    Functions: {
+      username_exists: {
+        Args: { check_username: string };
+        Returns: boolean;
+      };
+    };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;
   };

@@ -50,7 +50,7 @@ export const Modal: React.FC<ModalProps> = ({ open, onClose, title, maxWidth = '
               <h3>{title}</h3>
               <button
                 onClick={onClose}
-                className="p-2 rounded-lg hover:bg-slate-900/5 dark:hover:bg-white/10 transition-colors"
+                className="p-2 rounded-xl hover:bg-slate-900/5 dark:hover:bg-white/10 transition-colors"
                 aria-label="Close"
               >
                 <X className="w-5 h-5" />

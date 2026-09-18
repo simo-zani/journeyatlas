@@ -4,7 +4,6 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Loader2, Plane } from 'lucide-react';
 import { Button } from '@/components/Button';
-import { Card } from '@/components/Card';
 import { Input } from '@/components/Input';
 import { Alert } from '@/components/Alert';
 import { useAuth } from '@/auth/AuthContext';
@@ -54,48 +53,46 @@ export const LoginPage: React.FC = () => {
         transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
         className="relative w-full max-w-md"
       >
-        <Card>
-          <div className="text-center mb-6">
-            <Plane className="w-9 h-9 text-gold mx-auto mb-3" />
-            <h1 className="mb-1 text-3xl sm:text-4xl">{t('common.appName')}</h1>
-            <p className="text-slate-600 dark:text-slate-400 text-sm">
-              {t('auth.login.subtitle')}
-            </p>
-          </div>
-
-          <AnimatePresence>
-            {error && <Alert type="error" message={error} onClose={() => setError(null)} />}
-          </AnimatePresence>
-
-          <form onSubmit={handleSubmit} className="space-y-4 mt-4">
-            <Input
-              label={t('auth.email')}
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              autoComplete="email"
-              placeholder="you@example.com"
-            />
-            <Input
-              label={t('auth.password')}
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              autoComplete="current-password"
-            />
-            <Button type="submit" className="w-full" disabled={submitting}>
-              {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
-              {t('auth.login.submit')}
-            </Button>
-          </form>
-
-          <p className="text-center text-sm mt-4 text-slate-600 dark:text-slate-400">
-            {t('auth.login.noAccount')}{' '}
-            <Link to="/signup">{t('auth.signup.title')}</Link>
+        <div className="text-center mb-6">
+          <Plane className="w-9 h-9 text-gold mx-auto mb-3" />
+          <h1 className="mb-1 text-3xl sm:text-4xl">{t('common.appName')}</h1>
+          <p className="text-slate-600 dark:text-slate-400 text-sm">
+            {t('auth.login.subtitle')}
           </p>
-        </Card>
+        </div>
+
+        <AnimatePresence>
+          {error && <Alert type="error" message={error} onClose={() => setError(null)} />}
+        </AnimatePresence>
+
+        <form onSubmit={handleSubmit} className="space-y-4 mt-4">
+          <Input
+            label={t('auth.email')}
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            autoComplete="email"
+            placeholder="you@example.com"
+          />
+          <Input
+            label={t('auth.password')}
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            autoComplete="current-password"
+          />
+          <Button type="submit" className="w-full" disabled={submitting}>
+            {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
+            {t('auth.login.submit')}
+          </Button>
+        </form>
+
+        <p className="text-center text-sm mt-4 text-slate-600 dark:text-slate-400">
+          {t('auth.login.noAccount')}{' '}
+          <Link to="/signup">{t('auth.signup.title')}</Link>
+        </p>
       </motion.div>
     </div>
   );

@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { GripVertical, ImagePlus, Loader2, X } from 'lucide-react';
 import { Button } from '@/components/Button';
@@ -7,6 +7,7 @@ import { Alert } from '@/components/Alert';
 import { DestinationPicker } from '@/components/DestinationPicker';
 import { useAuth } from '@/auth/AuthContext';
 import { createTrip, updateTrip } from '@/lib/api';
+import { compressImage } from '@/lib/image';
 import { supabase } from '@/lib/supabase';
 import type { Destination, Trip } from '@/lib/types';
 
@@ -22,50 +23,6 @@ const isValidIsoDate = (value: string): boolean => {
   const date = new Date(year, month - 1, day);
   return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day;
 };
-
-/** Compress an image File to at most maxKB using Canvas. Returns a Blob. */
-async function compressImage(file: File, maxKB = 500): Promise<Blob> {
-  const maxBytes = maxKB * 1024;
-  // If already small enough, just return as-is converted to jpeg
-  const bitmap = await createImageBitmap(file);
-  const canvas = document.createElement('canvas');
-
-  // Resize so longest side <= 1280px
-  const maxSide = 1280;
-  let { width, height } = bitmap;
-  if (width > maxSide || height > maxSide) {
-    if (width >= height) {
-      height = Math.round((height / width) * maxSide);
-      width = maxSide;
-    } else {
-      width = Math.round((width / height) * maxSide);
-      height = maxSide;
-    }
-  }
-  canvas.width = width;
-  canvas.height = height;
-  const ctx = canvas.getContext('2d')!;
-  ctx.drawImage(bitmap, 0, 0, width, height);
-
-  // Iteratively reduce quality until under maxKB
-  let quality = 0.85;
-  let blob: Blob | null = null;
-  while (quality >= 0.3) {
-    blob = await new Promise<Blob | null>((resolve) =>
-      canvas.toBlob(resolve, 'image/jpeg', quality)
-    );
-    if (blob && blob.size <= maxBytes) break;
-    quality -= 0.1;
-  }
-  // Last resort: very low quality
-  if (!blob || blob.size > maxBytes) {
-    blob = await new Promise<Blob | null>((resolve) =>
-      canvas.toBlob(resolve, 'image/jpeg', 0.2)
-    );
-  }
-  bitmap.close();
-  return blob!;
-}
 
 export const TripForm: React.FC<TripFormProps> = ({ onSuccess, initial }) => {
   const { t } = useTranslation();
@@ -97,17 +54,37 @@ export const TripForm: React.FC<TripFormProps> = ({ onSuccess, initial }) => {
     setIsDraggingPosition(true);
   }, []);
 
-  const handlePositionDragMove = useCallback((e: React.MouseEvent | React.TouchEvent) => {
-    if (!isDraggingPosition || !coverRef.current) return;
-    const rect = coverRef.current.getBoundingClientRect();
-    const clientY = 'touches' in e ? e.touches[0].clientY : (e as React.MouseEvent).clientY;
-    const relY = Math.max(0, Math.min(1, (clientY - rect.top) / rect.height));
-    setCoverPositionY(Math.round(relY * 100));
-  }, [isDraggingPosition]);
+  // Tracks the pointer on `window` rather than the (small) preview box, so
+  // dragging stays smooth even once the cursor moves outside those bounds —
+  // binding move/up handlers to the box itself made the drag stop dead the
+  // moment the pointer left it, which is what read as "buggy".
+  useEffect(() => {
+    if (!isDraggingPosition) return;
 
-  const handlePositionDragEnd = useCallback(() => {
-    setIsDraggingPosition(false);
-  }, []);
+    const updateFromClientY = (clientY: number) => {
+      if (!coverRef.current) return;
+      const rect = coverRef.current.getBoundingClientRect();
+      const relY = Math.max(0, Math.min(1, (clientY - rect.top) / rect.height));
+      setCoverPositionY(Math.round(relY * 100));
+    };
+
+    const onMouseMove = (e: MouseEvent) => updateFromClientY(e.clientY);
+    const onTouchMove = (e: TouchEvent) => {
+      if (e.touches[0]) updateFromClientY(e.touches[0].clientY);
+    };
+    const onDragEnd = () => setIsDraggingPosition(false);
+
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onDragEnd);
+    window.addEventListener('touchmove', onTouchMove);
+    window.addEventListener('touchend', onDragEnd);
+    return () => {
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onDragEnd);
+      window.removeEventListener('touchmove', onTouchMove);
+      window.removeEventListener('touchend', onDragEnd);
+    };
+  }, [isDraggingPosition]);
 
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -122,7 +99,7 @@ export const TripForm: React.FC<TripFormProps> = ({ onSuccess, initial }) => {
     setCoverError(null);
     if (!file) return;
     if (file.size > 5 * 1024 * 1024) {
-      setCoverError(t('trip.coverTooLarge', 'File troppo grande. Massimo 5 MB.'));
+      setCoverError(t('trip.coverTooLarge'));
       return;
     }
     setCoverFile(file);
@@ -217,7 +194,7 @@ export const TripForm: React.FC<TripFormProps> = ({ onSuccess, initial }) => {
 
       <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
         {/* Left column (7 cols on md+): Main trip info */}
-        <div className="md:col-span-7 flex flex-col justify-between gap-4">
+        <div className="md:col-span-7 flex flex-col justify-between gap-6">
           <Input
             label={t('trip.name')}
             value={name}
@@ -258,7 +235,7 @@ export const TripForm: React.FC<TripFormProps> = ({ onSuccess, initial }) => {
         {/* Right column (5 cols on md+): Cover image picker */}
         <div className="md:col-span-5 flex flex-col">
           <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
-            {t('trip.coverImage', 'Foto copertina')}
+            {t('trip.coverImage')}
           </label>
 
           <div className="flex-1 flex flex-col">
@@ -266,11 +243,6 @@ export const TripForm: React.FC<TripFormProps> = ({ onSuccess, initial }) => {
               <div
                 ref={coverRef}
                 className="relative rounded-xl overflow-hidden flex-1 min-h-[190px] border border-slate-200 dark:border-white/10 shadow-inner select-none"
-                onMouseMove={handlePositionDragMove}
-                onMouseUp={handlePositionDragEnd}
-                onMouseLeave={handlePositionDragEnd}
-                onTouchMove={handlePositionDragMove}
-                onTouchEnd={handlePositionDragEnd}
                 style={{ cursor: isDraggingPosition ? 'grabbing' : 'default' }}
               >
                 <img
@@ -286,25 +258,29 @@ export const TripForm: React.FC<TripFormProps> = ({ onSuccess, initial }) => {
                   type="button"
                   onClick={removeCover}
                   className="absolute top-3 right-3 w-10 h-10 rounded-full bg-black/70 hover:bg-black/90 text-white flex items-center justify-center transition-all cursor-pointer shadow-lg hover:scale-105 active:scale-95 z-10"
-                  title={t('common.remove', 'Rimuovi')}
+                  title={t('common.remove')}
                 >
                   <X className="w-6 h-6" strokeWidth={2.5} />
                 </button>
-                {/* Drag to reposition handle */}
+                {/* Drag to reposition handle — no transition on this element: it
+                    tracks the pointer directly, and animating `top` made it visibly
+                    lag behind the cursor instead of following it. */}
                 <div
                   onMouseDown={handlePositionDragStart}
                   onTouchStart={handlePositionDragStart}
-                  className="absolute left-1/2 -translate-x-1/2 z-10 flex flex-col items-center gap-1 cursor-grab active:cursor-grabbing select-none transition-all"
+                  className="absolute left-1/2 -translate-x-1/2 z-10 flex flex-col items-center gap-1 cursor-grab active:cursor-grabbing select-none"
                   style={{ top: `clamp(4px, calc(${coverPositionY}% - 20px), calc(100% - 40px))` }}
-                  title="Trascina per riposizionare"
+                  title={t('trip.coverDragHint')}
                 >
                   <div className="bg-black/70 hover:bg-black/90 backdrop-blur-sm text-white rounded-full px-3 py-1.5 flex items-center gap-1.5 shadow-lg ring-1 ring-white/20 transition-all hover:scale-105">
-                    <GripVertical className="w-4 h-4" strokeWidth={2} />
-                    <span className="text-[11px] font-semibold whitespace-nowrap">{coverPositionY === 0 ? 'Trascina per riposizionare' : `Posizione: ${coverPositionY}%`}</span>
+                    <GripVertical className="w-5 h-5 shrink-0" strokeWidth={2} />
+                    <span className="text-[11px] font-semibold whitespace-nowrap">
+                      {coverPositionY === 0 ? t('trip.coverDragHint') : t('trip.coverPosition', { percent: coverPositionY })}
+                    </span>
                   </div>
                 </div>
                 <div className="absolute bottom-2.5 left-3 text-xs font-medium text-white/90 drop-shadow pointer-events-none">
-                  {coverFile ? `${(coverFile.size / 1024).toFixed(0)} KB` : 'Copertina impostata'}
+                  {coverFile ? `${(coverFile.size / 1024).toFixed(0)} KB` : t('trip.coverSet')}
                 </div>
               </div>
             ) : (
@@ -319,12 +295,12 @@ export const TripForm: React.FC<TripFormProps> = ({ onSuccess, initial }) => {
                     : 'border-slate-300 dark:border-white/15 hover:border-gold/70 hover:bg-slate-900/[0.02] dark:hover:bg-white/[0.02]'
                 }`}
               >
-                <div className="w-16 h-16 rounded-2xl bg-slate-100 dark:bg-white/5 flex items-center justify-center text-slate-400 dark:text-slate-300 ring-1 ring-slate-200/60 dark:ring-white/10">
+                <div className="w-16 h-16 rounded-xl bg-slate-100 dark:bg-white/5 flex items-center justify-center text-slate-400 dark:text-slate-300 ring-1 ring-slate-200/60 dark:ring-white/10">
                   <ImagePlus className="w-9 h-9 text-gold" strokeWidth={1.8} />
                 </div>
                 <div>
                   <p className="text-xs font-semibold text-slate-700 dark:text-slate-200">
-                    {t('trip.coverDrop', 'Trascina qui la copertina')}
+                    {t('trip.coverDrop')}
                   </p>
                   <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">
                     JPG, PNG, WEBP, GIF
@@ -358,7 +334,7 @@ export const TripForm: React.FC<TripFormProps> = ({ onSuccess, initial }) => {
 
       <div className="flex justify-end gap-3 pt-2">
         <Button type="submit" disabled={!canSubmit || submitting}>
-          {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
+          {submitting && <Loader2 className="w-5 h-5 animate-spin" />}
           {t('common.save')}
         </Button>
       </div>

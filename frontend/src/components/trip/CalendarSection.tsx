@@ -83,6 +83,15 @@ export const CalendarSection: React.FC<CalendarSectionProps> = ({ trip, onSelect
   const [copiedRef, setCopiedRef] = useState<string | null>(null);
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
 
+  // Any click that isn't on a day cell clears the selection — day cells stop
+  // propagation in their own onClick so this doesn't immediately undo a pick.
+  useEffect(() => {
+    if (!selectedDay) return;
+    const handleClickAway = () => setSelectedDay(null);
+    document.addEventListener('click', handleClickAway);
+    return () => document.removeEventListener('click', handleClickAway);
+  }, [selectedDay]);
+
   // Month view cursor date
   const [currentMonth, setCurrentMonth] = useState<Date>(() => {
     if (trip.start_date) {
@@ -343,7 +352,7 @@ export const CalendarSection: React.FC<CalendarSectionProps> = ({ trip, onSelect
         <div className="flex items-center gap-2 overflow-x-auto pb-1 -mx-1 px-1 flex-1">
           <button
             onClick={() => setFilterType('all')}
-            className={`flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all duration-150 cursor-pointer ${
+            className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all duration-150 cursor-pointer ${
               filterType === 'all'
                 ? 'bg-deep-blue text-white dark:bg-gold dark:text-slate-950 shadow-sm'
                 : 'bg-slate-900/5 dark:bg-white/5 text-slate-600 dark:text-slate-400 hover:bg-slate-900/10 dark:hover:bg-white/10'
@@ -354,7 +363,7 @@ export const CalendarSection: React.FC<CalendarSectionProps> = ({ trip, onSelect
 
           <button
             onClick={() => setFilterType('activities')}
-            className={`flex items-center gap-2 px-3.5 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all duration-150 cursor-pointer ${
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all duration-150 cursor-pointer ${
               filterType === 'activities'
                 ? 'bg-purple-600 text-white shadow-sm'
                 : 'bg-purple-500/10 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20'
@@ -366,7 +375,7 @@ export const CalendarSection: React.FC<CalendarSectionProps> = ({ trip, onSelect
 
           <button
             onClick={() => setFilterType('transports')}
-            className={`flex items-center gap-2 px-3.5 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all duration-150 cursor-pointer ${
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all duration-150 cursor-pointer ${
               filterType === 'transports'
                 ? 'bg-blue-600 text-white shadow-sm'
                 : 'bg-blue-500/10 text-blue-700 dark:text-blue-300 hover:bg-blue-500/20'
@@ -378,7 +387,7 @@ export const CalendarSection: React.FC<CalendarSectionProps> = ({ trip, onSelect
 
           <button
             onClick={() => setFilterType('accommodations')}
-            className={`flex items-center gap-2 px-3.5 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all duration-150 cursor-pointer ${
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all duration-150 cursor-pointer ${
               filterType === 'accommodations'
                 ? 'bg-emerald-600 text-white shadow-sm'
                 : 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20'
@@ -390,7 +399,7 @@ export const CalendarSection: React.FC<CalendarSectionProps> = ({ trip, onSelect
 
           <button
             onClick={() => setFilterType('bookings')}
-            className={`flex items-center gap-2 px-3.5 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all duration-150 cursor-pointer ${
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all duration-150 cursor-pointer ${
               filterType === 'bookings'
                 ? 'bg-amber-600 text-white shadow-sm'
                 : 'bg-amber-500/10 text-amber-700 dark:text-amber-400 hover:bg-amber-500/20'
@@ -401,11 +410,14 @@ export const CalendarSection: React.FC<CalendarSectionProps> = ({ trip, onSelect
           </button>
         </div>
 
-        {/* View Mode Toggle: Agenda vs Month */}
-        <div className="flex items-center gap-2 bg-slate-900/5 dark:bg-white/5 p-1.5 rounded-2xl shrink-0 self-start sm:self-auto">
+        {/* View Mode Toggle: Agenda vs Month
+            Same rounded-full-in-rounded-full pattern as the section tab bar:
+            uniform padding on every side around a fully-rounded wrapper
+            keeps the inner buttons' corners concentric with it. */}
+        <div className="flex items-center gap-2 bg-slate-900/5 dark:bg-white/5 p-1.5 rounded-full shrink-0 self-start sm:self-auto">
           <button
             onClick={() => setViewMode('agenda')}
-            className={`flex items-center gap-3 px-5 py-2.5 rounded-xl text-sm font-bold tracking-wide transition-all duration-200 cursor-pointer ${
+            className={`flex items-center gap-3 px-5 py-2.5 rounded-full text-sm font-bold tracking-wide transition-all duration-200 cursor-pointer ${
               viewMode === 'agenda'
                 ? 'bg-deep-blue text-white dark:bg-gold dark:text-slate-950 shadow-md'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-900/5 dark:hover:bg-white/5'
@@ -416,7 +428,7 @@ export const CalendarSection: React.FC<CalendarSectionProps> = ({ trip, onSelect
           </button>
           <button
             onClick={() => setViewMode('month')}
-            className={`flex items-center gap-3 px-5 py-2.5 rounded-xl text-sm font-bold tracking-wide transition-all duration-200 cursor-pointer ${
+            className={`flex items-center gap-3 px-5 py-2.5 rounded-full text-sm font-bold tracking-wide transition-all duration-200 cursor-pointer ${
               viewMode === 'month'
                 ? 'bg-deep-blue text-white dark:bg-gold dark:text-slate-950 shadow-md'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-900/5 dark:hover:bg-white/5'
@@ -475,7 +487,7 @@ export const CalendarSection: React.FC<CalendarSectionProps> = ({ trip, onSelect
                   {/* Day Header */}
                   <div className="flex items-center justify-between pb-3 mb-4 border-b border-slate-200/60 dark:border-white/5">
                     <div className="flex items-center gap-3">
-                      <span className="px-3 py-1 rounded-lg text-xs font-extrabold uppercase tracking-wider bg-gold/20 text-deep-blue dark:text-gold-light ring-1 ring-gold/40">
+                      <span className="px-3 py-1 rounded-xl text-xs font-extrabold uppercase tracking-wider bg-gold/20 text-deep-blue dark:text-gold-light ring-1 ring-gold/40">
                         {t('calendar.day', { number: dayNumber })}
                       </span>
                       <span className="text-base font-bold text-slate-800 dark:text-slate-100 capitalize">
@@ -571,7 +583,7 @@ export const CalendarSection: React.FC<CalendarSectionProps> = ({ trip, onSelect
         </div>
       ) : (
         /* Month View Grid */
-        <Card className="p-6">
+        <Card className="p-6 card-static">
           {/* Month Header Navigation */}
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-lg font-bold capitalize text-slate-900 dark:text-slate-100">
@@ -583,14 +595,14 @@ export const CalendarSection: React.FC<CalendarSectionProps> = ({ trip, onSelect
             <div className="flex items-center gap-1">
               <button
                 onClick={prevMonth}
-                className="p-2 rounded-lg text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-900/5 dark:hover:bg-white/5 transition-colors cursor-pointer"
+                className="p-2 rounded-xl text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-900/5 dark:hover:bg-white/5 transition-colors cursor-pointer"
                 aria-label="Previous month"
               >
                 <ChevronLeft className="w-5 h-5" />
               </button>
               <button
                 onClick={nextMonth}
-                className="p-2 rounded-lg text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-900/5 dark:hover:bg-white/5 transition-colors cursor-pointer"
+                className="p-2 rounded-xl text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-900/5 dark:hover:bg-white/5 transition-colors cursor-pointer"
                 aria-label="Next month"
               >
                 <ChevronRight className="w-5 h-5" />
@@ -625,7 +637,10 @@ export const CalendarSection: React.FC<CalendarSectionProps> = ({ trip, onSelect
               return (
                 <div
                   key={dateStr}
-                  onClick={() => setSelectedDay(isSelected ? null : dateStr)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedDay(isSelected ? null : dateStr);
+                  }}
                   className={`min-h-[72px] sm:min-h-[88px] p-2 rounded-xl border flex flex-col justify-between transition-all cursor-pointer ${
                     isSelected
                       ? 'ring-2 ring-gold border-gold bg-gold/10'

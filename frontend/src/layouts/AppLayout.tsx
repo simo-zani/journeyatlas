@@ -4,7 +4,6 @@ import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   Globe,
-  LayoutDashboard,
   Map,
   Menu,
   Moon,
@@ -14,17 +13,19 @@ import {
   Plane,
   Settings,
   Sun,
-  User,
   X,
   Loader2,
 } from 'lucide-react';
 import { Button } from '@/components/Button';
+import { EditProfileModal } from '@/components/EditProfileModal';
+import { OverlayScrollbar } from '@/components/OverlayScrollbar';
 import { useAuth } from '@/auth/AuthContext';
 import { getTheme, setTheme } from '@/utils/theme';
+import { flagUrl } from '@/lib/flags';
+import { fetchProfile } from '@/lib/api';
 
 const NAV_ITEMS = [
-  { key: 'dashboard', to: '/', icon: LayoutDashboard },
-  { key: 'myTrips', to: '/trips', icon: Map },
+  { key: 'myTrips', to: '/', icon: Map },
 ];
 
 const SIDEBAR_WIDTH = 256;
@@ -94,10 +95,41 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const settingsContainerRef = useRef<HTMLDivElement>(null);
+  const mainRef = useRef<HTMLDivElement>(null);
   const [isDark, setIsDark] = useState(getTheme() === 'dark');
   const [loggingOut, setLoggingOut] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [username, setUsername] = useState<string | null>(null);
+  const [profileModalOpen, setProfileModalOpen] = useState(false);
 
   const isItalian = i18n.language?.startsWith('it');
+
+  useEffect(() => {
+    if (!user) {
+      setAvatarUrl(null);
+      setUsername(null);
+      return;
+    }
+    let cancelled = false;
+    fetchProfile(user.id)
+      .then((profile) => {
+        if (!cancelled) {
+          setAvatarUrl(profile?.avatar_url ?? null);
+          setUsername(profile?.username ?? null);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setAvatarUrl(null);
+          setUsername(null);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
+
+  const avatarInitial = user?.email?.trim().charAt(0).toUpperCase() || '?';
 
   useEffect(() => {
     if (!settingsOpen) return;
@@ -274,24 +306,26 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
                             <button
                               type="button"
                               onClick={() => i18n.changeLanguage('it')}
-                              className={`py-1.5 px-2 rounded-xl font-semibold transition-all cursor-pointer text-center ${
+                              className={`py-1.5 px-2 rounded-xl font-semibold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
                                 isItalian
                                   ? 'bg-white dark:bg-slate-800 text-deep-blue dark:text-gold-light shadow-sm ring-1 ring-gold/30 font-bold'
                                   : 'text-white hover:text-white/80'
                               }`}
                             >
-                              Italiano (IT)
+                              <img src={flagUrl('it')} alt="" className="w-5 h-3.5 rounded-xl object-cover shadow-sm shrink-0" />
+                              <span>{isItalian ? 'Italiano' : 'Italian'}</span>
                             </button>
                             <button
                               type="button"
                               onClick={() => i18n.changeLanguage('en')}
-                              className={`py-1.5 px-2 rounded-xl font-semibold transition-all cursor-pointer text-center ${
+                              className={`py-1.5 px-2 rounded-xl font-semibold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
                                 !isItalian
                                   ? 'bg-white dark:bg-slate-800 text-deep-blue dark:text-gold-light shadow-sm ring-1 ring-gold/30 font-bold'
                                   : 'text-white hover:text-white/80'
                               }`}
                             >
-                              English (EN)
+                              <img src={flagUrl('us')} alt="" className="w-5 h-3.5 rounded-xl object-cover shadow-sm shrink-0" />
+                              <span>{isItalian ? 'Inglese' : 'English'}</span>
                             </button>
                           </div>
                         </div>
@@ -313,7 +347,7 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
                               }`}
                             >
                               <Sun className="w-3.5 h-3.5 text-gold" />
-                              <span>{isItalian ? 'Chiaro' : 'Light mode'}</span>
+                              <span>{isItalian ? 'Chiaro' : 'Light'}</span>
                             </button>
                             <button
                               type="button"
@@ -325,7 +359,7 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
                               }`}
                             >
                               <Moon className="w-3.5 h-3.5 text-gold" />
-                              <span>{isItalian ? 'Scuro' : 'Dark mode'}</span>
+                              <span>{isItalian ? 'Scuro' : 'Dark'}</span>
                             </button>
                           </div>
                         </div>
@@ -333,16 +367,29 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
                         {/* 3. Account & Logout */}
                         {user && (
                           <div className="space-y-2.5 pt-1">
-                            <div className="flex items-center gap-2.5 px-1 py-1">
-                              <div className="w-10 h-10 rounded-full bg-gold/20 flex items-center justify-center text-gold ring-2 ring-gold/40 shrink-0 shadow-sm">
-                                <User className="w-5 h-5" />
-                              </div>
+                            <button
+                              type="button"
+                              onClick={() => setProfileModalOpen(true)}
+                              className="flex items-center gap-2.5 px-1 py-1 w-full text-left rounded-xl hover:bg-white/5 transition-colors cursor-pointer"
+                              title={t('profile.title')}
+                            >
+                              {avatarUrl ? (
+                                <img
+                                  src={avatarUrl}
+                                  alt=""
+                                  className="w-10 h-10 rounded-full object-cover ring-2 ring-gold/40 shrink-0 shadow-sm"
+                                />
+                              ) : (
+                                <div className="w-10 h-10 rounded-full bg-gold/20 flex items-center justify-center text-gold font-bold ring-2 ring-gold/40 shrink-0 shadow-sm">
+                                  {avatarInitial}
+                                </div>
+                              )}
                               <div className="min-w-0 flex-1">
                                 <p className="text-xs text-white font-medium truncate">
                                   {user.email}
                                 </p>
                               </div>
-                            </div>
+                            </button>
 
                             <Button
                               variant="tertiary"
@@ -520,12 +567,24 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
                 {/* Profile & Logout */}
                 {user && (
                   <div className="pt-2 border-t border-slate-200/50 dark:border-white/5">
-                    <div className="flex items-center gap-2 mb-2">
-                      <div className="w-6 h-6 rounded-full bg-gold/15 flex items-center justify-center text-gold text-xs font-bold">
-                        <User className="w-3.5 h-3.5" />
-                      </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSidebarOpen(false);
+                        setProfileModalOpen(true);
+                      }}
+                      className="flex items-center gap-2 mb-2 cursor-pointer"
+                      title={t('profile.title')}
+                    >
+                      {avatarUrl ? (
+                        <img src={avatarUrl} alt="" className="w-6 h-6 rounded-full object-cover shrink-0" />
+                      ) : (
+                        <div className="w-6 h-6 rounded-full bg-gold/15 flex items-center justify-center text-gold text-xs font-bold shrink-0">
+                          {avatarInitial}
+                        </div>
+                      )}
                       <span className="text-xs text-slate-400 truncate">{user.email}</span>
-                    </div>
+                    </button>
                     <Button
                       variant="tertiary"
                       size="sm"
@@ -544,23 +603,46 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
         )}
       </AnimatePresence>
 
-      {/* ── Main content area ── */}
-      <main
-        className="flex-1 min-w-0 h-full overflow-y-auto overflow-x-hidden relative"
-        style={{ padding: 'clamp(16px, 2.5%, 40px) clamp(16px, 2.5%, 48px)' }}
-      >
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={location.pathname}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-          >
-            {children}
-          </motion.div>
-        </AnimatePresence>
-      </main>
+      {/* ── Main content area ──
+          OverlayScrollbar lives in this non-scrolling wrapper, as a sibling
+          of <main> rather than a child of it — a child anchored with
+          position:absolute would be part of <main>'s own scrollable content
+          and scroll away with it instead of staying pinned to the visible
+          viewport while tracking scroll progress. */}
+      <div className="relative flex-1 min-w-0 h-full">
+        <main
+          ref={mainRef}
+          className="h-full overflow-y-auto overflow-x-hidden scroll-overlay-host"
+          style={{ padding: 'clamp(16px, 2.5vw, 40px) clamp(16px, 2.5vw, 48px)' }}
+        >
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={location.pathname}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+            >
+              {children}
+            </motion.div>
+          </AnimatePresence>
+        </main>
+        <OverlayScrollbar targetRef={mainRef} />
+      </div>
+
+      {user && (
+        <EditProfileModal
+          open={profileModalOpen}
+          onClose={() => setProfileModalOpen(false)}
+          userId={user.id}
+          currentAvatarUrl={avatarUrl}
+          currentUsername={username}
+          onSaved={(next) => {
+            setAvatarUrl(next.avatarUrl);
+            setUsername(next.username);
+          }}
+        />
+      )}
     </div>
   );
 };

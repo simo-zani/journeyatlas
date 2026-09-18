@@ -4,10 +4,12 @@ import { Link, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Loader2, Plane } from 'lucide-react';
 import { Button } from '@/components/Button';
-import { Card } from '@/components/Card';
 import { Input } from '@/components/Input';
 import { Alert } from '@/components/Alert';
 import { useAuth } from '@/auth/AuthContext';
+import { checkUsernameAvailable } from '@/lib/api';
+
+const USERNAME_PATTERN = /^[A-Za-z0-9_.-]+$/;
 
 export const SignupPage: React.FC = () => {
   const { t } = useTranslation();
@@ -15,6 +17,7 @@ export const SignupPage: React.FC = () => {
   const navigate = useNavigate();
 
   const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -24,6 +27,11 @@ export const SignupPage: React.FC = () => {
     e.preventDefault();
     setError(null);
 
+    const trimmedUsername = username.trim();
+    if (!USERNAME_PATTERN.test(trimmedUsername)) {
+      setError(t('auth.errors.usernameInvalid'));
+      return;
+    }
     if (password !== confirmPassword) {
       setError(t('auth.errors.passwordMismatch'));
       return;
@@ -34,13 +42,21 @@ export const SignupPage: React.FC = () => {
     }
 
     setSubmitting(true);
-    const { error: authError } = await signUp(email, password);
-    setSubmitting(false);
-    if (authError) {
-      setError(authError);
-      return;
+    try {
+      const available = await checkUsernameAvailable(trimmedUsername);
+      if (!available) {
+        setError(t('auth.errors.usernameTaken'));
+        return;
+      }
+      const { error: authError } = await signUp(email, password, trimmedUsername);
+      if (authError) {
+        setError(authError);
+        return;
+      }
+      navigate('/', { replace: true });
+    } finally {
+      setSubmitting(false);
     }
-    navigate('/', { replace: true });
   };
 
   return (
@@ -63,56 +79,63 @@ export const SignupPage: React.FC = () => {
         transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
         className="relative w-full max-w-md"
       >
-        <Card>
-          <div className="text-center mb-6">
-            <Plane className="w-9 h-9 text-gold mx-auto mb-3" />
-            <h1 className="mb-1 text-3xl sm:text-4xl">{t('auth.signup.title')}</h1>
-            <p className="text-slate-600 dark:text-slate-400 text-sm">
-              {t('auth.signup.subtitle')}
-            </p>
-          </div>
-
-          <AnimatePresence>
-            {error && <Alert type="error" message={error} onClose={() => setError(null)} />}
-          </AnimatePresence>
-
-          <form onSubmit={handleSubmit} className="space-y-4 mt-4">
-            <Input
-              label={t('auth.email')}
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              autoComplete="email"
-              placeholder="you@example.com"
-            />
-            <Input
-              label={t('auth.password')}
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              autoComplete="new-password"
-            />
-            <Input
-              label={t('auth.confirmPassword')}
-              type="password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              required
-              autoComplete="new-password"
-            />
-            <Button type="submit" className="w-full" disabled={submitting}>
-              {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
-              {t('auth.signup.submit')}
-            </Button>
-          </form>
-
-          <p className="text-center text-sm mt-4 text-slate-600 dark:text-slate-400">
-            {t('auth.signup.hasAccount')}{' '}
-            <Link to="/login">{t('auth.login.title')}</Link>
+        <div className="text-center mb-6">
+          <Plane className="w-9 h-9 text-gold mx-auto mb-3" />
+          <h1 className="mb-1 text-3xl sm:text-4xl">{t('auth.signup.title')}</h1>
+          <p className="text-slate-600 dark:text-slate-400 text-sm">
+            {t('auth.signup.subtitle')}
           </p>
-        </Card>
+        </div>
+
+        <AnimatePresence>
+          {error && <Alert type="error" message={error} onClose={() => setError(null)} />}
+        </AnimatePresence>
+
+        <form onSubmit={handleSubmit} className="space-y-4 mt-4">
+          <Input
+            label={t('auth.email')}
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            autoComplete="email"
+            placeholder="you@example.com"
+          />
+          <Input
+            label={t('auth.username')}
+            value={username}
+            // Filtered live rather than only validated on submit: '@', spaces
+            // and other characters are simply never accepted into the field.
+            onChange={(e) => setUsername(e.target.value.replace(/[^A-Za-z0-9_.-]/g, ''))}
+            required
+            autoComplete="username"
+          />
+          <Input
+            label={t('auth.password')}
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            autoComplete="new-password"
+          />
+          <Input
+            label={t('auth.confirmPassword')}
+            type="password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            required
+            autoComplete="new-password"
+          />
+          <Button type="submit" className="w-full" disabled={submitting}>
+            {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
+            {t('auth.signup.submit')}
+          </Button>
+        </form>
+
+        <p className="text-center text-sm mt-4 text-slate-600 dark:text-slate-400">
+          {t('auth.signup.hasAccount')}{' '}
+          <Link to="/login">{t('auth.login.title')}</Link>
+        </p>
       </motion.div>
     </div>
   );

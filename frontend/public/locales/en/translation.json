@@ -9,7 +9,8 @@
     "confirm": "Confirm",
     "loading": "Loading...",
     "error": "An error occurred",
-    "success": "Success!"
+    "success": "Success!",
+    "remove": "Remove"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -29,6 +30,7 @@
     "email": "Email",
     "password": "Password",
     "confirmPassword": "Confirm password",
+    "username": "Username",
     "login": {
       "title": "Log in",
       "subtitle": "Welcome back, plan your next journey",
@@ -43,7 +45,9 @@
     },
     "errors": {
       "passwordMismatch": "Passwords do not match",
-      "passwordTooShort": "Password must be at least 6 characters"
+      "passwordTooShort": "Password must be at least 6 characters",
+      "usernameInvalid": "Username can only contain letters, numbers, dots, hyphens and underscores (no spaces).",
+      "usernameTaken": "This username is already taken."
     }
   },
   "dashboard": {
@@ -78,12 +82,27 @@
     "archived": "Archived",
     "notFound": "Trip not found",
     "dateOutOfRange": "The date must be within the trip dates ({{range}})",
-    "durationDays": "{{days}} days, {{nights}} nights"
+    "durationNights": "{{nights}} nights",
+    "coverImage": "Cover photo",
+    "coverDrop": "Drop the cover photo here",
+    "coverTooLarge": "File too large. Maximum 5 MB.",
+    "coverSet": "Cover set",
+    "coverDragHint": "Drag to reposition",
+    "coverPosition": "Position: {{percent}}%"
+  },
+  "profile": {
+    "title": "Profile",
+    "dropPhoto": "Drop your photo here",
+    "changePassword": "Change password",
+    "newPassword": "New password",
+    "confirmNewPassword": "Confirm new password",
+    "updatePassword": "Update password",
+    "passwordUpdated": "Password updated."
   },
   "tripSection": {
     "calendar": "Calendar",
     "activities": "Activities",
-    "accommodations": "Accommodations",
+    "accommodations": "Stays",
     "transport": "Transport",
     "packing": "Check List",
     "expenses": "Expenses",
@@ -100,7 +119,7 @@
     "filterAll": "All",
     "filterActivities": "Activities",
     "filterTransports": "Transports",
-    "filterAccommodations": "Accommodations",
+    "filterAccommodations": "Stays",
     "filterBookings": "With Booking",
     "empty": "No items in calendar",
     "emptySub": "Add activities, transports or accommodations to see them here day by day.",

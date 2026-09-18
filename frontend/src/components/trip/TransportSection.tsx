@@ -165,7 +165,7 @@ export const TransportSection: React.FC<TransportSectionProps> = ({ tripId }) =>
                     )}
                     <button
                       onClick={() => setForm({ open: true, editing: transport })}
-                      className="p-2.5 rounded-lg text-slate-400 hover:text-light-blue hover:bg-light-blue/10 transition-colors"
+                      className="p-2.5 rounded-xl text-slate-400 hover:text-light-blue hover:bg-light-blue/10 transition-colors"
                       aria-label={t('common.edit')}
                       title={t('common.edit')}
                     >
@@ -272,7 +272,7 @@ const TransportForm: React.FC<TransportFormProps> = ({ initial, onSubmit, onCanc
                 type="button"
                 onClick={() => setType(transportType)}
                 aria-pressed={selected}
-                className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-semibold transition-all ${
+                className={`inline-flex items-center gap-2 px-3 py-2 rounded-xl border text-sm font-semibold transition-all ${
                   selected
                     ? 'border-gold bg-gold/15 text-gold-dark dark:text-gold-light'
                     : 'border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:border-gold hover:text-gold'

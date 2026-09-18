@@ -9,7 +9,8 @@
     "confirm": "Conferma",
     "loading": "Caricamento...",
     "error": "Si è verificato un errore",
-    "success": "Successo!"
+    "success": "Successo!",
+    "remove": "Rimuovi"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -29,6 +30,7 @@
     "email": "Email",
     "password": "Password",
     "confirmPassword": "Conferma password",
+    "username": "Username",
     "login": {
       "title": "Accedi",
       "subtitle": "Bentornato, pianifica il tuo prossimo viaggio",
@@ -43,7 +45,9 @@
     },
     "errors": {
       "passwordMismatch": "Le password non coincidono",
-      "passwordTooShort": "La password deve avere almeno 6 caratteri"
+      "passwordTooShort": "La password deve avere almeno 6 caratteri",
+      "usernameInvalid": "Lo username può contenere solo lettere, numeri, punti, trattini e underscore (niente spazi).",
+      "usernameTaken": "Questo username è già in uso."
     }
   },
   "dashboard": {
@@ -78,7 +82,22 @@
     "archived": "Archiviato",
     "notFound": "Viaggio non trovato",
     "dateOutOfRange": "La data deve essere compresa tra le date del viaggio ({{range}})",
-    "durationDays": "{{days}} giorni, {{nights}} notti"
+    "durationNights": "{{nights}} notti",
+    "coverImage": "Foto copertina",
+    "coverDrop": "Trascina qui la copertina",
+    "coverTooLarge": "File troppo grande. Massimo 5 MB.",
+    "coverSet": "Copertina impostata",
+    "coverDragHint": "Trascina per riposizionare",
+    "coverPosition": "Posizione: {{percent}}%"
+  },
+  "profile": {
+    "title": "Profilo",
+    "dropPhoto": "Trascina qui la tua foto",
+    "changePassword": "Cambia password",
+    "newPassword": "Nuova password",
+    "confirmNewPassword": "Conferma nuova password",
+    "updatePassword": "Aggiorna password",
+    "passwordUpdated": "Password aggiornata."
   },
   "tripSection": {
     "calendar": "Calendario",

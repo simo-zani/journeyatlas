@@ -215,7 +215,7 @@ const CategorySelect: React.FC<CategorySelectProps> = ({
       {open && (
         <ul
           role="listbox"
-          className="absolute z-20 mt-1 min-w-[240px] max-h-72 overflow-auto rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-xl ring-1 ring-slate-900/10 dark:ring-white/10 py-1"
+          className="absolute z-20 mt-1 min-w-[240px] max-h-72 overflow-auto rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-xl ring-1 ring-slate-900/10 dark:ring-white/10 py-1"
         >
           <li>
             <button
@@ -479,7 +479,7 @@ export const ChecklistSection: React.FC<ChecklistSectionProps> = ({ tripId, user
                     )}
                     <button
                       onClick={() => setForm({ open: true, editing: item })}
-                      className="p-2 rounded-lg text-slate-400 hover:text-light-blue hover:bg-light-blue/10 transition-colors"
+                      className="p-2 rounded-xl text-slate-400 hover:text-light-blue hover:bg-light-blue/10 transition-colors"
                       aria-label={t('common.edit')}
                       title={t('common.edit')}
                     >

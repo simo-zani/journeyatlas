@@ -5,10 +5,35 @@ import type {
   ChecklistCategoryRow,
   ChecklistItemRow,
   Destination,
+  ProfileRow,
   TransportRow,
   TransportType,
   Trip,
 } from '@/lib/types';
+
+export const fetchProfile = async (userId: string): Promise<ProfileRow | null> => {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', userId)
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+};
+
+export const updateProfile = async (
+  userId: string,
+  input: { avatar_url?: string | null; username?: string }
+): Promise<ProfileRow> => {
+  const { data, error } = await supabase
+    .from('profiles')
+    .update(input)
+    .eq('id', userId)
+    .select('*')
+    .single();
+  if (error) throw error;
+  return data;
+};
 
 export interface CreateTripInput {
   name: string;
@@ -19,6 +44,14 @@ export interface CreateTripInput {
   cover_image_url?: string | null;
   cover_position_y?: number;
 }
+
+/** True if the username is already taken (case-insensitive), checked via
+ * an RPC so the signup form never needs direct read access to `profiles`. */
+export const checkUsernameAvailable = async (username: string): Promise<boolean> => {
+  const { data, error } = await supabase.rpc('username_exists', { check_username: username });
+  if (error) throw error;
+  return !data;
+};
 
 export const fetchMyTrips = async (userId: string): Promise<Trip[]> => {
   const { data: owned, error: ownedError } = await supabase

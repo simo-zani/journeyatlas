@@ -141,7 +141,7 @@ export const DestinationPicker: React.FC<DestinationPickerProps> = ({ value, onC
                         <img
                           src={suggestion.flagUrl}
                           alt={suggestion.country}
-                          className="w-6 h-6 rounded-sm object-cover shrink-0"
+                          className="w-6 h-6 rounded-xl object-cover shrink-0"
                           loading="lazy"
                         />
                       ) : (

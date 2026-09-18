@@ -154,7 +154,7 @@ export const ActivitySection: React.FC<ActivitySectionProps> = ({ tripId, userId
                 <div className="flex items-center gap-1 shrink-0">
                   <button
                     onClick={() => setForm({ open: true, editing: activity })}
-                    className="p-2.5 rounded-lg text-slate-400 hover:text-light-blue hover:bg-light-blue/10 transition-colors"
+                    className="p-2.5 rounded-xl text-slate-400 hover:text-light-blue hover:bg-light-blue/10 transition-colors"
                     aria-label={t('common.edit')}
                     title={t('common.edit')}
                   >

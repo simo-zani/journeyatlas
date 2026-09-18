@@ -37,7 +37,7 @@ export const TripFlags: React.FC<TripFlagsProps> = ({ destinations, size = 'md' 
           key={code}
           src={flagUrl(code)}
           alt=""
-          className={`${sizeClass} rounded-sm object-cover shadow-sm`}
+          className={`${sizeClass} rounded-xl object-cover shadow-sm`}
           loading="lazy"
         />
       ))}

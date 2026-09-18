@@ -230,6 +230,11 @@ h3 {
 /* ==========================================================================
    Inputs
    ========================================================================== */
+/* Icone: nelle modali e nei controlli dei form usare SEMPRE `w-5 h-5`
+   (20px), la stessa dimensione dell'icona del calendario nei campi dati
+   (<input type="date">). Vedi frontend/src/lib/ui.ts (MODAL_ICON_SIZE):
+   chi mette w-4/w-3 nelle modali si è perso la regola. */
+
 .input-field {
   background-color: var(--surface-1);
   border: 1px solid var(--border-subtle);

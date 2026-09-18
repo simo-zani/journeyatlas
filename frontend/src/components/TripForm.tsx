@@ -1,11 +1,12 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { GripVertical, ImagePlus, Loader2, X } from 'lucide-react';
+import { GripVertical, ImagePlus, Loader2, Lock, LockOpen, X } from 'lucide-react';
 import { Button } from '@/components/Button';
 import { Input } from '@/components/Input';
 import { Alert } from '@/components/Alert';
 import { DestinationPicker } from '@/components/DestinationPicker';
 import { useAuth } from '@/auth/AuthContext';
+import { MODAL_ICON_SIZE } from '@/lib/ui';
 import { createTrip, updateTrip } from '@/lib/api';
 import { compressImage } from '@/lib/image';
 import { supabase } from '@/lib/supabase';
@@ -36,6 +37,7 @@ export const TripForm: React.FC<TripFormProps> = ({ onSuccess, initial }) => {
   const [budget, setBudget] = useState(
     initial?.budget_planned != null ? String(initial.budget_planned) : ''
   );
+  const [isPublic, setIsPublic] = useState<boolean>(initial?.is_public ?? false);
 
   // Cover image state
   const [coverPreview, setCoverPreview] = useState<string | null>(initial?.cover_image_url ?? null);
@@ -148,6 +150,7 @@ export const TripForm: React.FC<TripFormProps> = ({ onSuccess, initial }) => {
         end_date: endDate || null,
         destinations,
         budget_planned: budget === '' ? null : Number(budget),
+        is_public: isPublic,
       };
 
       let trip: Trip;
@@ -221,15 +224,38 @@ export const TripForm: React.FC<TripFormProps> = ({ onSuccess, initial }) => {
             />
           </div>
 
-          <Input
-            label={t('trip.budget')}
-            type="number"
-            min="0"
-            step="0.01"
-            value={budget}
-            onChange={(e) => setBudget(e.target.value)}
-            placeholder={t('trip.budgetPlaceholder')}
-          />
+          <div className="grid grid-cols-2 gap-3">
+            <Input
+              label={t('trip.budget')}
+              type="number"
+              min="0"
+              step="0.01"
+              value={budget}
+              onChange={(e) => setBudget(e.target.value)}
+              placeholder={t('trip.budgetPlaceholder')}
+            />
+            <div>
+              <label className="label">
+                {t('trip.visibilityLabel')}
+              </label>
+              <button
+                type="button"
+                onClick={() => setIsPublic(!isPublic)}
+                className={`w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-bold text-sm transition-all cursor-pointer select-none ${
+                  isPublic
+                    ? 'bg-gold/15 text-gold ring-2 ring-gold/50'
+                    : 'bg-slate-100 dark:bg-white/5 text-slate-500 dark:text-slate-300 ring-2 ring-slate-200 dark:ring-white/10'
+                }`}
+              >
+                {isPublic ? (
+                  <LockOpen className={MODAL_ICON_SIZE} />
+                ) : (
+                  <Lock className={MODAL_ICON_SIZE} />
+                )}
+                {isPublic ? t('trip.publicLabel') : t('trip.privateLabel')}
+              </button>
+            </div>
+          </div>
         </div>
 
         {/* Right column (5 cols on md+): Cover image picker */}

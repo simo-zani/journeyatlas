@@ -13,6 +13,7 @@ import {
   Plane,
   Settings,
   Sun,
+  Users,
   X,
   Loader2,
 } from 'lucide-react';
@@ -22,7 +23,7 @@ import { OverlayScrollbar } from '@/components/OverlayScrollbar';
 import { useAuth } from '@/auth/AuthContext';
 import { getTheme, setTheme } from '@/utils/theme';
 import { flagUrl } from '@/lib/flags';
-import { fetchProfile } from '@/lib/api';
+import { fetchProfile, countIncomingFriendRequests } from '@/lib/api';
 
 const NAV_ITEMS = [
   { key: 'myTrips', to: '/', icon: Map },
@@ -101,8 +102,35 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [username, setUsername] = useState<string | null>(null);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
+  const [pendingCount, setPendingCount] = useState(0);
 
   const isItalian = i18n.language?.startsWith('it');
+
+  // Badge richieste ricevute: aggiornato al mount, al cambio pagina e dopo
+  // ogni risposta a una richiesta (evento 'ja-friends-updated').
+  useEffect(() => {
+    if (!user) {
+      setPendingCount(0);
+      return;
+    }
+    let cancelled = false;
+    const refresh = () => {
+      countIncomingFriendRequests()
+        .then((count) => {
+          if (!cancelled) setPendingCount(count);
+        })
+        .catch(() => {
+          if (!cancelled) setPendingCount(0);
+        });
+    };
+    refresh();
+    const onChange = () => refresh();
+    window.addEventListener('ja-friends-updated', onChange);
+    return () => {
+      cancelled = true;
+      window.removeEventListener('ja-friends-updated', onChange);
+    };
+  }, [user, location.pathname]);
 
   useEffect(() => {
     if (!user) {
@@ -171,6 +199,7 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
       } catch {
         /* ignore storage errors */
       }
+      window.dispatchEvent(new CustomEvent('ja-sidebar-toggle'));
       return next;
     });
   };
@@ -276,8 +305,54 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
               <NavList isExpanded={isExpanded} />
             </div>
 
-            {/* 3. Bottom controls: Upward-expanding Settings + Sidebar toggle (no separator lines) */}
+            {/* 3. Bottom controls: Travelers + Settings + Sidebar toggle (no separator lines) */}
             <div className="shrink-0 flex flex-col p-2" ref={settingsContainerRef}>
+              {/* Viaggiatori (above Settings) */}
+              <NavLink
+                to="/travelers"
+                title={!isExpanded ? t('nav.travelers') : undefined}
+                onClick={() => setSettingsOpen(false)}
+                className={({ isActive }) =>
+                  `relative flex items-center h-11 rounded-xl font-semibold transition-colors duration-200 overflow-hidden cursor-pointer focus:outline-none no-underline hover:no-underline mb-0.5 ${
+                    isExpanded ? 'w-full' : 'w-[52px]'
+                  } ${
+                    isActive
+                      ? 'text-deep-blue dark:text-gold-light'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-900/5 dark:hover:bg-white/5'
+                  }`
+                }
+              >
+                {({ isActive }) => (
+                  <>
+                    {isActive && (
+                      <motion.span
+                        layoutId="nav-active-pill"
+                        className="absolute inset-0 rounded-xl bg-gold/15 ring-1 ring-gold/30"
+                        transition={{ type: 'spring', stiffness: 380, damping: 32 }}
+                      />
+                    )}
+                    <div className="w-[52px] h-11 flex items-center justify-center shrink-0 relative z-10">
+                      <Users className="w-6 h-6" />
+                    </div>
+                    {pendingCount > 0 && (
+                      <span className="absolute top-1 right-2 z-20 min-w-[18px] h-[18px] px-1 rounded-full bg-error text-white text-[10px] font-bold flex items-center justify-center shadow-md">
+                        {pendingCount > 99 ? '99+' : pendingCount}
+                      </span>
+                    )}
+                    <motion.span
+                      className="relative z-10 text-sm select-none whitespace-nowrap overflow-hidden pr-3 font-semibold"
+                      animate={{
+                        opacity: isExpanded ? 1 : 0,
+                        width: isExpanded ? 'auto' : 0,
+                      }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      {t('nav.travelers')}
+                    </motion.span>
+                  </>
+                )}
+              </NavLink>
+
               <div
                 className={`rounded-xl transition-all duration-300 overflow-hidden ${
                   settingsOpen && isExpanded
@@ -371,7 +446,6 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
                               type="button"
                               onClick={() => setProfileModalOpen(true)}
                               className="flex items-center gap-2.5 px-1 py-1 w-full text-left rounded-xl hover:bg-white/5 transition-colors cursor-pointer"
-                              title={t('profile.title')}
                             >
                               {avatarUrl ? (
                                 <img
@@ -564,6 +638,29 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
                   </div>
                 </div>
 
+                {/* Travelers */}
+                <NavLink
+                  to="/travelers"
+                  onClick={() => setSidebarOpen(false)}
+                  className={({ isActive }) =>
+                    `flex items-center gap-2.5 px-3 h-11 rounded-xl font-semibold no-underline hover:no-underline transition-colors ${
+                      isActive
+                        ? 'text-deep-blue dark:text-gold-light bg-gold/15 ring-1 ring-gold/30'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-900/5 dark:hover:bg-white/5'
+                    }`
+                  }
+                >
+                  <div className="relative">
+                    <Users className="w-5 h-5" />
+                    {pendingCount > 0 && (
+                      <span className="absolute -top-1.5 -right-2 min-w-[18px] h-[18px] px-1 rounded-full bg-error text-white text-[10px] font-bold flex items-center justify-center shadow-md">
+                        {pendingCount > 99 ? '99+' : pendingCount}
+                      </span>
+                    )}
+                  </div>
+                  <span>{t('nav.travelers')}</span>
+                </NavLink>
+
                 {/* Profile & Logout */}
                 {user && (
                   <div className="pt-2 border-t border-slate-200/50 dark:border-white/5">
@@ -574,7 +671,6 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
                         setProfileModalOpen(true);
                       }}
                       className="flex items-center gap-2 mb-2 cursor-pointer"
-                      title={t('profile.title')}
                     >
                       {avatarUrl ? (
                         <img src={avatarUrl} alt="" className="w-6 h-6 rounded-full object-cover shrink-0" />

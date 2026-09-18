@@ -10,6 +10,7 @@ import {
   searchUsersForInvite,
   updateParticipantRole,
 } from '@/lib/api';
+import { MODAL_ICON_SIZE } from '@/lib/ui';
 import type { ProfileSearchResult, Role, TripParticipantDetail } from '@/lib/types';
 
 interface ShareTripModalProps {
@@ -189,7 +190,7 @@ export const ShareTripModal: React.FC<ShareTripModalProps> = ({
                       {invitingId === result.id ? (
                         <Loader2 className="w-4 h-4 animate-spin" />
                       ) : (
-                        <UserPlus className="w-4 h-4" />
+                        <UserPlus className={MODAL_ICON_SIZE} />
                       )}
                     </button>
                   </li>

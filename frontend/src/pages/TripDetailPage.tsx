@@ -252,6 +252,8 @@ export const TripDetailPage: React.FC = () => {
             open={editOpen}
             onClose={() => setEditOpen(false)}
             title={t('trip.editTitle')}
+            maxWidth="max-w-5xl"
+            tall
           >
             <TripForm
               initial={trip}

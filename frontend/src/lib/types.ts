@@ -20,6 +20,7 @@ export type TripRow = {
   budget_planned: number | null;
   cover_image_url: string | null;
   cover_position_y: number;
+  is_public: boolean;
   created_at: string;
   updated_at: string;
   archived_at: string | null;
@@ -170,6 +171,46 @@ export type ChecklistCategoryRow = {
 
 export type Trip = TripRow & { participants?: TripParticipantRow[] };
 
+export type FriendStatus = 'friends' | 'outgoing' | 'incoming' | 'self' | null;
+
+export type TravelerSearchResult = {
+  id: string;
+  username: string;
+  avatar_url: string | null;
+  friend_status: FriendStatus;
+};
+
+export type IncomingFriendRequest = {
+  id: string;
+  user_id: string;
+  username: string;
+  avatar_url: string | null;
+  created_at: string;
+};
+
+export type TravelerProfile = {
+  id: string;
+  username: string | null;
+  avatar_url: string | null;
+  created_at: string;
+  friend_status: FriendStatus;
+  friendship_id: string | null;
+  countries_visited: number;
+  continents_visited: number;
+  public_trips_count: number;
+};
+
+export type PublicTripRow = {
+  id: string;
+  name: string;
+  start_date: string | null;
+  end_date: string | null;
+  destinations: Destination[] | null;
+  cover_image_url: string | null;
+  cover_position_y: number;
+  created_at: string;
+};
+
 export type Database = {
   public: {
     Tables: {
@@ -183,6 +224,34 @@ export type Database = {
         Row: TripRow;
         Insert: Partial<TripRow>;
         Update: Partial<TripRow>;
+        Relationships: [];
+      };
+      friendships: {
+        Row: {
+          id: string;
+          requester_id: string;
+          addressee_id: string;
+          status: 'pending' | 'accepted' | 'declined';
+          created_at: string;
+          responded_at: string | null;
+        };
+        Insert: Partial<{
+          id: string;
+          requester_id: string;
+          addressee_id: string;
+          status: 'pending' | 'accepted' | 'declined';
+          responded_at: string | null;
+        }>;
+        Update: Partial<{
+          status: 'pending' | 'accepted' | 'declined';
+          responded_at: string | null;
+        }>;
+        Relationships: [];
+      };
+      country_continents: {
+        Row: { code: string; continent: string };
+        Insert: Partial<{ code: string; continent: string }>;
+        Update: Partial<{ code: string; continent: string }>;
         Relationships: [];
       };
       trip_participants: {
@@ -243,6 +312,50 @@ export type Database = {
       fetch_trip_participants: {
         Args: { for_trip_id: string };
         Returns: TripParticipantDetail[];
+      };
+      search_travelers: {
+        Args: { search_query: string };
+        Returns: TravelerSearchResult[];
+      };
+      get_popular_travelers: {
+        Args: Record<string, never>;
+        Returns: TravelerSearchResult[];
+      };
+      record_profile_view: {
+        Args: { target_user_id: string };
+        Returns: boolean;
+      };
+      get_friends: {
+        Args: Record<string, never>;
+        Returns: TravelerSearchResult[];
+      };
+      get_incoming_friend_requests: {
+        Args: Record<string, never>;
+        Returns: IncomingFriendRequest[];
+      };
+      count_incoming_friend_requests: {
+        Args: Record<string, never>;
+        Returns: number;
+      };
+      get_traveler_profile: {
+        Args: { target_user_id: string };
+        Returns: TravelerProfile[];
+      };
+      get_public_trips_for_user: {
+        Args: { target_user_id: string };
+        Returns: PublicTripRow[];
+      };
+      send_friend_request: {
+        Args: { addressee_id: string };
+        Returns: string;
+      };
+      respond_to_friend_request: {
+        Args: { friendship_id: string; accept: boolean };
+        Returns: void;
+      };
+      set_trip_public: {
+        Args: { trip_id: string; is_public: boolean };
+        Returns: void;
       };
     };
     Enums: Record<string, never>;

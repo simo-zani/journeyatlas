@@ -15,6 +15,7 @@
   "nav": {
     "dashboard": "Dashboard",
     "myTrips": "I Miei Viaggi",
+    "travelers": "Viaggiatori",
     "profile": "Profilo",
     "logout": "Esci",
     "settings": "Impostazioni",
@@ -88,7 +89,12 @@
     "coverTooLarge": "File troppo grande. Massimo 5 MB.",
     "coverSet": "Copertina impostata",
     "coverDragHint": "Trascina per riposizionare",
-    "coverPosition": "Posizione: {{percent}}%"
+    "coverPosition": "Posizione: {{percent}}%",
+    "makePublic": "Rendi pubblico",
+    "makePrivate": "Rendi privato",
+    "publicLabel": "Pubblico",
+    "privateLabel": "Privato",
+    "visibilityLabel": "Visibilità"
   },
   "profile": {
     "title": "Profilo",
@@ -272,6 +278,39 @@
     "status": {
       "pending": "In attesa",
       "declined": "Rifiutato"
+    }
+  },
+  "travelers": {
+    "title": "Viaggiatori",
+    "subtitle": "Cerca altri viaggiatori per username e scopri i loro viaggi",
+    "searchPlaceholder": "Cerca per username...",
+    "noResults": "Nessun viaggiatore trovato per \"{{query}}\"",
+    "popular": "I più ricercati",
+    "requests": "Richieste ricevute",
+    "unknown": "sconosciuto"
+  },
+  "friend": {
+    "add": "Aggiungi amico",
+    "accept": "Accetta",
+    "decline": "Rifiuta",
+    "status": {
+      "friends": "Amici",
+      "outgoing": "Richiesta inviata",
+      "incoming": "Richiesta ricevuta",
+      "self": "Sei tu"
+    }
+  },
+  "travelerProfile": {
+    "back": "Torna alla ricerca",
+    "memberSince": "Membro da {{date}}",
+    "notFound": "Profilo non trovato",
+    "publicTrips": "Viaggi pubblici",
+    "noPublicTrips": "Nessun viaggio pubblico",
+    "privacyNote": "Solo i viaggi contrassegnati come pubblici sono visibili",
+    "stats": {
+      "countries": "Paesi visitati",
+      "continents": "Continenti visitati",
+      "trips": "Viaggi pubblici"
     }
   }
 }

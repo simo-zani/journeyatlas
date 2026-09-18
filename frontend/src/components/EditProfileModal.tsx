@@ -6,6 +6,7 @@ import { Button } from '@/components/Button';
 import { Input } from '@/components/Input';
 import { Alert } from '@/components/Alert';
 import { checkUsernameAvailable, updateProfile } from '@/lib/api';
+import { MODAL_ICON_SIZE } from '@/lib/ui';
 import { compressImage } from '@/lib/image';
 import { supabase } from '@/lib/supabase';
 
@@ -305,7 +306,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
               className="p-1 rounded-lg text-slate-400 hover:text-gold hover:bg-gold/10 transition-colors cursor-pointer"
               title={t('auth.username')}
             >
-              <Pencil className="w-3 h-3" />
+              <Pencil className={MODAL_ICON_SIZE} />
             </button>
           </div>
 

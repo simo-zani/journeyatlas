@@ -73,7 +73,6 @@ export const LoginPage: React.FC = () => {
             onChange={(e) => setEmail(e.target.value)}
             required
             autoComplete="email"
-            placeholder="you@example.com"
           />
           <Input
             label={t('auth.password')}
@@ -83,10 +82,12 @@ export const LoginPage: React.FC = () => {
             required
             autoComplete="current-password"
           />
-          <Button type="submit" className="w-full" disabled={submitting}>
-            {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
-            {t('auth.login.submit')}
-          </Button>
+          <div className="pt-6">
+            <Button type="submit" className="w-full" disabled={submitting}>
+              {submitting && <Loader2 className="w-5 h-5 animate-spin" />}
+              {t('auth.login.submit')}
+            </Button>
+          </div>
         </form>
 
         <p className="text-center text-sm mt-4 text-slate-600 dark:text-slate-400">

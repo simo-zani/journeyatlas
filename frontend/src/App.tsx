@@ -6,6 +6,8 @@ import { LoginPage } from '@/pages/LoginPage';
 import { SignupPage } from '@/pages/SignupPage';
 import { DashboardPage } from '@/pages/DashboardPage';
 import { TripDetailPage } from '@/pages/TripDetailPage';
+import { TravelersPage } from '@/pages/TravelersPage';
+import { TravelerProfilePage } from '@/pages/TravelerProfilePage';
 
 export default function App() {
   return (
@@ -44,6 +46,26 @@ export default function App() {
             <ProtectedRoute>
               <AppLayout>
                 <TripDetailPage />
+              </AppLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/travelers"
+          element={
+            <ProtectedRoute>
+              <AppLayout>
+                <TravelersPage />
+              </AppLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/travelers/:userId"
+          element={
+            <ProtectedRoute>
+              <AppLayout>
+                <TravelerProfilePage />
               </AppLayout>
             </ProtectedRoute>
           }

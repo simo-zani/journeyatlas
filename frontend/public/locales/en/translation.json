@@ -15,6 +15,7 @@
   "nav": {
     "dashboard": "Dashboard",
     "myTrips": "My Trips",
+    "travelers": "Travelers",
     "profile": "Profile",
     "logout": "Logout",
     "settings": "Settings",
@@ -88,7 +89,12 @@
     "coverTooLarge": "File too large. Maximum 5 MB.",
     "coverSet": "Cover set",
     "coverDragHint": "Drag to reposition",
-    "coverPosition": "Position: {{percent}}%"
+    "coverPosition": "Position: {{percent}}%",
+    "makePublic": "Make public",
+    "makePrivate": "Make private",
+    "publicLabel": "Public",
+    "privateLabel": "Private",
+    "visibilityLabel": "Visibility"
   },
   "profile": {
     "title": "Profile",
@@ -272,6 +278,39 @@
     "status": {
       "pending": "Pending",
       "declined": "Declined"
+    }
+  },
+  "travelers": {
+    "title": "Travelers",
+    "subtitle": "Search other travelers by username and discover their trips",
+    "searchPlaceholder": "Search by username...",
+    "noResults": "No travelers found for \"{{query}}\"",
+    "popular": "Most popular",
+    "requests": "Friend requests",
+    "unknown": "unknown"
+  },
+  "friend": {
+    "add": "Add friend",
+    "accept": "Accept",
+    "decline": "Decline",
+    "status": {
+      "friends": "Friends",
+      "outgoing": "Request sent",
+      "incoming": "Request received",
+      "self": "This is you"
+    }
+  },
+  "travelerProfile": {
+    "back": "Back to search",
+    "memberSince": "Member since {{date}}",
+    "notFound": "Profile not found",
+    "publicTrips": "Public trips",
+    "noPublicTrips": "No public trips",
+    "privacyNote": "Only trips marked as public are visible",
+    "stats": {
+      "countries": "Countries visited",
+      "continents": "Continents visited",
+      "trips": "Public trips"
     }
   }
 }

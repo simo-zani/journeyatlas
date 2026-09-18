@@ -258,7 +258,7 @@ export const DashboardPage: React.FC = () => {
         <div>{STATUS_ORDER.map(renderSection)}</div>
       )}
 
-      <Modal open={createOpen} onClose={() => setCreateOpen(false)} title={t('dashboard.createTrip')}>
+      <Modal open={createOpen} onClose={() => setCreateOpen(false)} title={t('dashboard.createTrip')} maxWidth="max-w-5xl" tall>
         <TripForm onSuccess={handleTripCreated} />
       </Modal>
     </div>

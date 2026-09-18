@@ -5,12 +5,16 @@ import type {
   ChecklistCategoryRow,
   ChecklistItemRow,
   Destination,
+  IncomingFriendRequest,
   PendingInvite,
   ProfileRow,
   ProfileSearchResult,
   Role,
   TransportRow,
   TransportType,
+  TravelerProfile,
+  TravelerSearchResult,
+  PublicTripRow,
   Trip,
   TripParticipantDetail,
   TripParticipantRow,
@@ -48,6 +52,7 @@ export interface CreateTripInput {
   budget_planned?: number | null;
   cover_image_url?: string | null;
   cover_position_y?: number;
+  is_public?: boolean;
 }
 
 /** True if the username is already taken (case-insensitive), checked via
@@ -102,6 +107,7 @@ export const updateTrip = async (id: string, input: Partial<CreateTripInput>): P
   if (input.budget_planned !== undefined) patch.budget_planned = input.budget_planned;
   if (input.cover_image_url !== undefined) patch.cover_image_url = input.cover_image_url;
   if (input.cover_position_y !== undefined) patch.cover_position_y = input.cover_position_y;
+  if (input.is_public !== undefined) patch.is_public = input.is_public;
 
   const { data, error } = await supabase
     .from('trips')
@@ -125,6 +131,7 @@ export const createTrip = async (userId: string, input: CreateTripInput): Promis
       destinations: input.destinations ?? [],
       budget_planned: input.budget_planned ?? null,
       cover_image_url: input.cover_image_url ?? null,
+      is_public: input.is_public ?? false,
     })
     .select()
     .single();
@@ -587,5 +594,108 @@ export const updateParticipantRole = async (participantId: string, role: Role): 
 
 export const removeParticipant = async (participantId: string): Promise<void> => {
   const { error } = await supabase.from('trip_participants').delete().eq('id', participantId);
+  if (error) throw error;
+};
+
+// ----------------------------------------------------------------------------
+// Viaggiatori & Amici
+// ----------------------------------------------------------------------------
+
+/** Cerca viaggiatori per username (prefix match) con lo stato dell'amicizia
+ * rispetto all'utente corrente. */
+export const searchTravelers = async (query: string): Promise<TravelerSearchResult[]> => {
+  if (!query.trim()) return [];
+  const { data, error } = await supabase.rpc('search_travelers', {
+    search_query: query.trim(),
+  });
+  if (error) throw error;
+  return data ?? [];
+};
+
+/** Profilo pubblico di un viaggiatore: dati base + statistiche paesi/continenti
+ * visitati (pubbliche per tutti) + stato amicizia. */
+export const fetchTravelerProfile = async (targetUserId: string): Promise<TravelerProfile | null> => {
+  const { data, error } = await supabase.rpc('get_traveler_profile', {
+    target_user_id: targetUserId,
+  });
+  if (error) throw error;
+  return data?.[0] ?? null;
+};
+
+/** Viaggi pubblici di un utente (is_public = true). */
+export const fetchPublicTripsForUser = async (
+  targetUserId: string
+): Promise<PublicTripRow[]> => {
+  const { data, error } = await supabase.rpc('get_public_trips_for_user', {
+    target_user_id: targetUserId,
+  });
+  if (error) throw error;
+  return data ?? [];
+};
+
+/** Viaggiatori popolari (mostrati di default nella pagina Viaggiatori). */
+export const fetchPopularTravelers = async (): Promise<TravelerSearchResult[]> => {
+  const { data, error } = await supabase.rpc('get_popular_travelers', {});
+  if (error) throw error;
+  return data ?? [];
+};
+
+/** Registra una visita al profilo di un viaggiatore (+1, rate-limited). */
+export const recordProfileView = async (targetUserId: string): Promise<boolean> => {
+  const { data, error } = await supabase.rpc('record_profile_view', {
+    target_user_id: targetUserId,
+  });
+  if (error) throw error;
+  return data ?? false;
+};
+
+/** Elenco amici (amicizie accettate) dell'utente corrente. */
+export const fetchFriends = async (): Promise<TravelerSearchResult[]> => {
+  const { data, error } = await supabase.rpc('get_friends', {});
+  if (error) throw error;
+  return data ?? [];
+};
+
+/** Richieste di amicizia ricevute (pending). */
+export const fetchIncomingFriendRequests = async (): Promise<IncomingFriendRequest[]> => {
+  const { data, error } = await supabase.rpc('get_incoming_friend_requests', {});
+  if (error) throw error;
+  return data ?? [];
+};
+
+/** Conteggio richieste ricevute (badge in sidebar). */
+export const countIncomingFriendRequests = async (): Promise<number> => {
+  const { data, error } = await supabase.rpc('count_incoming_friend_requests', {});
+  if (error) throw error;
+  return (data ?? 0) as number;
+};
+
+/** Invia una richiesta di amicizia (riattiva una eventuale coppia 'declined'). */
+export const sendFriendRequest = async (addresseeId: string): Promise<string> => {
+  const { data, error } = await supabase.rpc('send_friend_request', {
+    addressee_id: addresseeId,
+  });
+  if (error) throw error;
+  return data ?? '';
+};
+
+/** Accetta/rifiuta una richiesta di amicizia ricevuta. */
+export const respondToFriendRequest = async (
+  friendshipId: string,
+  accept: boolean
+): Promise<void> => {
+  const { error } = await supabase.rpc('respond_to_friend_request', {
+    friendship_id: friendshipId,
+    accept,
+  });
+  if (error) throw error;
+};
+
+/** Rende un viaggio pubblico/privato (solo owner). */
+export const setTripPublic = async (tripId: string, isPublic: boolean): Promise<void> => {
+  const { error } = await supabase.rpc('set_trip_public', {
+    trip_id: tripId,
+    is_public: isPublic,
+  });
   if (error) throw error;
 };

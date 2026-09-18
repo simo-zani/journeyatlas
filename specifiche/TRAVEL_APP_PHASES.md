@@ -178,9 +178,20 @@
 - [ ] Notifica in-app all'invitato — per ora l'invitato la vede solo tornando/aprendo la dashboard (sezione "Inviti in sospeso"); badge/campanella resta da fare in Fase 3
 - **Status:** 🟢 Done (manca solo la notifica push/badge, rimandata)
 
-> 🔭 **Evoluzione futura pianificata** (non ancora implementata, da fare insieme al sistema di notifiche in Fase 4 / 4.1):
+> 🔭 **Evoluzione futura pianificata** (parzialmente implementata in 1.9b, vedi sotto):
 > - **Invito anche a chi non ha un account**: oltre alla ricerca per username (quella attuale, per chi è già registrato), aggiungere un invito "esterno" via link condivisibile su WhatsApp/Telegram/email — la persona invitata si registra (o si logga) e il link la collega automaticamente all'invito in sospeso.
-> - **Sistema Amici**: introdurre gli amici come relazione di livello app (non per-singolo-viaggio) — la ricerca per username che oggi vive dentro il modale "Condividi viaggio" si sposterà in una sezione "Amici" dedicata (richiesta/accetta/rifiuta amicizia, lista amici). Una volta fatto, **l'invito a un viaggio sarà possibile solo verso i propri amici**, non verso qualsiasi utente cercato — `ShareTripModal` andrà quindi aggiornato per proporre la lista amici invece della ricerca globale attuale.
+> - **Sistema Amici** (👉 sezione **1.9b** qui sotto, già avviata): la parte di richiesta/accetta/rifiuta amicizia e profili viaggiatori pubblici è fatta; restano da fare la **lista amici** dedicata (sezione "Amici" con le richieste in entrata/uscita) e il collegamento con l'invito al viaggio (**`ShareTripModal`** che propone solo amici invece della ricerca globale). Notifiche rimandate a Fase 4.
+
+### 1.9b Viaggiatori, Profili Pubblici & Amici
+
+- [x] Migration `0012_social.sql`: tabella `friendships` (requester/addressee + status pending/accepted/declined + RLS), colonna `is_public` su `trips`, tabella `country_continents` (ISO α2 → continente), RPC `set_trip_public`
+- [x] Pagina **Viaggiatori** (`/travelers`, icona `Users` nella sidebar sopra Impostazioni): barra di ricerca per username (debounce 300ms, RPC `search_travelers`) con stato amicizia (amici/richiesta inviata/richiesta ricevuta)
+- [x] Pagina **Profilo Viaggiatore** (`/travelers/:userId`): avatar, @username, data iscrizione; statistiche pubbliche **paesi e continenti visitati** (`get_traveler_profile`, calcolate su tutti i viaggi, deduplicated da `destinations.countryCode`); viaggi **pubblici** dell'utente (`get_public_trips_for_user`)
+- [x] Richiesta di amicizia: RPC `send_friend_request` / `respond_to_friend_request`; pulsanti Aggiungi amico / Richiesta inviata / Accetta / Rifiuta in base allo stato
+- [x] Toggle **Rendi pubblico/privato** su un viaggio (icona globo nel dettaglio, solo owner, RPC `set_trip_public`)
+- [ ] **Lista Amici** dedicata (gestione richieste in entrata/uscita centralizzata) — prossimo passo
+- [ ] `ShareTripModal` che propone solo amici (dopo la lista Amici) — rimandato
+- **Status:** 🟡 In Progress
 
 #### Accettazione / Rifiuto — ✅ fatto
 - [x] Sezione "Inviti in sospeso" in dashboard (sopra la lista viaggi, `PendingInvites` — invisibile se non ci sono pending)

@@ -99,7 +99,6 @@ export const SignupPage: React.FC = () => {
             onChange={(e) => setEmail(e.target.value)}
             required
             autoComplete="email"
-            placeholder="you@example.com"
           />
           <Input
             label={t('auth.username')}
@@ -126,10 +125,12 @@ export const SignupPage: React.FC = () => {
             required
             autoComplete="new-password"
           />
-          <Button type="submit" className="w-full" disabled={submitting}>
-            {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
-            {t('auth.signup.submit')}
-          </Button>
+          <div className="pt-6">
+            <Button type="submit" className="w-full" disabled={submitting}>
+              {submitting && <Loader2 className="w-5 h-5 animate-spin" />}
+              {t('auth.signup.submit')}
+            </Button>
+          </div>
         </form>
 
         <p className="text-center text-sm mt-4 text-slate-600 dark:text-slate-400">

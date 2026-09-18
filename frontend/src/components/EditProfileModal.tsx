@@ -210,11 +210,11 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
           {passwordError && <Alert type="error" message={passwordError} onClose={() => setPasswordError(null)} />}
           {passwordSuccess && <Alert type="success" message={t('profile.passwordUpdated')} />}
 
-          <div className="flex justify-end gap-2">
-            <Button type="button" variant="tertiary" size="sm" onClick={resetPasswordSection}>
+          <div className="flex gap-3">
+            <Button type="button" variant="tertiary" size="sm" className="flex-1" onClick={resetPasswordSection}>
               {t('common.cancel')}
             </Button>
-            <Button type="button" size="sm" onClick={handleChangePassword} disabled={changingPassword}>
+            <Button type="button" size="sm" className="flex-1" onClick={handleChangePassword} disabled={changingPassword}>
               {changingPassword && <Loader2 className="w-4 h-4 animate-spin" />}
               {t('profile.updatePassword')}
             </Button>

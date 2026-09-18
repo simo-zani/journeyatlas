@@ -313,7 +313,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
             </Button>
           </div>
 
-          <div className="w-full pt-3 border-t border-slate-200/60 dark:border-white/5">
+          <div className="w-full">
             <Button type="button" variant="tertiary" className="w-full" onClick={() => setShowPasswordFields(true)}>
               {t('profile.changePassword')}
             </Button>

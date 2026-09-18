@@ -386,7 +386,7 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
                               )}
                               <div className="min-w-0 flex-1">
                                 <p className="text-xs text-white font-medium truncate">
-                                  {user.email}
+                                  {username ? `@${username}` : user.email}
                                 </p>
                               </div>
                             </button>
@@ -583,7 +583,7 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
                           {avatarInitial}
                         </div>
                       )}
-                      <span className="text-xs text-slate-400 truncate">{user.email}</span>
+                      <span className="text-xs text-slate-400 truncate">{username ? `@${username}` : user.email}</span>
                     </button>
                     <Button
                       variant="tertiary"

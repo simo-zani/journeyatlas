@@ -178,6 +178,10 @@
 - [ ] Notifica in-app all'invitato — per ora l'invitato la vede solo tornando/aprendo la dashboard (sezione "Inviti in sospeso"); badge/campanella resta da fare in Fase 3
 - **Status:** 🟢 Done (manca solo la notifica push/badge, rimandata)
 
+> 🔭 **Evoluzione futura pianificata** (non ancora implementata, da fare insieme al sistema di notifiche in Fase 4 / 4.1):
+> - **Invito anche a chi non ha un account**: oltre alla ricerca per username (quella attuale, per chi è già registrato), aggiungere un invito "esterno" via link condivisibile su WhatsApp/Telegram/email — la persona invitata si registra (o si logga) e il link la collega automaticamente all'invito in sospeso.
+> - **Sistema Amici**: introdurre gli amici come relazione di livello app (non per-singolo-viaggio) — la ricerca per username che oggi vive dentro il modale "Condividi viaggio" si sposterà in una sezione "Amici" dedicata (richiesta/accetta/rifiuta amicizia, lista amici). Una volta fatto, **l'invito a un viaggio sarà possibile solo verso i propri amici**, non verso qualsiasi utente cercato — `ShareTripModal` andrà quindi aggiornato per proporre la lista amici invece della ricerca globale attuale.
+
 #### Accettazione / Rifiuto — ✅ fatto
 - [x] Sezione "Inviti in sospeso" in dashboard (sopra la lista viaggi, `PendingInvites` — invisibile se non ci sono pending)
 - [x] Card invito: nome viaggio + cover, chi ha invitato, ruolo proposto, pulsanti **Accetta** / **Rifiuta**
@@ -434,8 +438,9 @@
 - [ ] Email reminder 24h prima check-in volo
 - [ ] Email reminder mattina checkout hotel
 - [ ] Email reminder attività pianificate (es. 2h prima)
-- [ ] In-app notification (badge)
+- [ ] In-app notification (badge) — includere il badge per gli inviti in sospeso, rimandato da 1.9
 - [ ] Notifiche quando qualcuno invita, aggiunge info, chiede rimborso
+- [ ] **Invito via canale esterno** (WhatsApp/Telegram/email) per chi non ha ancora un account — vedi nota in 1.9 "Flusso invito"; genera un link condivisibile che collega la persona all'invito in sospeso dopo la registrazione/login
 - [ ] Impostazioni notifiche per utente
 - **Status:** ⏳ Not Started
 

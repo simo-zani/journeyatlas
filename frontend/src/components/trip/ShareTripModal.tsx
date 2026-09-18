@@ -79,6 +79,7 @@ export const ShareTripModal: React.FC<ShareTripModalProps> = ({
   useEffect(() => {
     if (!query.trim()) {
       setResults([]);
+      setSearching(false);
       return;
     }
     setSearching(true);

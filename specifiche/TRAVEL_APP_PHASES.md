@@ -4,15 +4,15 @@
 
 | Fase | Nome | Status | Completamento |
 |------|------|--------|----------------|
-| 1 | MVP Core (Auth + Viaggio Base) | 🟡 In Progress | 65% |
+| 1 | MVP Core (Auth + Viaggio Base) | 🟡 In Progress | 75% |
 | 2 | Packing + Expense Split | ⏳ Not Started | 0% |
 | 3 | Info Paese + Documenti + Chat | ⏳ Not Started | 0% |
 | 4 | Timeline + Notifiche + Post-Report | ⏳ Not Started | 0% |
 | 5 | Dashboard Analytics + Scratch Map | ⏳ Not Started | 0% |
 | 6 | Admin Dashboard (metriche servizio) | ⏳ Not Started | 0% |
 
-**Ultimo aggiornamento:** 2026-09-16  
-**Prossima milestone:** Fase 1 — inviti/condivisione partecipanti (1.9), poi import Notion (1.11) e PWA mobile (1.4)
+**Ultimo aggiornamento:** 2026-09-18  
+**Prossima milestone:** Fase 1 — flusso invito/condivisione partecipanti (username già pronto come prerequisito), poi import Notion (1.11) e PWA mobile (1.4)
 
 ---
 
@@ -24,7 +24,7 @@
 ### 1.1 Setup Infrastruttura
 - [x] Creare progetto ASP.NET Core (Minimal APIs)
 - [x] Setup React TypeScript + Tailwind + shadcn
-- [~] Supabase project setup (database, auth, storage) — migration `supabase/migrations/0001_init.sql` pronta, da applicare nel SQL Editor
+- [x] Supabase project setup (database, auth, storage) — migrazioni `0001`→`0010` applicate nel SQL Editor
 - [x] Environment variables e secrets management (`frontend/.env.local` + `.env.example`)
 - [ ] Docker setup (opzionale per dev)
 - [~] PWA setup: manifest.json fatto, service worker e icone mancanti
@@ -50,19 +50,20 @@
 - **Status:** 🟡 In Progress
 
 ### 1.2 Autenticazione
-- [~] Supabase Auth integration (email/password) — client + AuthProvider pronti, test al primo avvio
+- [x] Supabase Auth integration (email/password) — testata, funzionante
 - [ ] OAuth Google setup
 - [ ] OAuth Apple setup
-- [x] Login form UI (shadcn/ui)
-- [x] Signup form UI
+- [x] Login form UI — redisegnata senza riquadro Card, campi liberi sullo sfondo
+- [x] Signup form UI — idem, più campo username obbligatorio (vedi 1.9)
+- [x] Cambio password (modale Profilo, `supabase.auth.updateUser`)
 - [x] Logout + session management
 - [x] Protected routes (redirect if not authenticated)
-- [ ] User profile API endpoint
-- **Status:** 🟡 In Progress
+- [x] User profile API endpoint (`fetchProfile`/`updateProfile` in `lib/api.ts`)
+- **Status:** 🟡 In Progress (manca solo OAuth)
 
 ### 1.3 Database & Migrations
-- [~] Creare tabelle: trips, trip_participants, activities, flights, accommodations (profile incluso) — da applicare `0001_init.sql`
-- [~] Row-level security policies — incluse nella migration
+- [x] Creare tabelle: trips, trip_participants, activities, flights, accommodations, profiles — `0001_init.sql` applicata
+- [~] Row-level security policies — presenti per trips/activities/ecc. dalla migration iniziale, ma **mancavano del tutto su `profiles`** (nessuna policy = nessun accesso, nemmeno per il proprietario): bug reale scoperto e corretto in `0010_profiles_rls.sql`. Da fare ancora: audit delle altre tabelle per verificare non ci siano altre lacune simili
 - [x] Indexes su foreign keys
 - [x] Triggers per updated_at auto
 - **Status:** 🟡 In Progress
@@ -153,24 +154,29 @@
 - Ogni utente che ha accesso al viaggio (owner + partecipanti accettati) lo vede nella propria dashboard tramite una query su `trip_participants`.
 - La dashboard già esegue `fetchMyTrips` filtrata per `owner_id = me` — va estesa a includere anche i viaggi dove `trip_participants.user_id = me AND joined_at IS NOT NULL`.
 
-#### Username univoco (prerequisito)
-- [ ] Migration `0006_username.sql`: aggiungere colonna `username text unique` a `public.profiles`
-  - Constraint: solo `[a-z0-9_.]`, min 3 char, max 30 char
-  - Index `idx_profiles_username` per ricerca veloce
-- [ ] Trigger `handle_new_user` aggiornato: genera username di default da email (parte prima di `@`) + suffisso numerico se già esistente
-- [ ] Pagina/modal impostazioni profilo: campo per scegliere/modificare username
-- [ ] Validazione realtime: debounce 300ms, check disponibilità via Supabase query, feedback visivo (✓ / ✗)
-- **Status:** ⏳ Not Started
+#### Username univoco (prerequisito) — ✅ fatto, con alcune scelte diverse dal piano originale
+- [x] Migration `0008_username.sql`: colonna `username text` su `public.profiles`
+  - Constraint formato: `[A-Za-z0-9_.-]+` (lettere/numeri/underscore/trattino/punto, niente spazi né `@`)
+  - Univocità **case-insensitive** via unique index su `lower(username)` (non un semplice `unique`, per evitare "Simo" vs "simo")
+- [x] RPC `username_exists(check_username)` — `security definer`, usata dal form invece di una query diretta su `profiles` (non espone righe, solo un booleano)
+- [~] Trigger `handle_new_user` aggiornato: legge `username` da `raw_user_meta_data` (passato da `supabase.auth.signUp({ options: { data: { username } } })`). **Scelta diversa dal piano**: username obbligatorio già in fase di signup, niente generazione automatica da email + suffisso — semplifica il flusso ma richiede sempre l'input dell'utente
+- [x] Modale "Profilo" (icona/riga account nella sidebar): foto avatar (drag&drop, compressa sempre <500KB), username modificabile (icona matita, stile `@handle`), cambio password
+- [~] Validazione realtime: il **formato** è filtrato live mentre scrivi (caratteri non validi semplicemente non vengono accettati); la **disponibilità** è controllata al submit, non con debounce mentre scrivi — da rifinire se serve un feedback ✓/✗ istantaneo
+- [x] Migration `0009_storage_avatars.sql`: bucket storage `avatars` (stesse policy di `trip-covers`: lettura pubblica, scrittura solo proprietario)
+- [x] Migration `0010_profiles_rls.sql`: RLS mancante su `profiles` (vedi 1.3) — necessaria perché il modale Profilo funzionasse
+- [x] Script di backfill eseguito per l'utente esistente pre-feature (`simo1696@tiscali.it` → username `simo_zani`)
+- **Status:** 🟢 Done (resta solo l'eventuale debounce live sulla disponibilità, non bloccante)
 
 #### Flusso invito
+> ⚠️ **Attenzione RLS**: la policy `profiles_select_own` (0010) permette a ognuno di leggere **solo la propria riga**. La ricerca per username qui sotto interroga le righe di *altri* utenti, quindi servirà un'altra RPC `security definer` (come `username_exists`) che ritorna solo i campi pubblici (username, avatar_url) invece di allargare la policy SELECT a tutta la tabella.
 - [ ] UI "Condividi viaggio" nel dettaglio viaggio (pulsante nella header, visibile solo all'owner)
 - [ ] Modal di invito: campo di ricerca username (autocomplete dopo 2 caratteri, debounce 300ms)
-  - Query `profiles` per `username ILIKE 'query%'` (case-insensitive prefix)
+  - RPC dedicata (non query diretta su `profiles`, bloccata dalla RLS) per `username ILIKE 'query%'` (case-insensitive prefix)
   - Mostra avatar, display_name e @username nei risultati
   - Esclude utenti già partecipanti al viaggio
 - [ ] Selezione ruolo al momento dell'invito: **Editor** (modifica tutto) o **Viewer** (sola lettura)
 - [ ] Click "Invita": crea riga in `trip_participants` con `status = 'pending'`, `invited_by = owner_uid`, `role` scelto
-  - Migration `0007_invite_status.sql`: aggiungere colonna `status text check ('pending','accepted','declined') default 'pending'` e `invited_by uuid`
+  - Migration `0011_invite_status.sql`: aggiungere colonna `status text check ('pending','accepted','declined') default 'pending'` e `invited_by uuid` (numerazione aggiornata: `0007`-`0010` sono già usate da cover/username/avatar/RLS)
 - [ ] Notifica in-app all'invitato (badge su icona campanella o sezione "Notifiche" — da definire in Fase 3; per ora basta un banner nella dashboard)
 - **Status:** ⏳ Not Started
 
@@ -625,7 +631,7 @@
 ### 6.1 Ruolo Admin
 
 #### Schema DB
-- [ ] Migration `0008_admin_role.sql`: aggiungere colonna `is_admin boolean not null default false` a `public.profiles`
+- [ ] Migration `0012_admin_role.sql`: aggiungere colonna `is_admin boolean not null default false` a `public.profiles` (numerazione aggiornata, vedi nota in 1.9)
   - Solo un superuser Postgres o il proprietario del progetto Supabase può settare `is_admin = true` via SQL diretto (mai via UI pubblica)
   - Index `idx_profiles_is_admin` (sparse, pochissime righe `true`)
 - [ ] RLS: nessuna policy espone `is_admin` agli utenti normali; le funzioni admin usano `security definer`

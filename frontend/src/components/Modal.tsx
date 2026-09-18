@@ -6,10 +6,11 @@ interface ModalProps {
   open: boolean;
   onClose: () => void;
   title: string;
+  maxWidth?: string;
   children: React.ReactNode;
 }
 
-export const Modal: React.FC<ModalProps> = ({ open, onClose, title, children }) => {
+export const Modal: React.FC<ModalProps> = ({ open, onClose, title, maxWidth = 'max-w-3xl', children }) => {
   useEffect(() => {
     if (!open) return;
     const handleKey = (e: KeyboardEvent) => {
@@ -38,7 +39,7 @@ export const Modal: React.FC<ModalProps> = ({ open, onClose, title, children }) 
           aria-modal="true"
         >
           <motion.div
-            className="surface-panel w-full max-w-lg max-h-[90vh] overflow-y-auto"
+            className={`surface-panel w-full ${maxWidth} max-h-[90vh] overflow-y-auto`}
             initial={{ opacity: 0, y: 16, scale: 0.97 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 10, scale: 0.98 }}

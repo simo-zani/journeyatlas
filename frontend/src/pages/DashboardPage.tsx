@@ -115,14 +115,31 @@ export const DashboardPage: React.FC = () => {
         >
           {/* Cover area */}
           <div className="relative flex-shrink-0" style={{ height: '176px' }}>
-            {/* Immagine di copertina */}
-            <img
-              src="/images/placeholder.webp"
-              alt=""
-              className="absolute inset-0 w-full h-full object-cover"
-              draggable={false}
-            />
-
+            {trip.cover_image_url ? (
+              <img
+                src={trip.cover_image_url}
+                alt=""
+                className="absolute inset-0 w-full h-full object-cover"
+                draggable={false}
+              />
+            ) : (
+              /* Gradient fallback when no cover image */
+              <div
+                className="absolute inset-0"
+                style={{
+                  background:
+                    'linear-gradient(135deg, var(--color-deep-blue) 0%, #1a2744 40%, #0d1c3a 70%, #0a1520 100%)',
+                }}
+              >
+                <div
+                  className="absolute inset-0 opacity-20"
+                  style={{
+                    backgroundImage:
+                      'radial-gradient(circle at 30% 50%, rgba(212,175,55,0.4) 0%, transparent 60%), radial-gradient(circle at 80% 20%, rgba(100,150,255,0.2) 0%, transparent 50%)',
+                  }}
+                />
+              </div>
+            )}
             {/* Overlay sfumato multi-stop — effetto cinematografico */}
             <div
               className="absolute inset-0"

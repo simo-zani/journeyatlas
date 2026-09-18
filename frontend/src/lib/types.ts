@@ -19,6 +19,7 @@ export type TripRow = {
   destinations: Destination[] | null;
   budget_planned: number | null;
   cover_image_url: string | null;
+  cover_position_y: number;
   created_at: string;
   updated_at: string;
   archived_at: string | null;

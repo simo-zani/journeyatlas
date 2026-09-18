@@ -1,26 +1,27 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   BarChart3,
   BedDouble,
-  Calendar,
+  CalendarDays,
   FileText,
   Info,
   Loader2,
   MessageSquare,
   Mountain,
-  Package,
+  NotebookText,
   Pencil,
   Route,
+  Users,
   Wallet,
   type LucideIcon,
 } from 'lucide-react';
-import { Card } from '@/components/Card';
 import { Modal } from '@/components/Modal';
 import { TripForm } from '@/components/TripForm';
 import { TripFlags } from '@/components/TripFlags';
+import { CalendarSection } from '@/components/trip/CalendarSection';
 import { ActivitySection } from '@/components/trip/ActivitySection';
 import { AccommodationSection } from '@/components/trip/AccommodationSection';
 import { TransportSection } from '@/components/trip/TransportSection';
@@ -29,16 +30,27 @@ import { useAuth } from '@/auth/AuthContext';
 import { supabase } from '@/lib/supabase';
 import type { Trip } from '@/lib/types';
 
-type TripSection = 'activities' | 'accommodations' | 'transport' | 'packing' | 'expenses' | 'info' | 'documents' | 'chat' | 'report';
+type TripSection =
+  | 'calendar'
+  | 'activities'
+  | 'accommodations'
+  | 'transport'
+  | 'packing'
+  | 'expenses'
+  | 'info'
+  | 'documents'
+  | 'chat'
+  | 'report';
 
-const ACTIVE_SECTIONS: TripSection[] = ['activities', 'accommodations', 'transport', 'packing'];
-const INACTIVE_SECTIONS: TripSection[] = ['expenses', 'info', 'documents', 'chat', 'report'];
+const ACTIVE_SECTIONS: TripSection[] = ['calendar', 'activities', 'accommodations', 'transport', 'packing'];
+const INACTIVE_SECTIONS: TripSection[] = ['expenses', 'info', 'documents'];
 
 const SECTION_ICONS: Record<TripSection, LucideIcon> = {
+  calendar: CalendarDays,
   activities: Mountain,
   accommodations: BedDouble,
   transport: Route,
-  packing: Package,
+  packing: NotebookText,
   expenses: Wallet,
   info: Info,
   documents: FileText,
@@ -56,6 +68,8 @@ export const TripDetailPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [activeSection, setActiveSection] = useState<TripSection>('activities');
   const [editOpen, setEditOpen] = useState(false);
+  const [tabsScrolled, setTabsScrolled] = useState(false);
+  const sentinelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!tripId) return;
@@ -75,6 +89,18 @@ export const TripDetailPage: React.FC = () => {
     void load();
   }, [tripId]);
 
+  // IntersectionObserver to detect when header scrolls away (sticky tabs blur effect)
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      ([entry]) => setTabsScrolled(!entry.isIntersecting),
+      { threshold: 0 }
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+
   const formatDate = (date: string | null) =>
     date ? new Date(`${date}T00:00:00`).toLocaleDateString() : '';
 
@@ -88,9 +114,10 @@ export const TripDetailPage: React.FC = () => {
   }, [trip]);
 
   const sectionLabel = (section: TripSection) => t(`tripSection.${section}`);
+  const hasCover = Boolean(trip?.cover_image_url);
 
   return (
-    <div className="max-w-6xl mx-auto">
+    <div className="relative w-full max-w-[1680px] mx-auto transition-all duration-300">
       {loading ? (
         <div className="flex items-center justify-center py-16">
           <Loader2 className="w-16 h-16 text-gold animate-spin" />
@@ -99,48 +126,106 @@ export const TripDetailPage: React.FC = () => {
         <p className="text-error">{error ?? t('trip.notFound')}</p>
       ) : (
         <>
-          <Card className="mb-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
-              <div className="flex items-center gap-3 min-w-0">
+          {/* ── Cover image background fading downward ── */}
+          {hasCover && (
+            <div
+              className="pointer-events-none absolute -top-[clamp(16px,2.5%,40px)] -left-[clamp(16px,2.5%,48px)] -right-[clamp(16px,2.5%,48px)] h-80 sm:h-96 overflow-hidden z-0"
+              style={{
+                backgroundImage: `url(${trip.cover_image_url})`,
+                backgroundSize: 'cover',
+                backgroundPosition: `center ${trip.cover_position_y ?? 0}%`,
+                maskImage: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.8) 35%, rgba(0,0,0,0.2) 75%, rgba(0,0,0,0) 100%)',
+                WebkitMaskImage: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.8) 35%, rgba(0,0,0,0.2) 75%, rgba(0,0,0,0) 100%)',
+              }}
+            />
+          )}
+
+          {/* ── Header content: title, dates and action buttons (aligned with tabs) ── */}
+          <div className="relative z-10 flex flex-col sm:flex-row sm:items-end justify-between gap-6 pt-4 sm:pt-6 pb-3 mb-2">
+            {/* Left: Info */}
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-3 mb-2 min-w-0">
                 <TripFlags destinations={trip.destinations} />
-                <h1 className="truncate">{trip.name}</h1>
-              </div>
-              <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0">
-                {(trip.start_date || trip.end_date) && (
-                  <div className="text-sm text-slate-600 dark:text-slate-400">
-                    <p className="flex items-center gap-2">
-                      <Calendar className="w-5 h-5 shrink-0" />
-                      {formatDate(trip.start_date)}
-                      {trip.end_date ? ` · ${formatDate(trip.end_date)}` : ''}
-                    </p>
-                    {duration && (
-                      <p className="mt-1 ml-7 text-xs text-slate-400 dark:text-slate-500">
-                        ({t('trip.durationDays', { days: duration.days, nights: duration.nights })})
-                      </p>
-                    )}
-                  </div>
-                )}
-                <button
-                  onClick={() => setEditOpen(true)}
-                  className="p-2.5 rounded-lg text-slate-400 hover:text-light-blue hover:bg-light-blue/10 transition-colors shrink-0"
-                  aria-label={t('trip.editTitle')}
-                  title={t('trip.editTitle')}
+                <h1
+                  className={`truncate text-3xl sm:text-4xl font-extrabold tracking-tight ${
+                    hasCover ? 'text-white drop-shadow-md' : 'text-slate-900 dark:text-slate-50'
+                  }`}
                 >
-                  <Pencil className="w-5 h-5" />
-                </button>
+                  {trip.name}
+                </h1>
               </div>
+
+              {trip.destinations && trip.destinations.length > 0 && (
+                <p
+                  className={`text-base font-medium truncate ${
+                    hasCover ? 'text-white/85 drop-shadow' : 'text-slate-600 dark:text-slate-400'
+                  }`}
+                >
+                  {trip.destinations.map((d) => d.city).filter(Boolean).join(' · ')}
+                </p>
+              )}
+
+              {(trip.start_date || trip.end_date) && (
+                <div
+                  className={`flex items-center gap-2 mt-1.5 text-sm sm:text-base font-medium ${
+                    hasCover ? 'text-white/75 drop-shadow' : 'text-slate-500 dark:text-slate-400'
+                  }`}
+                >
+                  <span>
+                    {formatDate(trip.start_date)}
+                    {trip.end_date ? ` – ${formatDate(trip.end_date)}` : ''}
+                  </span>
+                  {duration && (
+                    <span
+                      className={`text-xs sm:text-sm ${
+                        hasCover ? 'text-white/50' : 'text-slate-400 dark:text-slate-500'
+                      }`}
+                    >
+                      · {t('trip.durationDays', { days: duration.days, nights: duration.nights })}
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
 
-            {trip.destinations && trip.destinations.length > 0 && (
-              <p className="text-slate-600 dark:text-slate-400 mb-2">
-                {trip.destinations.map((d) => d.city).filter(Boolean).join(' · ')}
-              </p>
-            )}
+            {/* Right: Action icons column (uniform w-6 h-6 icons in prominent buttons) */}
+            <div className="flex sm:flex-col items-center gap-2 shrink-0 self-start sm:self-auto">
+              <button
+                onClick={() => setEditOpen(true)}
+                className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all cursor-pointer shadow-lg hover:scale-105 active:scale-95 ${
+                  hasCover
+                    ? 'text-white bg-black/60 hover:bg-black/80 backdrop-blur-md ring-2 ring-gold/50'
+                    : 'text-gold-light bg-slate-800/90 hover:bg-slate-700/90 ring-2 ring-gold/40 hover:ring-gold'
+                }`}
+                aria-label={t('trip.editTitle')}
+                title={t('trip.editTitle')}
+              >
+                <Pencil className="w-5 h-5 text-gold" strokeWidth={2} />
+              </button>
 
-            {trip.description && (
-              <p className="text-slate-600 dark:text-slate-400">{trip.description}</p>
-            )}
-          </Card>
+              <div className={`hidden sm:block w-6 h-px my-0.5 ${ hasCover ? 'bg-white/20' : 'bg-slate-700/60 dark:bg-white/10' }`} />
+
+              {[
+                { Icon: MessageSquare, key: 'chat' },
+                { Icon: BarChart3, key: 'report' },
+                { Icon: Users, key: 'friends' },
+              ].map(({ Icon, key }) => (
+                <button
+                  key={key}
+                  disabled
+                  className={`w-10 h-10 rounded-xl flex items-center justify-center opacity-70 cursor-not-allowed transition-all shadow-md ${
+                    hasCover
+                      ? 'text-white/80 bg-black/45 backdrop-blur-md ring-1 ring-white/20'
+                      : 'text-slate-300 dark:text-slate-300 bg-slate-800/70 ring-1 ring-slate-700 dark:ring-white/15'
+                  }`}
+                  aria-label={t(`tripSection.${key}`, key)}
+                  title={t(`tripSection.${key}`, key)}
+                >
+                  <Icon className="w-5 h-5" strokeWidth={2} />
+                </button>
+              ))}
+            </div>
+          </div>
 
           <Modal
             open={editOpen}
@@ -156,8 +241,12 @@ export const TripDetailPage: React.FC = () => {
             />
           </Modal>
 
+          {/* Sentinel element to detect when header is out of view */}
+          <div ref={sentinelRef} className="h-px w-full" aria-hidden="true" />
+
+          {/* ── Section Tabs ── */}
           <nav
-            className="flex gap-2 overflow-x-auto pt-2 pb-2 mb-6 -mx-1 px-1"
+            className={`sticky top-0 z-20 flex gap-1 sm:gap-1.5 py-2.5 mb-6 w-full items-center overflow-x-auto overflow-y-hidden px-1.5 rounded-2xl backdrop-blur-xl bg-[var(--surface-0)]/90 border border-slate-200/50 dark:border-white/10 transition-all ${tabsScrolled ? 'shadow-lg shadow-black/15 border-slate-300/60 dark:border-white/20' : 'shadow-sm'}`}
             aria-label="Trip sections"
           >
             {[...ACTIVE_SECTIONS, ...INACTIVE_SECTIONS].map((section) => {
@@ -169,7 +258,7 @@ export const TripDetailPage: React.FC = () => {
                   key={section}
                   onClick={() => isEnabled && setActiveSection(section)}
                   disabled={!isEnabled}
-                  className={`tab-pill relative flex-1 basis-0 min-w-[120px] items-center justify-center gap-2 ${
+                  className={`tab-pill relative flex flex-1 min-w-0 px-1 sm:px-2 py-2.5 items-center justify-center gap-1 sm:gap-1.5 text-[11px] sm:text-xs xl:text-sm font-semibold transition-all ${
                     isActiveSection
                       ? 'text-deep-blue dark:text-gold-light'
                       : isEnabled
@@ -184,13 +273,17 @@ export const TripDetailPage: React.FC = () => {
                       transition={{ type: 'spring', stiffness: 380, damping: 32 }}
                     />
                   )}
-                  <Icon className="w-5 h-5 relative shrink-0" />
-                  <span className="relative truncate">{sectionLabel(section)}</span>
+                  <Icon className="w-6 h-6 relative shrink-0" strokeWidth={2} />
+                  <span className="relative truncate select-none">{sectionLabel(section)}</span>
                 </button>
               );
             })}
           </nav>
 
+          {/* ── Section Content ── */}
+          {activeSection === 'calendar' && (
+            <CalendarSection trip={trip} onSelectTab={(tab) => setActiveSection(tab)} />
+          )}
           {activeSection === 'activities' && user && (
             <ActivitySection tripId={trip.id} userId={user.id} tripStart={trip.start_date} tripEnd={trip.end_date} />
           )}

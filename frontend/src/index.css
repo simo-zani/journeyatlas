@@ -189,6 +189,21 @@ h3 {
   @apply p-0;
 }
 
+/* Disables ALL hover effects on a card (lift, border change, gold accent line).
+   Use on cards that must remain visually static regardless of pointer events. */
+.card-static,
+.card-static:hover {
+  transform: none !important;
+  border-color: var(--border-subtle) !important;
+  box-shadow: none !important;
+}
+.card-static::before,
+.card-static:hover::before {
+  opacity: 0 !important;
+  transform: translateY(-2px) !important;
+}
+
+
 /* Static raised surface (modals, dropdowns) — same materials as .card
    without its hover lift/accent line, which would look like a bug on
    non-card containers. */
@@ -330,10 +345,10 @@ h3 {
 /* Link Styling */
 a {
   @apply text-light-blue hover:text-deep-blue dark:text-light-blue dark:hover:text-gold-light
-    underline decoration-transparent hover:decoration-current underline-offset-4 transition-colors duration-200;
+    no-underline transition-colors duration-200;
 }
 
-a:not([class]) {
+a:hover {
   @apply no-underline;
 }
 

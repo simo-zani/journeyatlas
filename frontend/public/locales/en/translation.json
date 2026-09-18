@@ -20,8 +20,10 @@
     "theme": "Toggle theme",
     "menu": "Menu",
     "openMenu": "Open menu",
-    "openSidebar": "Open sidebar",
-    "closeSidebar": "Close sidebar"
+    "openSidebar": "Expand sidebar",
+    "closeSidebar": "Collapse sidebar",
+    "collapseSidebar": "Collapse sidebar",
+    "expandSidebar": "Expand sidebar"
   },
   "auth": {
     "email": "Email",
@@ -79,6 +81,7 @@
     "durationDays": "{{days}} days, {{nights}} nights"
   },
   "tripSection": {
+    "calendar": "Calendar",
     "activities": "Activities",
     "accommodations": "Accommodations",
     "transport": "Transport",
@@ -88,6 +91,29 @@
     "documents": "Documents",
     "chat": "Chat",
     "report": "Report"
+  },
+  "calendar": {
+    "title": "Trip Calendar",
+    "subtitle": "Chronological overview of all activities, transports and accommodations",
+    "viewAgenda": "Agenda",
+    "viewMonth": "Month",
+    "filterAll": "All",
+    "filterActivities": "Activities",
+    "filterTransports": "Transports",
+    "filterAccommodations": "Accommodations",
+    "filterBookings": "With Booking",
+    "empty": "No items in calendar",
+    "emptySub": "Add activities, transports or accommodations to see them here day by day.",
+    "day": "Day {{number}}",
+    "noEventsThisDay": "No scheduled items for this day",
+    "checkIn": "Check-in",
+    "checkOut": "Check-out",
+    "departure": "Departure",
+    "arrival": "Arrival",
+    "bookingRef": "Booking Ref",
+    "openBooking": "Booking Ref: {{ref}}",
+    "summaryCount": "{{count}} scheduled events",
+    "today": "Today"
   },
   "activity": {
     "add": "Add Activity",

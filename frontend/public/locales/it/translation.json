@@ -20,8 +20,10 @@
     "theme": "Cambia tema",
     "menu": "Menu",
     "openMenu": "Apri menu",
-    "openSidebar": "Apri menu laterale",
-    "closeSidebar": "Chiudi menu laterale"
+    "openSidebar": "Espandi menu laterale",
+    "closeSidebar": "Comprimi menu laterale",
+    "collapseSidebar": "Comprimi menu laterale",
+    "expandSidebar": "Espandi menu laterale"
   },
   "auth": {
     "email": "Email",
@@ -79,6 +81,7 @@
     "durationDays": "{{days}} giorni, {{nights}} notti"
   },
   "tripSection": {
+    "calendar": "Calendario",
     "activities": "Attività",
     "accommodations": "Alloggi",
     "transport": "Mezzi",
@@ -88,6 +91,29 @@
     "documents": "Documenti",
     "chat": "Chat",
     "report": "Report"
+  },
+  "calendar": {
+    "title": "Calendario Viaggio",
+    "subtitle": "Panoramica cronologica di tutte le attività, mezzi e alloggi",
+    "viewAgenda": "Agenda",
+    "viewMonth": "Mese",
+    "filterAll": "Tutti",
+    "filterActivities": "Attività",
+    "filterTransports": "Mezzi",
+    "filterAccommodations": "Alloggi",
+    "filterBookings": "Con Prenotazione",
+    "empty": "Nessun elemento nel calendario",
+    "emptySub": "Aggiungi attività, mezzi di trasporto o alloggi per visualizzarli qui giorno per giorno.",
+    "day": "Giorno {{number}}",
+    "noEventsThisDay": "Nessun impegno programmato per questo giorno",
+    "checkIn": "Check-in",
+    "checkOut": "Check-out",
+    "departure": "Partenza",
+    "arrival": "Arrivo",
+    "bookingRef": "Codice Prenotazione",
+    "openBooking": "Rif. Prenotazione: {{ref}}",
+    "summaryCount": "{{count}} eventi programmati",
+    "today": "Oggi"
   },
   "activity": {
     "add": "Aggiungi Attività",

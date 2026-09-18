@@ -17,6 +17,7 @@ export interface CreateTripInput {
   destinations?: Destination[];
   budget_planned?: number | null;
   cover_image_url?: string | null;
+  cover_position_y?: number;
 }
 
 export const fetchMyTrips = async (userId: string): Promise<Trip[]> => {
@@ -61,6 +62,7 @@ export const updateTrip = async (id: string, input: Partial<CreateTripInput>): P
   if (input.destinations !== undefined) patch.destinations = input.destinations;
   if (input.budget_planned !== undefined) patch.budget_planned = input.budget_planned;
   if (input.cover_image_url !== undefined) patch.cover_image_url = input.cover_image_url;
+  if (input.cover_position_y !== undefined) patch.cover_position_y = input.cover_position_y;
 
   const { data, error } = await supabase
     .from('trips')

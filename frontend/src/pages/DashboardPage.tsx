@@ -7,6 +7,7 @@ import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 
 import { Modal } from '@/components/Modal';
+import { PendingInvites } from '@/components/PendingInvites';
 import { TripForm } from '@/components/TripForm';
 import { TripFlags } from '@/components/TripFlags';
 import { useAuth } from '@/auth/AuthContext';
@@ -218,6 +219,8 @@ export const DashboardPage: React.FC = () => {
           {t('dashboard.createTrip')}
         </Button>
       </div>
+
+      <PendingInvites onAccepted={() => void loadTrips()} />
 
       <AnimatePresence>
         {error && (

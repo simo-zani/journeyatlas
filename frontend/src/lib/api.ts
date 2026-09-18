@@ -5,10 +5,15 @@ import type {
   ChecklistCategoryRow,
   ChecklistItemRow,
   Destination,
+  PendingInvite,
   ProfileRow,
+  ProfileSearchResult,
+  Role,
   TransportRow,
   TransportType,
   Trip,
+  TripParticipantDetail,
+  TripParticipantRow,
 } from '@/lib/types';
 
 export const fetchProfile = async (userId: string): Promise<ProfileRow | null> => {
@@ -65,7 +70,8 @@ export const fetchMyTrips = async (userId: string): Promise<Trip[]> => {
   const { data: participations, error: partError } = await supabase
     .from('trip_participants')
     .select('trip_id')
-    .eq('user_id', userId);
+    .eq('user_id', userId)
+    .eq('status', 'accepted');
 
   if (partError) throw partError;
 
@@ -515,4 +521,71 @@ export const createChecklistCategory = async (
     .single();
   if (error) throw error;
   return data as ChecklistCategoryRow;
+};
+
+// ----------------------------------------------------------------------------
+// Condivisione viaggio: inviti e partecipanti
+// ----------------------------------------------------------------------------
+
+/** Cerca utenti per username (prefix match) da invitare a un viaggio —
+ * esclude se stessi e chi è già coinvolto (in qualsiasi stato). */
+export const searchUsersForInvite = async (
+  query: string,
+  tripId: string
+): Promise<ProfileSearchResult[]> => {
+  if (!query.trim()) return [];
+  const { data, error } = await supabase.rpc('search_profiles_by_username', {
+    search_query: query.trim(),
+    for_trip_id: tripId,
+  });
+  if (error) throw error;
+  return data ?? [];
+};
+
+/** Crea un invito "pending" — protetto dalla policy che permette insert
+ * su trip_participants solo al proprietario del viaggio. */
+export const inviteParticipant = async (
+  tripId: string,
+  userId: string,
+  role: 'editor' | 'viewer',
+  invitedBy: string
+): Promise<TripParticipantRow> => {
+  const { data, error } = await supabase
+    .from('trip_participants')
+    .insert({ trip_id: tripId, user_id: userId, role, status: 'pending', invited_by: invitedBy })
+    .select('*')
+    .single();
+  if (error) throw error;
+  return data;
+};
+
+export const fetchPendingInvitesForMe = async (): Promise<PendingInvite[]> => {
+  const { data, error } = await supabase.rpc('fetch_pending_invites');
+  if (error) throw error;
+  return data ?? [];
+};
+
+/** L'invitato accetta/rifiuta il proprio invito, tramite RPC dedicata
+ * (un self-update via RLS gli avrebbe permesso di alterare anche il ruolo). */
+export const respondToInvite = async (participantId: string, accept: boolean): Promise<void> => {
+  const { error } = await supabase.rpc('respond_to_invite', { participant_id: participantId, accept });
+  if (error) throw error;
+};
+
+/** Partecipanti di un viaggio con i dati profilo essenziali, via RPC
+ * (profiles non consente SELECT su righe altrui — vedi migration 0011). */
+export const fetchTripParticipants = async (tripId: string): Promise<TripParticipantDetail[]> => {
+  const { data, error } = await supabase.rpc('fetch_trip_participants', { for_trip_id: tripId });
+  if (error) throw error;
+  return data ?? [];
+};
+
+export const updateParticipantRole = async (participantId: string, role: Role): Promise<void> => {
+  const { error } = await supabase.from('trip_participants').update({ role }).eq('id', participantId);
+  if (error) throw error;
+};
+
+export const removeParticipant = async (participantId: string): Promise<void> => {
+  const { error } = await supabase.from('trip_participants').delete().eq('id', participantId);
+  if (error) throw error;
 };

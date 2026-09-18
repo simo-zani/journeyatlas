@@ -251,5 +251,27 @@
   "expenses": {
     "youOwe": "Devi {{amount}} {{currency}} a {{person}}",
     "owesYou": "{{person}} ti deve {{amount}} {{currency}}"
+  },
+  "share": {
+    "title": "Condividi viaggio",
+    "searchPlaceholder": "Cerca per username...",
+    "invite": "Invita",
+    "noResults": "Nessun utente trovato",
+    "participants": "Partecipanti",
+    "you": "tu",
+    "accept": "Accetta",
+    "decline": "Rifiuta",
+    "pendingInvitesTitle": "Inviti in sospeso",
+    "invitedByAs": "@{{username}} ti ha invitato come {{role}}",
+    "invitedAs": "Sei stato invitato come {{role}}",
+    "role": {
+      "owner": "Proprietario",
+      "editor": "Editor",
+      "viewer": "Viewer"
+    },
+    "status": {
+      "pending": "In attesa",
+      "declined": "Rifiutato"
+    }
   }
 }

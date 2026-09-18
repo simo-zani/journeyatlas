@@ -26,6 +26,7 @@ import { ActivitySection } from '@/components/trip/ActivitySection';
 import { AccommodationSection } from '@/components/trip/AccommodationSection';
 import { TransportSection } from '@/components/trip/TransportSection';
 import { ChecklistSection } from '@/components/trip/ChecklistSection';
+import { ShareTripModal } from '@/components/trip/ShareTripModal';
 import { useAuth } from '@/auth/AuthContext';
 import { supabase } from '@/lib/supabase';
 import type { Trip } from '@/lib/types';
@@ -68,6 +69,7 @@ export const TripDetailPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [activeSection, setActiveSection] = useState<TripSection>('calendar');
   const [editOpen, setEditOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
   const [tabsScrolled, setTabsScrolled] = useState(false);
   const sentinelRef = useRef<HTMLDivElement>(null);
 
@@ -212,10 +214,22 @@ export const TripDetailPage: React.FC = () => {
 
               <div className={`hidden sm:block w-6 h-px my-0.5 ${ hasCover ? 'bg-white/20' : 'bg-slate-700/60 dark:bg-white/10' }`} />
 
+              <button
+                onClick={() => setShareOpen(true)}
+                className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all cursor-pointer shadow-lg hover:scale-105 active:scale-95 ${
+                  hasCover
+                    ? 'text-white bg-black/60 hover:bg-black/80 backdrop-blur-md ring-2 ring-gold/50'
+                    : 'text-gold-light bg-slate-800/90 hover:bg-slate-700/90 ring-2 ring-gold/40 hover:ring-gold'
+                }`}
+                aria-label={t('share.title')}
+                title={t('share.title')}
+              >
+                <Users className="w-5 h-5" strokeWidth={2} />
+              </button>
+
               {[
                 { Icon: MessageSquare, key: 'chat' },
                 { Icon: BarChart3, key: 'report' },
-                { Icon: Users, key: 'friends' },
               ].map(({ Icon, key }) => (
                 <button
                   key={key}
@@ -247,6 +261,16 @@ export const TripDetailPage: React.FC = () => {
               }}
             />
           </Modal>
+
+          {user && (
+            <ShareTripModal
+              open={shareOpen}
+              onClose={() => setShareOpen(false)}
+              tripId={trip.id}
+              currentUserId={user.id}
+              isOwner={trip.owner_id === user.id}
+            />
+          )}
 
           {/* Sentinel element to detect when header is out of view */}
           <div ref={sentinelRef} className="h-px w-full" aria-hidden="true" />

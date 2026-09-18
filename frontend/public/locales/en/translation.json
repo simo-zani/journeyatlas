@@ -251,5 +251,27 @@
   "expenses": {
     "youOwe": "You owe {{amount}} {{currency}} to {{person}}",
     "owesYou": "{{person}} owes you {{amount}} {{currency}}"
+  },
+  "share": {
+    "title": "Share trip",
+    "searchPlaceholder": "Search by username...",
+    "invite": "Invite",
+    "noResults": "No users found",
+    "participants": "Participants",
+    "you": "you",
+    "accept": "Accept",
+    "decline": "Decline",
+    "pendingInvitesTitle": "Pending invites",
+    "invitedByAs": "@{{username}} invited you as {{role}}",
+    "invitedAs": "You were invited as {{role}}",
+    "role": {
+      "owner": "Owner",
+      "editor": "Editor",
+      "viewer": "Viewer"
+    },
+    "status": {
+      "pending": "Pending",
+      "declined": "Declined"
+    }
   }
 }

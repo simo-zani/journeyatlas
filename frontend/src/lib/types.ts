@@ -36,13 +36,45 @@ export type ProfileRow = {
   created_at: string;
 };
 
+export type ParticipantStatus = 'pending' | 'accepted' | 'declined';
+
 export type TripParticipantRow = {
   id: string;
   trip_id: string;
   user_id: string | null;
   role: Role;
+  status: ParticipantStatus;
   invited_email: string | null;
+  invited_by: string | null;
   joined_at: string | null;
+  created_at: string;
+};
+
+export type ProfileSearchResult = {
+  id: string;
+  username: string;
+  avatar_url: string | null;
+};
+
+export type PendingInvite = {
+  participant_id: string;
+  trip_id: string;
+  trip_name: string;
+  trip_cover_image_url: string | null;
+  role: Role;
+  invited_by_username: string | null;
+  created_at: string;
+};
+
+export type TripParticipantDetail = {
+  participant_id: string;
+  user_id: string | null;
+  role: Role;
+  status: ParticipantStatus;
+  joined_at: string | null;
+  created_at: string;
+  username: string | null;
+  avatar_url: string | null;
 };
 
 export type ActivityRow = {
@@ -195,6 +227,22 @@ export type Database = {
       username_exists: {
         Args: { check_username: string };
         Returns: boolean;
+      };
+      search_profiles_by_username: {
+        Args: { search_query: string; for_trip_id: string };
+        Returns: ProfileSearchResult[];
+      };
+      fetch_pending_invites: {
+        Args: Record<string, never>;
+        Returns: PendingInvite[];
+      };
+      respond_to_invite: {
+        Args: { participant_id: string; accept: boolean };
+        Returns: void;
+      };
+      fetch_trip_participants: {
+        Args: { for_trip_id: string };
+        Returns: TripParticipantDetail[];
       };
     };
     Enums: Record<string, never>;

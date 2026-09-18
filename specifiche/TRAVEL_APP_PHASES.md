@@ -4,7 +4,7 @@
 
 | Fase | Nome | Status | Completamento |
 |------|------|--------|----------------|
-| 1 | MVP Core (Auth + Viaggio Base) | 🟡 In Progress | 75% |
+| 1 | MVP Core (Auth + Viaggio Base) | 🟡 In Progress | 82% |
 | 2 | Packing + Expense Split | ⏳ Not Started | 0% |
 | 3 | Info Paese + Documenti + Chat | ⏳ Not Started | 0% |
 | 4 | Timeline + Notifiche + Post-Report | ⏳ Not Started | 0% |
@@ -12,7 +12,7 @@
 | 6 | Admin Dashboard (metriche servizio) | ⏳ Not Started | 0% |
 
 **Ultimo aggiornamento:** 2026-09-18  
-**Prossima milestone:** Fase 1 — flusso invito/condivisione partecipanti (username già pronto come prerequisito), poi import Notion (1.11) e PWA mobile (1.4)
+**Prossima milestone:** Fase 1 — testing generale (1.10), poi import Notion (1.11) e PWA mobile (1.4). Il flusso di condivisione/inviti (1.9) è completo.
 
 ---
 
@@ -167,39 +167,38 @@
 - [x] Script di backfill eseguito per l'utente esistente pre-feature (`simo1696@tiscali.it` → username `simo_zani`)
 - **Status:** 🟢 Done (resta solo l'eventuale debounce live sulla disponibilità, non bloccante)
 
-#### Flusso invito
-> ⚠️ **Attenzione RLS**: la policy `profiles_select_own` (0010) permette a ognuno di leggere **solo la propria riga**. La ricerca per username qui sotto interroga le righe di *altri* utenti, quindi servirà un'altra RPC `security definer` (come `username_exists`) che ritorna solo i campi pubblici (username, avatar_url) invece di allargare la policy SELECT a tutta la tabella.
-- [ ] UI "Condividi viaggio" nel dettaglio viaggio (pulsante nella header, visibile solo all'owner)
-- [ ] Modal di invito: campo di ricerca username (autocomplete dopo 2 caratteri, debounce 300ms)
-  - RPC dedicata (non query diretta su `profiles`, bloccata dalla RLS) per `username ILIKE 'query%'` (case-insensitive prefix)
-  - Mostra avatar, display_name e @username nei risultati
-  - Esclude utenti già partecipanti al viaggio
-- [ ] Selezione ruolo al momento dell'invito: **Editor** (modifica tutto) o **Viewer** (sola lettura)
-- [ ] Click "Invita": crea riga in `trip_participants` con `status = 'pending'`, `invited_by = owner_uid`, `role` scelto
-  - Migration `0011_invite_status.sql`: aggiungere colonna `status text check ('pending','accepted','declined') default 'pending'` e `invited_by uuid` (numerazione aggiornata: `0007`-`0010` sono già usate da cover/username/avatar/RLS)
-- [ ] Notifica in-app all'invitato (badge su icona campanella o sezione "Notifiche" — da definire in Fase 3; per ora basta un banner nella dashboard)
-- **Status:** ⏳ Not Started
+#### Flusso invito — ✅ fatto
+- [x] Migration `0011_invite_status.sql`: colonne `status` (`pending`/`accepted`/`declined`, default `accepted` per non rompere le righe owner già esistenti) e `invited_by` su `trip_participants`
+- [x] UI "Condividi viaggio": icona "Users" nella header del dettaglio viaggio (era un placeholder disabilitato, ora attiva per tutti — la ricerca/gestione resta owner-only dentro il modale) → `ShareTripModal`
+- [x] Modal di invito: campo di ricerca username con debounce 300ms
+  - RPC `search_profiles_by_username(search_query, for_trip_id)` — `security definer`, esclude se stessi e chi è già coinvolto (qualsiasi stato), niente query diretta su `profiles` (bloccata dalla RLS 0010)
+  - Mostra avatar + @username nei risultati (niente `display_name`, non ancora usato altrove nell'app)
+- [x] Selezione ruolo al momento dell'invito: **Editor** o **Viewer** (segmented control sopra i risultati di ricerca)
+- [x] Click "Invita": insert diretto in `trip_participants` (`status='pending'`, `invited_by=owner_uid`) — già protetto dalla policy insert esistente (`is_trip_owner(trip_id)`), nessuna nuova policy necessaria
+- [ ] Notifica in-app all'invitato — per ora l'invitato la vede solo tornando/aprendo la dashboard (sezione "Inviti in sospeso"); badge/campanella resta da fare in Fase 3
+- **Status:** 🟢 Done (manca solo la notifica push/badge, rimandata)
 
-#### Accettazione / Rifiuto
-- [ ] Sezione "Inviti in sospeso" in dashboard (sopra la lista viaggi, visibile solo se ci sono pending)
-- [ ] Card invito: nome viaggio, owner che ha invitato, ruolo proposto, pulsanti **Accetta** / **Rifiuta**
-- [ ] Accetta → `trip_participants.status = 'accepted'`, `joined_at = now()` → viaggio appare nella dashboard dell'invitato
-- [ ] Rifiuta → `trip_participants.status = 'declined'` (row resta per audit, non viene riproposta)
-- **Status:** ⏳ Not Started
+#### Accettazione / Rifiuto — ✅ fatto
+- [x] Sezione "Inviti in sospeso" in dashboard (sopra la lista viaggi, `PendingInvites` — invisibile se non ci sono pending)
+- [x] Card invito: nome viaggio + cover, chi ha invitato, ruolo proposto, pulsanti **Accetta** / **Rifiuta**
+- [x] Accetta → RPC `respond_to_invite(participant_id, true)` → `status='accepted'`, `joined_at=now()` → il viaggio appare alla successiva `fetchMyTrips` (già filtrava owned+shared, ora richiede anche `status='accepted'`)
+- [x] Rifiuta → `respond_to_invite(participant_id, false)` → `status='declined'` (la riga resta per audit)
+- **Nota tecnica**: un invitato "pending" non è ancora un partecipante accettato, quindi non potrebbe leggere `trips`/`profiles` di altri tramite le policy normali — la card invito usa la RPC `fetch_pending_invites()` (`security definer`) che ritorna solo i campi minimi necessari (nome viaggio, cover, chi ha invitato)
+- **Status:** 🟢 Done
 
-#### Gestione partecipanti (owner only)
-- [ ] Lista partecipanti nel dettaglio viaggio (avatar, username, ruolo, data join)
-- [ ] Owner può cambiare ruolo di un partecipante (Editor ↔ Viewer) in qualsiasi momento
-- [ ] Owner può rimuovere un partecipante (delete row da `trip_participants`)
-- [ ] Owner non può rimuovere sé stesso (protezione lato DB via RLS + lato UI)
-- **Status:** ⏳ Not Started
+#### Gestione partecipanti (owner only) — ✅ fatto
+- [x] Lista partecipanti nel modale "Condividi viaggio" (avatar, username, ruolo, stato pending/declined) via RPC `fetch_trip_participants` (stesso motivo delle altre RPC: niente accesso diretto a `profiles` altrui)
+- [x] Owner può cambiare ruolo di un partecipante (Editor ↔ Viewer) in qualsiasi momento — select inline, non mostrato sulla riga dell'owner stesso
+- [x] Owner può rimuovere un partecipante (delete row da `trip_participants`)
+- [x] Owner non può rimuovere/modificare sé stesso — **solo lato UI** (il controllo non è mostrato sulla riga con `role='owner'`); non c'è ancora un vincolo lato DB che lo impedisca esplicitamente, da valutare se serve rinforzarlo
+- **Status:** 🟢 Done (vedi nota sopra sul vincolo DB)
 
-#### RLS & sicurezza
+#### RLS & sicurezza — ✅ fatto
 - Già presenti in `0001_init.sql`: `is_trip_participant()`, `can_edit_trip()`, `is_trip_owner()`
-- Aggiornare le policy `SELECT` di `trips` per includere i partecipanti con `status = 'accepted'`
-- Policy `INSERT/UPDATE/DELETE` su `activities`, `accommodations`, `transport`, `checklist_items`: solo `can_edit_trip(trip_id) = true`
-- Viewer: `SELECT` su tutte le sezioni, nessun `INSERT/UPDATE/DELETE`
-- **Status:** ⏳ Not Started (policy di base presenti, da estendere con status check)
+- [x] Le tre funzioni ora richiedono anche `status = 'accepted'` (migration 0011) — un invito pending non concede più accesso implicito a `trips`/`activities`/ecc., dato che tutte le policy esistenti si basano su queste funzioni
+- [x] Policy `INSERT/UPDATE/DELETE` su `activities`, `accommodations`, `transport`, `checklist_items` già usavano `can_edit_trip(trip_id)` fin da `0001_init.sql` — nessuna modifica necessaria, si sono aggiornate automaticamente ereditando il nuovo controllo su `status`
+- [x] Viewer: `SELECT` su tutte le sezioni (via `is_trip_participant`), nessun `INSERT/UPDATE/DELETE` (richiedono `can_edit_trip`, che esclude `role='viewer'`) — comportamento già corretto, solo verificato
+- **Status:** 🟢 Done
 
 
 ### 1.10 Testing & Bugfix

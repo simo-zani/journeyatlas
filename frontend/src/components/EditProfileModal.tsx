@@ -106,6 +106,11 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
     setPasswordSuccess(false);
   };
 
+  const hasProfileChanges =
+    Boolean(file) ||
+    (avatarRemoved && currentAvatarUrl !== null) ||
+    username.trim() !== (currentUsername ?? '');
+
   const handleSaveProfile = async () => {
     setProfileError(null);
     const trimmedUsername = username.trim();
@@ -307,7 +312,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
           <div className="w-full space-y-3 mt-2">
             {profileError && <Alert type="error" message={profileError} onClose={() => setProfileError(null)} />}
 
-            <Button type="button" className="w-full" onClick={handleSaveProfile} disabled={savingProfile}>
+            <Button type="button" className="w-full" onClick={handleSaveProfile} disabled={savingProfile || !hasProfileChanges}>
               {savingProfile && <Loader2 className="w-4 h-4 animate-spin" />}
               {t('common.save')}
             </Button>

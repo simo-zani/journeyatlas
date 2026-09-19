@@ -99,6 +99,15 @@ body {
   border-radius: 4px;
 }
 
+/* Input/textarea/select già hanno un indicatore visivo (border + ring) via
+   .input-field — il contorno giallo di :focus-visible risulta doppio e
+   disturbante, quindi lo azzeriamo solo su questi elementi. */
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: none;
+}
+
 h1, h2, h3, h4, h5, h6 {
   @apply font-poppins font-bold tracking-tight;
 }

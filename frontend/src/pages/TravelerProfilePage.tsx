@@ -165,12 +165,14 @@ export const TravelerProfilePage: React.FC = () => {
           </div>
 
           {/* Azioni amicizia */}
-          <div className="flex items-center gap-2 shrink-0 flex-wrap">
+          <div className="flex items-center gap-2 shrink-0 flex-wrap self-start sm:self-start sm:mt-1">
             {isSelf ? null : status === 'friends' ? (
-              <span className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-success/15 text-success font-bold text-base">
-                <UserCheck className="w-5 h-5" />
-                {t('friend.status.friends')}
-              </span>
+              <div
+                title={t('friend.status.friends')}
+                className="flex items-center justify-center text-emerald-500 dark:text-emerald-400"
+              >
+                <UserCheck size={38} className="w-[38px] h-[38px] shrink-0" strokeWidth={2.4} />
+              </div>
             ) : status === 'outgoing' ? (
               <Button variant="secondary" size="md" disabled>
                 <Send className="w-5 h-5" />
@@ -211,7 +213,9 @@ export const TravelerProfilePage: React.FC = () => {
             </p>
           </div>
           <div className="text-center">
-            <p className="text-3xl font-extrabold text-gold">{profile.public_trips_count}</p>
+            <p className="text-3xl font-extrabold text-gold">
+              {profile.total_trips_count ?? profile.public_trips_count}
+            </p>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 font-medium">
               {t('travelerProfile.stats.trips')}
             </p>

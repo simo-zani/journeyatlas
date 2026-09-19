@@ -181,6 +181,7 @@ RETURNS TABLE(
   friendship_id uuid,
   countries_visited bigint,
   continents_visited bigint,
+  total_trips_count bigint,
   public_trips_count bigint
 )
 LANGUAGE sql
@@ -227,7 +228,8 @@ AS $$
     fs.id,
     cnts.countries,
     cnts.continents,
-    (SELECT COUNT(*) FROM public.trips t2 WHERE t2.owner_id = target_user_id AND t2.is_public)::bigint AS public_trips
+    (SELECT COUNT(*) FROM public.trips t2 WHERE t2.owner_id = target_user_id)::bigint AS total_trips_count,
+    (SELECT COUNT(*) FROM public.trips t2 WHERE t2.owner_id = target_user_id AND t2.is_public)::bigint AS public_trips_count
   FROM public.profiles p
   CROSS JOIN cnts
   LEFT JOIN fs ON TRUE
@@ -290,7 +292,11 @@ BEGIN
       RAISE EXCEPTION 'request_exists';
     END IF;
     UPDATE public.friendships
-    SET status = 'pending', responded_at = NULL
+    SET requester_id = auth.uid(),
+        addressee_id = v_addressee_id,
+        status = 'pending',
+        responded_at = NULL,
+        created_at = now()
     WHERE id = existing_id;
     RETURN existing_id;
   END IF;

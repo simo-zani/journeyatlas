@@ -197,6 +197,7 @@ export type TravelerProfile = {
   friendship_id: string | null;
   countries_visited: number;
   continents_visited: number;
+  total_trips_count?: number;
   public_trips_count: number;
 };
 

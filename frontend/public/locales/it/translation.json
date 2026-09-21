@@ -260,9 +260,10 @@
   },
   "share": {
     "title": "Condividi viaggio",
-    "searchPlaceholder": "Cerca per username...",
+    "searchFriendsPlaceholder": "Cerca tra i tuoi amici...",
     "invite": "Invita",
-    "noResults": "Nessun utente trovato",
+    "noFriends": "Non hai ancora amici da invitare. Cercali nella pagina Viaggiatori.",
+    "noFriendsFound": "Nessun amico trovato",
     "participants": "Partecipanti",
     "you": "tu",
     "accept": "Accetta",

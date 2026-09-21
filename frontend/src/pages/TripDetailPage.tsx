@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -27,9 +27,11 @@ import { AccommodationSection } from '@/components/trip/AccommodationSection';
 import { TransportSection } from '@/components/trip/TransportSection';
 import { ChecklistSection } from '@/components/trip/ChecklistSection';
 import { ShareTripModal } from '@/components/trip/ShareTripModal';
+import { TripParticipantAvatars } from '@/components/trip/TripParticipantAvatars';
 import { useAuth } from '@/auth/AuthContext';
 import { supabase } from '@/lib/supabase';
-import type { Trip } from '@/lib/types';
+import { fetchTripParticipants } from '@/lib/api';
+import type { Trip, TripParticipantDetail } from '@/lib/types';
 
 type TripSection =
   | 'calendar'
@@ -70,6 +72,7 @@ export const TripDetailPage: React.FC = () => {
   const [activeSection, setActiveSection] = useState<TripSection>('calendar');
   const [editOpen, setEditOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
+  const [participants, setParticipants] = useState<TripParticipantDetail[]>([]);
   const [tabsScrolled, setTabsScrolled] = useState(false);
   const sentinelRef = useRef<HTMLDivElement>(null);
 
@@ -90,6 +93,19 @@ export const TripDetailPage: React.FC = () => {
     };
     void load();
   }, [tripId]);
+
+  const loadParticipants = useCallback(async () => {
+    if (!tripId) return;
+    try {
+      setParticipants(await fetchTripParticipants(tripId));
+    } catch {
+      // header avatars are decorative — a fetch failure here isn't worth surfacing
+    }
+  }, [tripId]);
+
+  useEffect(() => {
+    void loadParticipants();
+  }, [loadParticipants]);
 
   // IntersectionObserver to detect when header scrolls away (sticky tabs blur effect)
   useEffect(() => {
@@ -168,31 +184,34 @@ export const TripDetailPage: React.FC = () => {
               )}
 
               {(trip.start_date || trip.end_date) && (
-                <div
-                  className={`flex flex-col gap-0.5 mt-1.5 text-sm sm:text-base font-medium ${
-                    hasCover ? 'text-white/75 drop-shadow' : 'text-slate-500 dark:text-slate-400'
-                  }`}
-                >
-                  <span>
-                    {formatDate(trip.start_date)}
-                    {trip.end_date ? ` – ${formatDate(trip.end_date)}` : ''}
-                  </span>
-                  {duration && (
-                    <span
-                      className={`inline-flex items-center gap-1 text-xs sm:text-sm ${
-                        hasCover ? 'text-white/50' : 'text-slate-400 dark:text-slate-500'
-                      }`}
-                    >
-                      {/* Rising, shrinking "zzz" — lucide-react has no sleep icon, so this is a
-                          small hand-built substitute rather than an unrelated bed/moon icon. */}
-                      <span className="inline-flex items-end gap-px leading-none" aria-hidden="true">
-                        <span className="text-[10px]">z</span>
-                        <span className="text-[8px] -translate-y-0.5">z</span>
-                        <span className="text-[6px] -translate-y-[3px]">z</span>
-                      </span>
-                      {t('trip.durationNights', { nights: duration.nights })}
+                <div className="flex items-center gap-3 mt-1.5">
+                  <div
+                    className={`flex flex-col gap-0.5 text-sm sm:text-base font-medium ${
+                      hasCover ? 'text-white/75 drop-shadow' : 'text-slate-500 dark:text-slate-400'
+                    }`}
+                  >
+                    <span>
+                      {formatDate(trip.start_date)}
+                      {trip.end_date ? ` – ${formatDate(trip.end_date)}` : ''}
                     </span>
-                  )}
+                    {duration && (
+                      <span
+                        className={`inline-flex items-center gap-1 text-xs sm:text-sm ${
+                          hasCover ? 'text-white/50' : 'text-slate-400 dark:text-slate-500'
+                        }`}
+                      >
+                        {/* Rising, shrinking "zzz" — lucide-react has no sleep icon, so this is a
+                            small hand-built substitute rather than an unrelated bed/moon icon. */}
+                        <span className="inline-flex items-end gap-px leading-none" aria-hidden="true">
+                          <span className="text-[10px]">z</span>
+                          <span className="text-[8px] -translate-y-0.5">z</span>
+                          <span className="text-[6px] -translate-y-[3px]">z</span>
+                        </span>
+                        {t('trip.durationNights', { nights: duration.nights })}
+                      </span>
+                    )}
+                  </div>
+                  {user && <TripParticipantAvatars participants={participants} currentUserId={user.id} />}
                 </div>
               )}
             </div>
@@ -211,8 +230,6 @@ export const TripDetailPage: React.FC = () => {
               >
                 <Pencil className="w-5 h-5 text-gold" strokeWidth={2} />
               </button>
-
-              <div className={`hidden sm:block w-6 h-px my-0.5 ${ hasCover ? 'bg-white/20' : 'bg-slate-700/60 dark:bg-white/10' }`} />
 
               <button
                 onClick={() => setShareOpen(true)}
@@ -267,7 +284,10 @@ export const TripDetailPage: React.FC = () => {
           {user && (
             <ShareTripModal
               open={shareOpen}
-              onClose={() => setShareOpen(false)}
+              onClose={() => {
+                setShareOpen(false);
+                void loadParticipants();
+              }}
               tripId={trip.id}
               currentUserId={user.id}
               isOwner={trip.owner_id === user.id}

@@ -260,9 +260,10 @@
   },
   "share": {
     "title": "Share trip",
-    "searchPlaceholder": "Search by username...",
+    "searchFriendsPlaceholder": "Search your friends...",
     "invite": "Invite",
-    "noResults": "No users found",
+    "noFriends": "You don't have any friends to invite yet. Find them on the Travelers page.",
+    "noFriendsFound": "No friend found",
     "participants": "Participants",
     "you": "you",
     "accept": "Accept",

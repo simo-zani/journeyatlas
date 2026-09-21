@@ -8,7 +8,6 @@ import type {
   IncomingFriendRequest,
   PendingInvite,
   ProfileRow,
-  ProfileSearchResult,
   Role,
   TransportRow,
   TransportType,
@@ -533,21 +532,6 @@ export const createChecklistCategory = async (
 // ----------------------------------------------------------------------------
 // Condivisione viaggio: inviti e partecipanti
 // ----------------------------------------------------------------------------
-
-/** Cerca utenti per username (prefix match) da invitare a un viaggio —
- * esclude se stessi e chi è già coinvolto (in qualsiasi stato). */
-export const searchUsersForInvite = async (
-  query: string,
-  tripId: string
-): Promise<ProfileSearchResult[]> => {
-  if (!query.trim()) return [];
-  const { data, error } = await supabase.rpc('search_profiles_by_username', {
-    search_query: query.trim(),
-    for_trip_id: tripId,
-  });
-  if (error) throw error;
-  return data ?? [];
-};
 
 /** Crea un invito "pending" — protetto dalla policy che permette insert
  * su trip_participants solo al proprietario del viaggio. */

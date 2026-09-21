@@ -11,8 +11,8 @@
 | 5 | Dashboard Analytics + Scratch Map | ⏳ Not Started | 0% |
 | 6 | Admin Dashboard (metriche servizio) | ⏳ Not Started | 0% |
 
-**Ultimo aggiornamento:** 2026-09-18  
-**Prossima milestone:** Fase 1 — testing generale (1.10), poi import Notion (1.11) e PWA mobile (1.4). Il flusso di condivisione/inviti (1.9) è completo.
+**Ultimo aggiornamento:** 2026-09-21  
+**Prossima milestone:** Fase 1 — testing generale (1.10), poi import Notion (1.11) e PWA mobile (1.4). Il flusso di condivisione/inviti (1.9) è completo, ora limitato agli amici (1.9b).
 
 ---
 
@@ -189,8 +189,9 @@
 - [x] Pagina **Profilo Viaggiatore** (`/travelers/:userId`): avatar, @username, data iscrizione; statistiche pubbliche **paesi e continenti visitati** (`get_traveler_profile`, calcolate su tutti i viaggi, deduplicated da `destinations.countryCode`); viaggi **pubblici** dell'utente (`get_public_trips_for_user`)
 - [x] Richiesta di amicizia: RPC `send_friend_request` / `respond_to_friend_request`; pulsanti Aggiungi amico / Richiesta inviata / Accetta / Rifiuta in base allo stato
 - [x] Toggle **Rendi pubblico/privato** su un viaggio (icona globo nel dettaglio, solo owner, RPC `set_trip_public`)
+- [x] `ShareTripModal` invita solo amici (riusa `get_friends` + `fetch_trip_participants`, filtrati lato client — niente più ricerca globale): elenco unico con chi è già nel viaggio in cima e gli amici ancora invitabili sotto, con pulsante Invita
+- [x] Avatar dei partecipanti (esclude te stesso) accanto alle date nel dettaglio viaggio, con hover desktop che mostra lo username
 - [ ] **Lista Amici** dedicata (gestione richieste in entrata/uscita centralizzata) — prossimo passo
-- [ ] `ShareTripModal` che propone solo amici (dopo la lista Amici) — rimandato
 - **Status:** 🟡 In Progress
 
 #### Accettazione / Rifiuto — ✅ fatto

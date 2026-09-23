@@ -4,15 +4,15 @@
 
 | Fase | Nome | Status | Completamento |
 |------|------|--------|----------------|
-| 1 | MVP Core (Auth + Viaggio Base) | 🟡 In Progress | 82% |
+| 1 | MVP Core (Auth + Viaggio Base) | 🟡 In Progress | 95% |
 | 2 | Packing + Expense Split | ⏳ Not Started | 0% |
 | 3 | Info Paese + Documenti + Chat | ⏳ Not Started | 0% |
 | 4 | Timeline + Notifiche + Post-Report | ⏳ Not Started | 0% |
 | 5 | Dashboard Analytics + Scratch Map | ⏳ Not Started | 0% |
 | 6 | Admin Dashboard (metriche servizio) | ⏳ Not Started | 0% |
 
-**Ultimo aggiornamento:** 2026-09-21  
-**Prossima milestone:** Fase 1 — testing generale (1.10), poi import Notion (1.11) e PWA mobile (1.4). Il flusso di condivisione/inviti (1.9) è completo, ora limitato agli amici (1.9b).
+**Ultimo aggiornamento:** 2026-09-23  
+**Prossima milestone:** Fase 1 praticamente chiusa (95%) — 1.10 (test CRUD/RLS) e 1.5 (Unsplash) fatti. Resta solo il responsivo mobile (1.4), volutamente rimandato a fine progetto insieme a import Notion (1.11); deploy (1.12) da fare con calma più avanti su Vercel. Auth: solo email/password confermato per il lancio, OAuth Google/Apple rimandato a Fase 6 (6.6). Prossimo passo naturale: iniziare Fase 2 (Packing List avanzata + Expense Split).
 
 ---
 
@@ -26,8 +26,7 @@
 - [x] Setup React TypeScript + Tailwind + shadcn
 - [x] Supabase project setup (database, auth, storage) — migrazioni `0001`→`0010` applicate nel SQL Editor
 - [x] Environment variables e secrets management (`frontend/.env.local` + `.env.example`)
-- [ ] Docker setup (opzionale per dev)
-- [~] PWA setup: manifest.json fatto, service worker e icone mancanti
+- [~] PWA setup: manifest.json fatto, service worker e icone mancanti (icone rimandate, vedi 1.4)
 - [x] i18next + react-i18next setup
 - [x] Tailwind dark mode config
 - **Status:** 🟡 In Progress
@@ -42,41 +41,43 @@
 
 ### 1.1c Internazionalizzazione (i18n)
 - [x] Creare struttura /public/locales/{en,it}/translation.json
-- [~] Scrivere traduzioni base (common, nav, dashboard, trip sections) — auth e dashboard aggiunte, espandere con le nuove sezioni
+- [x] Scrivere traduzioni base (common, nav, dashboard, trip sections) — verificato: 256 chiavi in EN e IT, nessuna mancante da una parte o dall'altra; nessuna stringa hardcoded trovata nelle sezioni più recenti (Amici/Viaggiatori)
 - [x] Setup i18n config nel progetto React
 - [x] Language selector nel header/settings
 - [x] Test switch language (reload UI)
 - [x] Assicurare localStorage persistence lingua
-- **Status:** 🟡 In Progress
+- **Status:** 🟢 Done
 
 ### 1.2 Autenticazione
 - [x] Supabase Auth integration (email/password) — testata, funzionante
-- [ ] OAuth Google setup
-- [ ] OAuth Apple setup
 - [x] Login form UI — redisegnata senza riquadro Card, campi liberi sullo sfondo
 - [x] Signup form UI — idem, più campo username obbligatorio (vedi 1.9)
 - [x] Cambio password (modale Profilo, `supabase.auth.updateUser`)
 - [x] Logout + session management
 - [x] Protected routes (redirect if not authenticated)
 - [x] User profile API endpoint (`fetchProfile`/`updateProfile` in `lib/api.ts`)
-- **Status:** 🟡 In Progress (manca solo OAuth)
+- **Status:** 🟢 Done
+- **Nota:** OAuth Google/Apple spostato in Fase 6 (vedi 6.6)
 
 ### 1.3 Database & Migrations
 - [x] Creare tabelle: trips, trip_participants, activities, flights, accommodations, profiles — `0001_init.sql` applicata
-- [~] Row-level security policies — presenti per trips/activities/ecc. dalla migration iniziale, ma **mancavano del tutto su `profiles`** (nessuna policy = nessun accesso, nemmeno per il proprietario): bug reale scoperto e corretto in `0010_profiles_rls.sql`. Da fare ancora: audit delle altre tabelle per verificare non ci siano altre lacune simili
+- [x] Row-level security policies — audit completo di tutte le 17 migration: ogni tabella con dati utente (`trips`, `trip_participants`, `activities`, `flights`, `accommodations`, `checklist_items`, `checklist_categories`, `profiles`, `friendships`, `profile_views`) ha RLS abilitata con policy esplicite. Non è emerso nessun altro buco simile a quello risolto su `profiles` in `0010_profiles_rls.sql`
 - [x] Indexes su foreign keys
 - [x] Triggers per updated_at auto
-- **Status:** 🟡 In Progress
+- **Status:** 🟢 Done
 
 ### 1.4 Responsive Mobile & PWA UI
+
+> Rimandato: continuiamo a predisporre le basi (layout responsive, touch target) man mano che si costruisce, ma la revisione/test dedicata (icone, "Add to Home Screen", device reali) si fa in blocco a fine progetto, non ora.
+
 - [~] Verificare layout mobile-first (mobile 0-640px) — header/sidebar/forms responsive, test su device pendente
 - [~] Test touch-friendly buttons (min 44x44px) — rispettato nei componenti
 - [ ] "Add to Home Screen" prompt (custom UI o WebKit)
+- [ ] Icone manifest.json e splash screen
 - [ ] Test su iPhone real device (o simulator)
 - [ ] Test dark/light mode toggle on mobile
 - [ ] Language selector accessibility on mobile
-- [ ] Verificare manifest.json icons e splash screen
-- **Status:** ⏳ Not Started
+- **Status:** ⏳ Rimandato a fine progetto
 
 ### 1.5 Dashboard Principale
 - [x] Layout dashboard (header con logo/theme toggle/language, sidebar, main area)
@@ -89,19 +90,23 @@
   - [x] Input: nome, mete, date, budget
   - [x] Integrazione geocoder mete (Nominatim/OSM) — trova città reali (es. "New York", "Venezia"), nomi in italiano via accept-language, nessuna chiave
   - [x] Bandiere come immagini dal CDN gratuito REST Countries (emoji non renderizzate su Windows) — niente chiave
-  - [ ] Integrazione Unsplash API (suggerimento immagine)
+  - [x] Integrazione Unsplash API (suggerimento immagine di copertina, alternativa all'upload manuale) — pulsante "Suggerisci da Unsplash" in `TripForm.tsx`, cerca per destinazione (default: prima meta del viaggio, modificabile), griglia di 6 risultati; alla scelta si salva direttamente l'URL Unsplash (`cover_image_url`), nessun upload/storage; attribuzione fotografo visibile e cliccabile (link a Unsplash con `utm_source`), trigger di download tracciato come richiesto dalle Unsplash API Guidelines (`frontend/src/lib/unsplash.ts`)
   - [x] Salva a DB
 - [x] Card styling: deep blue border, gold accents
 - [x] Redirect a viaggio dopo creazione
-- **Status:** 🟡 In Progress
+- **Status:** 🟢 Done
+- **Nota:** per attivare il pulsante Unsplash serve una Access Key gratuita da https://unsplash.com/developers (app "Demo", 50 richieste/ora) da incollare in `VITE_UNSPLASH_ACCESS_KEY` su `.env.local` — senza la chiave il pulsante resta nascosto, nessun errore
 
-### 1.5 Dettaglio Viaggio - Layout Base
-- [ ] Sidebar con 9 sezioni (Attività, Alloggi, Voli, Packing, Expense, Info, Documenti, Chat, Report)
+### 1.5b Dettaglio Viaggio - Layout Base
+
+> Nota: questa sezione era numerata "1.5" per errore, duplicando 1.5 Dashboard qui sopra — rinominata in 1.5b, nessun contenuto cambiato.
+
+- [ ] Sidebar con 9 sezioni (Attività, Alloggi, Voli, Packing, Expense, Info, Documenti, Chat, Report) — rimandato, per ora la tab bar assolve la stessa funzione
 - [x] Header con nome viaggio, date, partecipanti
 - [x] Tab navigation (Attività/Alloggi/Voli/Check List attive, altre sezioni disabilitate "coming soon")
 - [x] Modifica viaggio dal dettaglio (nome, date, mete, budget) — modal `TripForm` in modalità edit, `updateTrip` API
 - [x] Bandiere dei paesi delle mete nel header del viaggio (una per paese, deduplicate; codice paese salvato in `countryCode` e risolto via Nominatim per i viaggi esistenti, con cache localStorage)
-- **Status:** 🟡 In Progress (sidebar pro futuro, per ora tab bar)
+- **Status:** 🟡 In Progress (resta solo la sidebar, rimandata)
 
 ### 1.6 Sezione Attività
 - [x] Form aggiungi attività (nome, descrizione, data, orario, luogo, categoria, status)
@@ -191,8 +196,8 @@
 - [x] Toggle **Rendi pubblico/privato** su un viaggio (icona globo nel dettaglio, solo owner, RPC `set_trip_public`)
 - [x] `ShareTripModal` invita solo amici (riusa `get_friends` + `fetch_trip_participants`, filtrati lato client — niente più ricerca globale): elenco unico con chi è già nel viaggio in cima e gli amici ancora invitabili sotto, con pulsante Invita
 - [x] Avatar dei partecipanti (esclude te stesso) accanto alle date nel dettaglio viaggio, con hover desktop che mostra lo username
-- [ ] **Lista Amici** dedicata (gestione richieste in entrata/uscita centralizzata) — prossimo passo
-- **Status:** 🟡 In Progress
+- [x] **Lista Amici** — dentro `/travelers` (`TravelersPage.tsx`), sezione "I miei amici" con richieste in entrata/uscita, accetta/rifiuta e badge (migration `0015_friend_lists.sql`: `get_friends`, `get_incoming_friend_requests`, `count_incoming_friend_requests`) — non serve una pagina separata
+- **Status:** 🟢 Done
 
 #### Accettazione / Rifiuto — ✅ fatto
 - [x] Sezione "Inviti in sospeso" in dashboard (sopra la lista viaggi, `PendingInvites` — invisibile se non ci sono pending)
@@ -218,72 +223,64 @@
 
 
 ### 1.10 Testing & Bugfix
-- [ ] Test login/logout
-- [ ] Test inviti
-- [ ] Test CRUD attività/alloggi/voli
-- [ ] Test autorizzazioni (row-level security)
-- [ ] Test responsivo mobile
+- [x] Test login/logout — confermato funzionante
+- [x] Test inviti — confermato funzionante
+- [x] Test CRUD attività/alloggi/voli — script `supabase/test_rls_crud.mjs`, eseguito con gli account di test (`lucia_explorer`/`marco_wanderer` da `seed_test_accounts.mjs`): crea/legge/modifica su activities, accommodations, flights come owner — 21/21 verifiche OK
+- [x] Test autorizzazioni (row-level security) — stesso script: un estraneo non invitato non vede/scrive nulla; un viewer legge ma non può creare/modificare/eliminare; promosso a editor ottiene CRUD pieno; flusso invito (pending → `respond_to_invite`) testato nello stesso passaggio. Nessuna regressione trovata
+- [x] `npm run build` e `npm run lint` puliti (nessun errore di tipo, nessun warning)
+- [ ] Test responsivo mobile — rimandato insieme a 1.4
 - [ ] Bugfix eventuali
-- **Status:** ⏳ Not Started
+- **Status:** 🟢 Done (resta solo il responsivo mobile, rimandato)
 
 ### 1.11 Import da Notion (MVP)
+
+> **Rimandato a ridosso del lancio.** L'export Notion contiene anche checklist e spese, non solo i dati base del viaggio (nome/date/mete) — un import fatto ora dovrebbe comunque essere rifatto quando la sezione Spese (Fase 2) e le altre sezioni saranno complete, per mappare tutto in un solo passaggio invece di due. Non blocca la chiusura del resto della Fase 1.
+
 - [ ] Pagina "/import" con drag-and-drop upload
 - [ ] Parser CSV/JSON da Notion export
-- [ ] Mapping automatico colonne (name, dates, destinations, budget)
+- [ ] Mapping automatico colonne (name, dates, destinations, budget, checklist, spese)
 - [ ] Preview import prima di salvare
 - [ ] Batch save viaggi a DB
 - [ ] Fallback: form manuale "Add Journey Skeleton" (nome + destinazioni + date)
 - [ ] Notifica success/error
-- [ ] Test con Notion export example
-- **Status:** ⏳ Not Started
+- [ ] Test con Notion export reale
+- **Status:** ⏳ Rimandato (a fine progetto, dopo Fase 2/3)
 
 ### 1.12a API esterne & privacy (prerequisito al deploy)
+
+> Nota di contesto: riguarda solo la ricerca città/paesi nel form crea-viaggio (autocomplete mete), che usa Nominatim (OpenStreetMap) gratuitamente senza chiave API — nessuna azione richiesta ora, solo un promemoria per quando il traffico crescerà.
+
 - [x] Ricerca mete via Nominatim/OSM — nessuna chiave API, nessun segreto nel bundle JS
 - [x] Bandiere via CDN immagini REST Countries (gratis) — nessuna chiave
-- [ ] Verificare Nominatim Usage Policy (≤ 1 req/s, Referer) e usare solo per dev/testing; se l'uso cresce valutare un proxy/memoizzazione (Edge Function) per il deploy
-- **Status:** 🟡 In Progress (nessuna chiave da proteggere; resta da valutare il proxy se l'uso cresce)
+- [ ] Verificare Nominatim Usage Policy (≤ 1 req/s, header identificativo) e usarlo così solo per dev/testing; se il traffico cresce dopo il lancio, mettere un proxy/cache (Edge Function) davanti alle chiamate
+- **Status:** 🟡 In Progress (nessuna chiave da proteggere; il proxy si valuta solo se il traffico reale lo richiede, non prima)
 
 ### 1.12b Storage & Compressione Immagini
 
-> **Obiettivo:** contenere il consumo di Supabase Storage (limite free: 1 GB) facendo in modo che ogni immagine di copertina pesi al massimo ~200 KB, indipendentemente dal file originale caricato dall'utente.
+> **Obiettivo:** contenere il consumo di Supabase Storage (limite free: 1 GB) facendo in modo che ogni immagine caricata pesi poco, indipendentemente dal file originale caricato dall'utente.
+> **Già implementato**, con parametri leggermente diversi dalla spec originale ma che raggiungono lo stesso obiettivo — vedi sotto.
 
-#### Strategia: compressione client-side prima dell'upload
-- Tutta la riduzione avviene nel browser via **Canvas API** — nessuna dipendenza esterna necessaria
-- Nessun dato transita su server solo per essere ridimensionato
-- Il file inviato a Supabase Storage è già compresso → nessun post-processing lato server
+#### Strategia: compressione client-side prima dell'upload — ✅ fatto
+- [x] Utility `compressImage(file: File, maxKB = 500): Promise<Blob>` in `frontend/src/lib/image.ts`: resize via Canvas API a max 1280px sul lato lungo, poi `canvas.toBlob('image/jpeg', quality)` in loop scendendo di qualità finché il peso è ≤ `maxKB`
+- [x] Usata sia per la cover del viaggio (`TripForm.tsx`, upload su bucket `trip-covers`) sia per l'avatar profilo (`EditProfileModal.tsx`, bucket `avatars`)
+- [x] Tutto lato browser, nessun post-processing server-side necessario
+- **Differenze rispetto alla spec originale** (JPEG invece di WebP, 1280px lato lungo invece di 960×540 fisso, 500 KB invece di 200 KB): comunque ampiamente sufficiente — 500 KB × ~2.000 immagini = 1 GB, margine ancora ampio per l'uso attuale del team
+- **Status:** 🟢 Done
 
-#### Parametri target per le immagini di copertina
-| Parametro | Valore | Motivo |
-|---|---|---|
-| Formato output | **WebP** | miglior rapporto qualità/peso; supportato da tutti i browser moderni |
-| Aspect ratio | **16:9** (es. 960×540) | si adatta perfettamente alle card e al futuro dettaglio viaggio |
-| Dimensioni max | 960 × 540 px | sufficiente per display retina su card; non eccessive |
-| Dimensione file max | **200 KB** | ~5.000 immagini per esaurire 1 GB Storage → ampio margine |
-| Qualità WebP | 0.82 (dinamica) | si abbassa automaticamente finché non si raggiunge il target KB |
+#### Guardia lato Supabase Storage (difesa in profondità) — ✅ presente
+- [x] Bucket `trip-covers`: `file_size_limit = 5242880` (5 MB) impostato in `0006_storage_trip_covers.sql` — guard server-side se la compressione client non girasse
+- [x] RLS bucket: solo l'utente autenticato può caricare/modificare/eliminare nel proprio path (`{user_id}/...`), sia su `trip-covers` che su `avatars`
+- **Nota minore non bloccante:** il naming file cover è `{user_id}/{trip_id}-{timestamp}.jpg` (non un path fisso sovrascrivibile) — ogni nuova cover carica un file nuovo senza eliminare il precedente, quindi nel tempo si accumulano immagini orfane. Da valutare in futuro un cleanup (delete della vecchia cover all'upload della nuova), non urgente vista la marginalità del volume
+- **Status:** 🟢 Done
 
-#### Implementazione (lato frontend)
-- [ ] Utility `compressCoverImage(file: File): Promise<Blob>` in `src/lib/imageUtils.ts`:
-  1. Carica il file in un `<img>` element (URL.createObjectURL)
-  2. Disegna su `<canvas>` con resize a 960×540 (crop centrato sul lato corto — `object-cover`)
-  3. Esporta con `canvas.toBlob('image/webp', quality)` in loop finché `blob.size ≤ 200 KB` (abbassa quality di 0.05 per iterazione, min 0.4)
-  4. Ritorna il `Blob` finale
-- [ ] Il componente di upload (modale trip, futuro campo cover) chiama `compressCoverImage` prima di `supabase.storage.from('trip-covers').upload(...)`
-- [ ] Preview istantanea dell'immagine compressa prima del salvataggio (mostra peso risultante)
-- [ ] Feedback visivo durante compressione (spinner leggero)
-- **Status:** ⏳ Not Started
-
-#### Guardia lato Supabase Storage (difesa in profondità)
-- [ ] Bucket `trip-covers`: impostare `maxFileSizeBytes = 512000` (512 KB) come ulteriore guard server-side — se per qualsiasi motivo la compressione client non gira, il server rifiuta
-- [ ] RLS bucket: solo l'utente autenticato può caricare nel proprio path (`{user_id}/{trip_id}.webp`)
-- [ ] Naming convention file: `{user_id}/{trip_id}.webp` — sovrascrivibile (update) senza proliferare copie
-- **Status:** ⏳ Not Started
-
-#### Impatto stimato sullo storage
+#### Impatto stimato sullo storage (con target reale ≤500 KB/immagine)
 | Scenario | Immagini | Peso medio | Totale |
 |---|---|---|---|
-| 100 utenti × 5 viaggi | 500 | 150 KB | **~75 MB** |
-| 1.000 utenti × 5 viaggi | 5.000 | 150 KB | **~750 MB** |
+| 100 utenti × 5 viaggi | 500 | 300 KB | **~150 MB** |
+| 1.000 utenti × 5 viaggi | 5.000 | 300 KB | **~1.5 GB** ⚠️ |
 | Soglia attenzione (75%) | — | — | 750 MB / 1 GB |
+
+Con l'uso attuale del team (poche decine di viaggi) siamo ben sotto soglia; se l'app crescesse a migliaia di utenti conviene rivedere il target verso il basso (es. tornare a WebP/200 KB) o attivare il cleanup delle cover orfane citato sopra.
 
 
 
@@ -294,7 +291,7 @@
 - **Status:** ⏳ Not Started
 - **Nota:** non è più necessario aggiungere alcun dominio/whitelist su REST Countries: l'autocomplete usa Nominatim/OSM senza chiave
 
-**Checkpoint Fase 1:** Utente può creare un viaggio, invitare partecipanti, aggiungere attività/alloggi/voli, importare da Notion, collaborazione in tempo reale.
+**Checkpoint Fase 1:** Utente può creare un viaggio, invitare partecipanti, aggiungere attività/alloggi/voli, collaborazione in tempo reale. (Import da Notion rimandato a fine progetto, vedi 1.11)
 
 ---
 
@@ -376,6 +373,35 @@
 - [ ] Fetch dati da REST Countries API (fuso orario, valuta, lingue)
 - [ ] Display info per meta selezionata
 - [ ] Caching dati paese in DB (per performance)
+- **Status:** ⏳ Not Started
+
+### 3.1b Link Sicurezza — Viaggiare Sicuri (Farnesina)
+- [ ] Pulsante per ogni paese di destinazione del viaggio che rimanda alla scheda paese ufficiale di viaggiaresicuri.it (Ministero Affari Esteri)
+  - URL pattern verificato: `https://www.viaggiaresicuri.it/find-country/country/{ISO3}` (es. Thailandia → `THA`) — serve solo il codice ISO 3166-1 alpha-3 del paese
+  - Il viaggio salva già `countryCode` alpha-2 (vedi 1.5); serve conversione alpha-2 → alpha-3 (tabella statica, oppure campo `cca3` di REST Countries, stessa API già usata altrove nel progetto)
+- [ ] Se il viaggio ha più mete/paesi, un pulsante per ciascun paese (non uno generico): bandierina del paese + piccolo badge/logo "Farnesina - Viaggiare Sicuri" per riconoscerlo a colpo d'occhio
+- [ ] Apertura in nuova scheda (`target="_blank" rel="noopener noreferrer"`)
+- [ ] Posizionamento: in cima al tab "Info" del dettaglio viaggio, una riga di pulsanti (uno per paese)
+- **Status:** ⏳ Not Started
+
+### 3.1c Frasario Utile (Traduzioni Lingua Locale)
+
+> **Obiettivo:** aiutare a comunicare con la gente del posto senza parlare la lingua, mostrando lo schermo del telefono.
+
+- [ ] Determinare la/le lingua/e ufficiali del paese di destinazione (campo `languages` di REST Countries, già integrato; se il paese ha più lingue ufficiali, permettere scelta/priorità)
+- [ ] Dataset frasario per lingua, struttura per voce: `{categoria, frase_it, frase_locale (script originale), pronuncia_it (trascrizione fonetica leggibile in italiano — utile per lingue non latine come cinese, giapponese, coreano, arabo, thailandese...), icona_categoria}`
+- [ ] Categorie iniziali:
+  - Allergie e intolleranze ("Sono allergico/a a...", "Non posso mangiare glutine/lattosio/frutta secca", "Contiene [ingrediente]?")
+  - Bisogni base ("Dove è il bagno?", "Ho bisogno di aiuto", "Dove è la farmacia/l'ospedale?")
+  - Emergenze ("Chiamate la polizia/un'ambulanza", "Ho perso il passaporto")
+  - Orientamento e trasporti ("Dove è la stazione/fermata?", "Quanto costa?", "Mi aiuta ad arrivare a...?")
+  - Cortesia base (grazie, per favore, scusi, sì/no, "non parlo [lingua]/non capisco")
+- [ ] UI: lista frasi raggruppate per categoria con ricerca/filtro
+- [ ] Tap su una frase → vista "schermo grande" pensata per essere mostrata a una persona del posto: frase in lingua locale (script originale, font enorme), pronuncia italiana sotto (più piccola), sfondo ad alto contrasto
+- [ ] Disegno stilizzato per ogni categoria (set di icone SVG semplici e riutilizzabili, es. WC per i bagni, triangolo di allerta per allergie) mostrato nella vista "schermo grande" insieme al testo
+- [ ] Scope MVP: coprire un set iniziale di lingue delle destinazioni più comuni (inglese, francese, spagnolo, tedesco, giapponese, cinese mandarino, coreano, thailandese, arabo, greco, portoghese), dataset curato manualmente ed espandibile in seguito
+- [ ] Dati statici in JSON (es. `/public/locales/phrasebook/{lang}.json`) — valutare in alternativa una tabella Supabase se si vuole poter aggiungere lingue/frasi senza redeploy
+- [ ] Fallback se la lingua del paese non è ancora coperta dal dataset: messaggio + link a Google Translate
 - **Status:** ⏳ Not Started
 
 ### 3.2 Tasso Cambio Real-Time
@@ -714,7 +740,18 @@ I limiti del **Free Tier Supabase (2024)** da monitorare:
 - [ ] Review semestrale: verificare che nessuna query esponga dati utente individuali
 - **Status:** ⏳ Not Started
 
-**Checkpoint Fase 6:** Admin può accedere a `/admin`, vedere metriche aggregate anonime e stimare i consumi Supabase senza mai toccare dati personali degli utenti.
+### 6.6 OAuth Google & Apple
+
+> Spostato da Fase 1 (1.2): login email/password copre già l'uso quotidiano del team, l'OAuth è un miglioramento UX rimandabile a fine roadmap.
+
+- [ ] OAuth Google setup (Supabase Auth provider + Google Cloud OAuth client)
+- [ ] OAuth Apple setup (Supabase Auth provider + Apple Developer Sign in with Apple)
+- [ ] Pulsanti "Continua con Google/Apple" in Login/Signup UI
+- [ ] Collegamento account: se l'email OAuth coincide con un account esistente, merge invece di duplicare
+- [ ] Test flusso completo su mobile (redirect/deep link)
+- **Status:** ⏳ Not Started
+
+**Checkpoint Fase 6:** Admin può accedere a `/admin`, vedere metriche aggregate anonime e stimare i consumi Supabase senza mai toccare dati personali degli utenti. Login disponibile anche via Google/Apple.
 
 ---
 

@@ -181,7 +181,7 @@ interface AccommodationFormProps {
   onCancel: () => void;
 }
 
-const AccommodationForm: React.FC<AccommodationFormProps> = ({ initial, tripStart, tripEnd, onSubmit, onCancel }) => {
+export const AccommodationForm: React.FC<AccommodationFormProps> = ({ initial, tripStart, tripEnd, onSubmit, onCancel }) => {
   const { t } = useTranslation();
   const [name, setName] = useState(initial?.name ?? '');
   const [type, setType] = useState<AccommodationRow['type']>(initial?.type ?? 'hotel');

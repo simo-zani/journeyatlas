@@ -85,13 +85,24 @@ export type ActivityRow = {
   description: string | null;
   activity_date: string | null;
   activity_time: string | null;
+  all_day: boolean;
+  end_date: string | null;
+  end_time: string | null;
   location_city: string | null;
   location_address: string | null;
   category: string | null;
+  icon: string | null;
   status: 'planned' | 'booked' | 'completed';
   booking_ref: string | null;
   notes: string | null;
   created_by_user_id: string;
+  created_at: string;
+};
+
+export type ActivityCategoryRow = {
+  id: string;
+  trip_id: string;
+  name: string;
   created_at: string;
 };
 
@@ -265,6 +276,12 @@ export type Database = {
         Row: ActivityRow;
         Insert: Partial<ActivityRow>;
         Update: Partial<ActivityRow>;
+        Relationships: [];
+      };
+      activity_categories: {
+        Row: ActivityCategoryRow;
+        Insert: Partial<ActivityCategoryRow>;
+        Update: Partial<ActivityCategoryRow>;
         Relationships: [];
       };
       flights: {

@@ -20,6 +20,21 @@
   --overlay: rgba(10, 14, 26, 0.45);
   --ring-gold: rgba(212, 175, 55, 0.35);
   color-scheme: light;
+
+  /* Categorical chart palette (activity categories, etc.) — fixed slot
+     order, validated for CVD-safety and contrast against both card surfaces
+     via the dataviz skill's validator. Dark values below are the same 8
+     hues stepped for the dark surface, not a separate palette. Do not
+     reorder without re-running the validator. */
+  --cat-color-0: #4A90E2; /* blue */
+  --cat-color-1: #F59E0B; /* amber */
+  --cat-color-2: #10B981; /* emerald */
+  --cat-color-3: #9333EA; /* purple */
+  --cat-color-4: #EF4444; /* red */
+  --cat-color-5: #6366F1; /* indigo */
+  --cat-color-6: #D4AF37; /* gold */
+  --cat-color-7: #14B8A6; /* teal */
+  --cat-color-other: #94A3B8; /* slate — overflow bucket in charts */
 }
 
 .dark {
@@ -32,6 +47,12 @@
   --overlay: rgba(2, 4, 10, 0.65);
   --ring-gold: rgba(212, 175, 55, 0.45);
   color-scheme: dark;
+
+  --cat-color-1: #D97706;
+  --cat-color-2: #059669;
+  --cat-color-6: #A9821F;
+  --cat-color-7: #0D9488;
+  --cat-color-other: #64748B;
 }
 
 /* ==========================================================================
@@ -255,6 +276,16 @@ h3 {
 
 .input-field:hover:not(:disabled):not(:focus) {
   border-color: var(--border-strong);
+}
+
+/* Modifier for an `.input-field` that must size to its content instead of
+   filling its row (e.g. a filter select sitting inline with other filters).
+   `.input-field` sets width:100% as plain CSS (not `@layer components`), so
+   it sits after Tailwind's utilities in the compiled stylesheet and beats a
+   `w-auto` class of equal specificity by source order — this rule is
+   declared after `.input-field` for the same reason, so it wins instead. */
+.input-field-inline {
+  width: auto;
 }
 
 .input-field:disabled {

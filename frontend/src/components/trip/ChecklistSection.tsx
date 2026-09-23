@@ -201,7 +201,7 @@ const CategorySelect: React.FC<CategorySelectProps> = ({
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="input-field w-auto inline-flex items-center justify-between gap-2 pr-2.5 text-left"
+        className="input-field input-field-inline inline-flex items-center justify-between gap-2 pr-2.5 text-left"
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-label={ariaLabel}
@@ -371,7 +371,7 @@ export const ChecklistSection: React.FC<ChecklistSectionProps> = ({ tripId, user
             ariaLabel="Filter category"
           />
           <select
-            className="input-field w-auto"
+            className="input-field input-field-inline"
             value={showPacked}
             onChange={(e) => setShowPacked(e.target.value as typeof showPacked)}
             aria-label="Filter packed status"

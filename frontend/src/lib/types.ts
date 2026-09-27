@@ -123,8 +123,11 @@ export type AccommodationRow = {
   id: string;
   trip_id: string;
   name: string;
-  type: 'hotel' | 'airbnb' | 'house' | 'apartment';
+  type: 'hotel' | 'apartment';
+  /** Stelle dell'hotel, 1-5. NULL quando non valutata. */
+  stars: number | null;
   address: string | null;
+  city: string | null;
   coordinates: Coordinates | null;
   check_in_date: string | null;
   check_in_time: string | null;
@@ -134,7 +137,14 @@ export type AccommodationRow = {
   currency: string | null;
   rooms: unknown[] | null;
   contact_info: unknown | null;
+  contact_phone: string | null;
+  contact_email: string | null;
   booking_ref: string | null;
+  booking_url: string | null;
+  booking_platform: string | null;
+  amenities: string[];
+  photo_url: string | null;
+  photo_path: string | null;
   notes: string | null;
   created_at: string;
 };

@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Loader2, MapPin, Plus, X } from 'lucide-react';
 import type { Destination } from '@/lib/types';
+import { CountryFlag } from '@/components/CountryFlag';
 import {
   searchDestinations,
   toDestination,
@@ -22,7 +23,7 @@ const isDuplicate = (list: Destination[], candidate: Destination): boolean =>
   list.some((d) => sameDestination(d, candidate));
 
 export const DestinationPicker: React.FC<DestinationPickerProps> = ({ value, onChange }) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
   const [suggestions, setSuggestions] = useState<DestinationSuggestion[]>([]);
@@ -68,7 +69,7 @@ export const DestinationPicker: React.FC<DestinationPickerProps> = ({ value, onC
 
     const timer = setTimeout(async () => {
       try {
-        const results = await searchDestinations(trimmed, controller.signal);
+        const results = await searchDestinations(trimmed, controller.signal, i18n.language);
         setSuggestions(results);
       } catch (err) {
         if ((err as Error).name !== 'AbortError') setSearchError(true);
@@ -81,7 +82,7 @@ export const DestinationPicker: React.FC<DestinationPickerProps> = ({ value, onC
       clearTimeout(timer);
       controller.abort();
     };
-  }, [query]);
+  }, [query, i18n.language]);
 
   const addDestination = (destination: Destination) => {
     if (isDuplicate(value, destination)) return;
@@ -137,12 +138,10 @@ export const DestinationPicker: React.FC<DestinationPickerProps> = ({ value, onC
                       onClick={() => addDestination(toDestination(suggestion))}
                       className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-light-blue/10 dark:hover:bg-slate-800 transition-colors"
                     >
-                      {suggestion.flagUrl ? (
-                        <img
-                          src={suggestion.flagUrl}
-                          alt={suggestion.country}
-                          className="w-6 h-6 rounded-xl object-cover shrink-0"
-                          loading="lazy"
+                      {suggestion.countryCode ? (
+                        <CountryFlag
+                          code={suggestion.countryCode}
+                          label={`${suggestion.city ?? ''}, ${suggestion.country}`.trim()}
                         />
                       ) : (
                         <MapPin className="w-5 h-5 text-slate-400 shrink-0" />

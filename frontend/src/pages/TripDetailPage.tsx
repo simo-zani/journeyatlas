@@ -341,7 +341,12 @@ export const TripDetailPage: React.FC = () => {
             <ActivitySection tripId={trip.id} userId={user.id} tripStart={trip.start_date} tripEnd={trip.end_date} />
           )}
           {activeSection === 'accommodations' && (
-            <AccommodationSection tripId={trip.id} tripStart={trip.start_date} tripEnd={trip.end_date} />
+            <AccommodationSection
+              tripId={trip.id}
+              tripStart={trip.start_date}
+              tripEnd={trip.end_date}
+              tripDestinations={trip.destinations ?? []}
+            />
           )}
           {activeSection === 'transport' && <TransportSection tripId={trip.id} />}
           {activeSection === 'packing' && user && (

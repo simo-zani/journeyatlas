@@ -25,9 +25,15 @@ import {
 } from '@/lib/api';
 import type { PublicTripRow, TravelerProfile } from '@/lib/types';
 
-const formatDate = (date: string | null): string => {
+const formatMemberSince = (date: string | null): string => {
   if (!date) return '';
   return new Date(date).toLocaleDateString(undefined, { year: 'numeric', month: 'long' });
+};
+
+const formatTripDate = (date: string | null): string => {
+  if (!date) return '';
+  const d = date.includes('T') ? new Date(date) : new Date(`${date}T00:00:00`);
+  return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString();
 };
 
 export const TravelerProfilePage: React.FC = () => {
@@ -155,7 +161,7 @@ export const TravelerProfilePage: React.FC = () => {
             </h1>
             <p className="flex items-center gap-1.5 text-sm text-slate-500 dark:text-slate-400 mt-1">
               <CalendarDays className="w-5 h-5" />
-              {t('travelerProfile.memberSince', { date: formatDate(profile.created_at) })}
+              {t('travelerProfile.memberSince', { date: formatMemberSince(profile.created_at) })}
             </p>
             {isSelf && (
               <p className="text-xs font-bold text-gold mt-1 uppercase tracking-wider">
@@ -286,8 +292,9 @@ export const TravelerProfilePage: React.FC = () => {
                 </div>
                 {(trip.start_date || trip.end_date) && (
                   <p className="text-white/60 text-xs tracking-wide">
-                    {formatDate(trip.start_date)}
-                    {trip.end_date ? ` – ${formatDate(trip.end_date)}` : ''}
+                    {trip.start_date && trip.end_date
+                      ? `${formatTripDate(trip.start_date)} – ${formatTripDate(trip.end_date)}`
+                      : formatTripDate(trip.start_date || trip.end_date)}
                   </p>
                 )}
               </div>

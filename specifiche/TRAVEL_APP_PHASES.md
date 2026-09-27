@@ -4,15 +4,15 @@
 
 | Fase | Nome | Status | Completamento |
 |------|------|--------|----------------|
-| 1 | MVP Core (Auth + Viaggio Base) | 🟡 In Progress | 82% |
+| 1 | MVP Core (Auth + Viaggio Base) | 🟡 In Progress | 92% |
 | 2 | Packing + Expense Split | ⏳ Not Started | 0% |
 | 3 | Info Paese + Documenti + Chat | ⏳ Not Started | 0% |
 | 4 | Timeline + Notifiche + Post-Report | ⏳ Not Started | 0% |
 | 5 | Dashboard Analytics + Scratch Map | ⏳ Not Started | 0% |
 | 6 | Admin Dashboard (metriche servizio) | ⏳ Not Started | 0% |
 
-**Ultimo aggiornamento:** 2026-09-21  
-**Prossima milestone:** Fase 1 — testing generale (1.10), poi import Notion (1.11) e PWA mobile (1.4). Il flusso di condivisione/inviti (1.9) è completo, ora limitato agli amici (1.9b).
+**Ultimo aggiornamento:** 2026-09-27  
+**Prossima milestone:** Fase 1 — Storage & Compressione Immagini copertina (1.12b) e deployment/PWA. (Test 1.10 completati; import Notion spostato a fine progetto; lista amici dedicata non necessaria).
 
 ---
 
@@ -115,6 +115,18 @@
 - [x] Lista alloggi
 - [x] Edit/delete
 - [x] API endpoints
+- [x] **v2 (migrazione `0018` + `0019`):** tipo limitato a hotel/apartment, città con
+      autocomplete Nominatim (mete del viaggio prima, poi mondo intero) e coordinate
+      salvate, piattaforma di prenotazione con loghi, link prenotazione normalizzato,
+      contatti telefono/email, 20 optional salvati per chiave, foto con crop quadrato
+      800px / JPEG ≤400 KB
+- [x] Foto alloggio: compressione alla selezione con anteprima del risultato reale,
+      upload in due fasi in creazione (serve l'id per il path), path deterministico
+      `<userId>/<accId>.jpg` con `photo_path` nel DB → nessun file orfano, rimozione
+      foto e cancellazione alloggio eliminano davvero l'oggetto dallo storage
+- [x] **Stelle hotel (migrazione `0020`):** `stars smallint NULL` con CHECK 1-5,
+      selettore 1-5 stelle nel form mostrato solo per `type = 'hotel'`, visualizzato
+      in card come sola lettura. Su appartamento non viene salvato
 - **Status:** ✅ Done
 
 ### 1.8 Sezione Mezzi (ex Voli)
@@ -180,7 +192,7 @@
 
 > 🔭 **Evoluzione futura pianificata** (parzialmente implementata in 1.9b, vedi sotto):
 > - **Invito anche a chi non ha un account**: oltre alla ricerca per username (quella attuale, per chi è già registrato), aggiungere un invito "esterno" via link condivisibile su WhatsApp/Telegram/email — la persona invitata si registra (o si logga) e il link la collega automaticamente all'invito in sospeso.
-> - **Sistema Amici** (👉 sezione **1.9b** qui sotto, già avviata): la parte di richiesta/accetta/rifiuta amicizia e profili viaggiatori pubblici è fatta; restano da fare la **lista amici** dedicata (sezione "Amici" con le richieste in entrata/uscita) e il collegamento con l'invito al viaggio (**`ShareTripModal`** che propone solo amici invece della ricerca globale). Notifiche rimandate a Fase 4.
+> - **Sistema Amici** (👉 sezione **1.9b** qui sotto): completato con richiesta/accetta/rifiuta amicizia, profili viaggiatori pubblici e invito al viaggio limitato agli amici in `ShareTripModal`. Notifiche rimandate a Fase 4.
 
 ### 1.9b Viaggiatori, Profili Pubblici & Amici
 
@@ -191,8 +203,8 @@
 - [x] Toggle **Rendi pubblico/privato** su un viaggio (icona globo nel dettaglio, solo owner, RPC `set_trip_public`)
 - [x] `ShareTripModal` invita solo amici (riusa `get_friends` + `fetch_trip_participants`, filtrati lato client — niente più ricerca globale): elenco unico con chi è già nel viaggio in cima e gli amici ancora invitabili sotto, con pulsante Invita
 - [x] Avatar dei partecipanti (esclude te stesso) accanto alle date nel dettaglio viaggio, con hover desktop che mostra lo username
-- [ ] **Lista Amici** dedicata (gestione richieste in entrata/uscita centralizzata) — prossimo passo
-- **Status:** 🟡 In Progress
+- [x] **Lista Amici** dedicata — esclusa (non necessaria: gestione richieste già integrata in `/travelers` e profili)
+- **Status:** 🟢 Done
 
 #### Accettazione / Rifiuto — ✅ fatto
 - [x] Sezione "Inviti in sospeso" in dashboard (sopra la lista viaggi, `PendingInvites` — invisibile se non ci sono pending)
@@ -218,24 +230,17 @@
 
 
 ### 1.10 Testing & Bugfix
-- [ ] Test login/logout
-- [ ] Test inviti
-- [ ] Test CRUD attività/alloggi/voli
-- [ ] Test autorizzazioni (row-level security)
-- [ ] Test responsivo mobile
-- [ ] Bugfix eventuali
-- **Status:** ⏳ Not Started
+- [x] Test login/logout
+- [x] Test inviti
+- [x] Test CRUD attività/alloggi/voli
+- [x] Test autorizzazioni (row-level security)
+- [x] Test responsivo mobile
+- [x] Bugfix eventuali
+- **Status:** 🟢 Done
 
-### 1.11 Import da Notion (MVP)
-- [ ] Pagina "/import" con drag-and-drop upload
-- [ ] Parser CSV/JSON da Notion export
-- [ ] Mapping automatico colonne (name, dates, destinations, budget)
-- [ ] Preview import prima di salvare
-- [ ] Batch save viaggi a DB
-- [ ] Fallback: form manuale "Add Journey Skeleton" (nome + destinazioni + date)
-- [ ] Notifica success/error
-- [ ] Test con Notion export example
-- **Status:** ⏳ Not Started
+### 1.11 Import da Notion (Spostato a fine progetto / Post-MVP)
+- [ ] *Nota*: L'import Notion è posticipato verso le fasi finali per concentrarsi sulle funzionalità core, copertine e deploy.
+- **Status:** ⏸️ Deferred
 
 ### 1.12a API esterne & privacy (prerequisito al deploy)
 - [x] Ricerca mete via Nominatim/OSM — nessuna chiave API, nessun segreto nel bundle JS

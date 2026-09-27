@@ -1,11 +1,19 @@
 import React, { useEffect, useState } from 'react';
-import { flagUrl, resolveCountryFlags } from '@/lib/flags';
+import { resolveCountryFlags } from '@/lib/flags';
+import { CountryFlag } from '@/components/CountryFlag';
 import type { Destination } from '@/lib/types';
 
 interface TripFlagsProps {
   destinations?: Destination[] | null;
   size?: 'sm' | 'md';
 }
+
+/**
+ * `TripFlags` ha due formati pubblici (sm/md) da mantenere distinti dai nomi
+ * interni di CountryFlag, quindi si mappa: sm->28x20, md->40x28, esattamente
+ * le dimensioni che le bandierine avevano prima dell'unificazione.
+ */
+const FLAG_SIZE = { sm: 'md', md: 'lg' } as const;
 
 export const TripFlags: React.FC<TripFlagsProps> = ({ destinations, size = 'md' }) => {
   const [codes, setCodes] = useState<string[]>([]);
@@ -28,18 +36,10 @@ export const TripFlags: React.FC<TripFlagsProps> = ({ destinations, size = 'md' 
 
   if (codes.length === 0) return null;
 
-  const sizeClass = size === 'sm' ? 'w-7 h-5' : 'w-10 h-7';
-
   return (
     <div className="flex items-center gap-1.5 shrink-0" aria-hidden="true">
       {codes.map((code) => (
-        <img
-          key={code}
-          src={flagUrl(code)}
-          alt=""
-          className={`${sizeClass} rounded-xl object-cover shadow-sm`}
-          loading="lazy"
-        />
+        <CountryFlag key={code} code={code} size={FLAG_SIZE[size]} className="shadow-sm" />
       ))}
     </div>
   );

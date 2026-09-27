@@ -178,15 +178,19 @@ export const CalendarSection: React.FC<CalendarSectionProps> = ({ trip, onSelect
 
     // 3. Accommodations (Check-in and Check-out)
     for (const acc of accommodations) {
+      // Il tipo e la città sono dati localizzati: vanno tradotti/risolti qui,
+      // non mostrati grezzi.
+      const subtitle = t(`accommodation.type.${acc.type}`, acc.type);
+      const location = [acc.city, acc.address].filter(Boolean).join(', ') || null;
       if (acc.check_in_date) {
         list.push({
           id: `acc-in-${acc.id}`,
           type: 'accommodation_checkin',
           title: `${t('calendar.checkIn', 'Check-in')}: ${acc.name}`,
-          subtitle: acc.type ? acc.type.toUpperCase() : null,
+          subtitle,
           date: acc.check_in_date,
           time: acc.check_in_time ? acc.check_in_time.slice(0, 5) : '15:00',
-          location: acc.address || null,
+          location,
           bookingRef: acc.booking_ref || null,
           raw: acc,
         });
@@ -196,10 +200,10 @@ export const CalendarSection: React.FC<CalendarSectionProps> = ({ trip, onSelect
           id: `acc-out-${acc.id}`,
           type: 'accommodation_checkout',
           title: `${t('calendar.checkOut', 'Check-out')}: ${acc.name}`,
-          subtitle: acc.type ? acc.type.toUpperCase() : null,
+          subtitle,
           date: acc.check_out_date,
           time: acc.check_out_time ? acc.check_out_time.slice(0, 5) : '11:00',
-          location: acc.address || null,
+          location,
           bookingRef: acc.booking_ref || null,
           raw: acc,
         });

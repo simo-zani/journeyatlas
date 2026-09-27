@@ -4,6 +4,7 @@ import type {
   ActivityRow,
   ChecklistCategoryRow,
   ChecklistItemRow,
+  Coordinates,
   Destination,
   IncomingFriendRequest,
   PendingInvite,
@@ -244,8 +245,12 @@ export const deleteActivity = async (id: string): Promise<void> => {
 
 export interface AccommodationInput {
   name: string;
-  type: 'hotel' | 'airbnb' | 'house' | 'apartment';
+  type: 'hotel' | 'apartment';
+  /** Stelle dell'hotel, 1-5. null quando non valutata. */
+  stars?: number | null;
   address?: string | null;
+  city?: string | null;
+  coordinates?: Coordinates | null;
   check_in_date?: string | null;
   check_in_time?: string | null;
   check_out_date?: string | null;
@@ -253,7 +258,13 @@ export interface AccommodationInput {
   cost_total?: number | null;
   currency?: string | null;
   booking_ref?: string | null;
-  contact_info?: string | null;
+  booking_url?: string | null;
+  booking_platform?: string | null;
+  contact_phone?: string | null;
+  contact_email?: string | null;
+  amenities?: string[];
+  photo_url?: string | null;
+  photo_path?: string | null;
   notes?: string | null;
 }
 
@@ -267,27 +278,57 @@ export const fetchAccommodations = async (tripId: string): Promise<Accommodation
   return (data ?? []) as AccommodationRow[];
 };
 
+/**
+ * Normalizza tutti i campi di una scrittura "completa" (create).
+ * Le chiavi assenti diventano esplicitamente null/[] così il DB non eredita
+ * valori dalla creazione.
+ */
+const accFields = (input: Partial<AccommodationInput>) => ({
+  name: input.name,
+  type: input.type,
+  stars: input.stars ?? null,
+  address: input.address ?? null,
+  city: input.city ?? null,
+  coordinates: input.coordinates ?? null,
+  check_in_date: input.check_in_date ?? null,
+  check_in_time: input.check_in_time ?? null,
+  check_out_date: input.check_out_date ?? null,
+  check_out_time: input.check_out_time ?? null,
+  cost_total: input.cost_total ?? null,
+  currency: input.currency ?? null,
+  booking_ref: input.booking_ref ?? null,
+  booking_url: input.booking_url ?? null,
+  booking_platform: input.booking_platform ?? null,
+  contact_phone: input.contact_phone ?? null,
+  contact_email: input.contact_email ?? null,
+  amenities: input.amenities ?? [],
+  photo_url: input.photo_url ?? null,
+  photo_path: input.photo_path ?? null,
+  notes: input.notes ?? null,
+});
+
+/**
+ * Patch parziale: include SOLO le chiavi effettivamente presenti in `input`,
+ * così un update chirurgico (es. solo photo_url dopo la creazione) non azzera
+ * name/type né gli altri campi. `null` è un valore valido (azzera il campo) e
+ * viene risolto dall'operatore `??` dell'update.
+ */
+const accPatch = (input: Partial<AccommodationInput>): Partial<AccommodationInput> => {
+  const patch: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(input)) {
+    if (value === undefined) continue;
+    patch[key] = value;
+  }
+  return patch as Partial<AccommodationInput>;
+};
+
 export const createAccommodation = async (
   tripId: string,
   input: AccommodationInput
 ): Promise<AccommodationRow> => {
   const { data, error } = await supabase
     .from('accommodations')
-    .insert({
-      trip_id: tripId,
-      name: input.name,
-      type: input.type,
-      address: input.address ?? null,
-      check_in_date: input.check_in_date ?? null,
-      check_in_time: input.check_in_time ?? null,
-      check_out_date: input.check_out_date ?? null,
-      check_out_time: input.check_out_time ?? null,
-      cost_total: input.cost_total ?? null,
-      currency: input.currency ?? null,
-      booking_ref: input.booking_ref ?? null,
-      contact_info: input.contact_info ?? null,
-      notes: input.notes ?? null,
-    })
+    .insert({ trip_id: tripId, ...accFields(input) })
     .select()
     .single();
   if (error) throw error;
@@ -298,22 +339,10 @@ export const updateAccommodation = async (
   id: string,
   input: Partial<AccommodationInput>
 ): Promise<AccommodationRow> => {
+  const patch = accPatch(input);
   const { data, error } = await supabase
     .from('accommodations')
-    .update({
-      name: input.name,
-      type: input.type,
-      address: input.address ?? null,
-      check_in_date: input.check_in_date ?? null,
-      check_in_time: input.check_in_time ?? null,
-      check_out_date: input.check_out_date ?? null,
-      check_out_time: input.check_out_time ?? null,
-      cost_total: input.cost_total ?? null,
-      currency: input.currency ?? null,
-      booking_ref: input.booking_ref ?? null,
-      contact_info: input.contact_info ?? null,
-      notes: input.notes ?? null,
-    })
+    .update(patch)
     .eq('id', id)
     .select()
     .single();

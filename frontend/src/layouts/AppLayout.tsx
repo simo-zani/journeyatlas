@@ -22,7 +22,7 @@ import { EditProfileModal } from '@/components/EditProfileModal';
 import { OverlayScrollbar } from '@/components/OverlayScrollbar';
 import { useAuth } from '@/auth/AuthContext';
 import { getTheme, setTheme } from '@/utils/theme';
-import { flagUrl } from '@/lib/flags';
+import { CountryFlag } from '@/components/CountryFlag';
 import { fetchProfile, countIncomingFriendRequests } from '@/lib/api';
 
 const NAV_ITEMS = [
@@ -387,7 +387,7 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
                                   : 'text-white hover:text-white/80'
                               }`}
                             >
-                              <img src={flagUrl('it')} alt="" className="w-5 h-3.5 rounded-xl object-cover shadow-sm shrink-0" />
+                              <CountryFlag code="it" size="sm" className="shadow-sm" />
                               <span>{isItalian ? 'Italiano' : 'Italian'}</span>
                             </button>
                             <button
@@ -399,7 +399,7 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
                                   : 'text-white hover:text-white/80'
                               }`}
                             >
-                              <img src={flagUrl('us')} alt="" className="w-5 h-3.5 rounded-xl object-cover shadow-sm shrink-0" />
+                              <CountryFlag code="us" size="sm" className="shadow-sm" />
                               <span>{isItalian ? 'Inglese' : 'English'}</span>
                             </button>
                           </div>

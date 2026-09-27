@@ -102,7 +102,7 @@ export const ConfirmIconButton: React.FC<ConfirmIconButtonProps> = ({
 
   return (
     <button
-      onClick={() => setConfirming(true)}
+      onClick={() => changeConfirming(true)}
       className={`p-2.5 rounded-xl text-slate-400 transition-colors ${TONE_IDLE[tone]}`}
       aria-label={label}
       title={label}

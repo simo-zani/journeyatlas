@@ -1270,16 +1270,19 @@ interface AccommodationFormProps {
   initial: AccommodationRow | null;
   tripStart: string | null;
   tripEnd: string | null;
-  tripDestinations: Destination[];
+  /** Opzionale: il calendario apre il form per la modifica inline e non ha
+   *  il contesto mete del viaggio, quindi il picker città resta senza
+   *  suggerimenti e passa in ricerca libera. */
+  tripDestinations?: Destination[];
   onSubmit: (input: AccommodationInput, photo: PhotoSelection) => Promise<void>;
   onCancel: () => void;
 }
 
-const AccommodationForm: React.FC<AccommodationFormProps> = ({
+export const AccommodationForm: React.FC<AccommodationFormProps> = ({
   initial,
   tripStart,
   tripEnd,
-  tripDestinations,
+  tripDestinations = [],
   onSubmit,
   onCancel,
 }) => {

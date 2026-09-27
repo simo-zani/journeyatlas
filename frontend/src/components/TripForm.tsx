@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { GripVertical, ImagePlus, Loader2, Lock, LockOpen, X } from 'lucide-react';
+import { GripVertical, ImagePlus, Loader2, Lock, LockOpen, Sparkles, X } from 'lucide-react';
 import { Button } from '@/components/Button';
 import { Input } from '@/components/Input';
 import { Alert } from '@/components/Alert';
@@ -10,6 +10,12 @@ import { MODAL_ICON_SIZE } from '@/lib/ui';
 import { createTrip, updateTrip } from '@/lib/api';
 import { compressImage } from '@/lib/image';
 import { supabase } from '@/lib/supabase';
+import {
+  isUnsplashConfigured,
+  searchUnsplashCovers,
+  trackUnsplashDownload,
+  type UnsplashSuggestion,
+} from '@/lib/unsplash';
 import type { Destination, Trip } from '@/lib/types';
 
 interface TripFormProps {
@@ -44,6 +50,17 @@ export const TripForm: React.FC<TripFormProps> = ({ onSuccess, initial }) => {
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [coverError, setCoverError] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+
+  // Cover from Unsplash (1.5): URL scelto direttamente, nessun upload su Storage
+  const [coverExternalUrl, setCoverExternalUrl] = useState<string | null>(null);
+  const [unsplashAttribution, setUnsplashAttribution] = useState<{ name: string; profileUrl: string } | null>(
+    null
+  );
+  const [showUnsplashPanel, setShowUnsplashPanel] = useState(false);
+  const [unsplashQuery, setUnsplashQuery] = useState('');
+  const [unsplashResults, setUnsplashResults] = useState<UnsplashSuggestion[]>([]);
+  const [unsplashLoading, setUnsplashLoading] = useState(false);
+  const [unsplashError, setUnsplashError] = useState<string | null>(null);
 
   // Cover position (0 = top, 100 = bottom)
   const [coverPositionY, setCoverPositionY] = useState<number>(initial?.cover_position_y ?? 0);
@@ -105,6 +122,8 @@ export const TripForm: React.FC<TripFormProps> = ({ onSuccess, initial }) => {
       return;
     }
     setCoverFile(file);
+    setCoverExternalUrl(null);
+    setUnsplashAttribution(null);
     const reader = new FileReader();
     reader.onload = (e) => setCoverPreview(e.target?.result as string);
     reader.readAsDataURL(file);
@@ -120,7 +139,45 @@ export const TripForm: React.FC<TripFormProps> = ({ onSuccess, initial }) => {
   const removeCover = () => {
     setCoverFile(null);
     setCoverPreview(null);
+    setCoverExternalUrl(null);
+    setUnsplashAttribution(null);
     setCoverPositionY(0);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const runUnsplashSearch = async (query: string) => {
+    if (!query.trim()) return;
+    setUnsplashLoading(true);
+    setUnsplashError(null);
+    try {
+      setUnsplashResults(await searchUnsplashCovers(query));
+    } catch {
+      setUnsplashError(t('trip.coverUnsplashError'));
+    } finally {
+      setUnsplashLoading(false);
+    }
+  };
+
+  const toggleUnsplashPanel = () => {
+    const next = !showUnsplashPanel;
+    setShowUnsplashPanel(next);
+    if (next && unsplashResults.length === 0 && !unsplashQuery) {
+      const first = destinations[0];
+      const defaultQuery = first ? `${first.city}, ${first.country}` : '';
+      setUnsplashQuery(defaultQuery);
+      if (defaultQuery) void runUnsplashSearch(defaultQuery);
+    }
+  };
+
+  const handlePickUnsplash = (photo: UnsplashSuggestion) => {
+    trackUnsplashDownload(photo.downloadLocation);
+    setCoverFile(null);
+    setCoverError(null);
+    setCoverPreview(photo.fullUrl);
+    setCoverExternalUrl(photo.fullUrl);
+    setUnsplashAttribution({ name: photo.authorName, profileUrl: photo.authorProfileUrl });
+    setCoverPositionY(0);
+    setShowUnsplashPanel(false);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
@@ -161,6 +218,9 @@ export const TripForm: React.FC<TripFormProps> = ({ onSuccess, initial }) => {
         if (coverFile) {
           const url = await uploadCover(trip.id);
           if (url) trip = await updateTrip(trip.id, { cover_image_url: url, cover_position_y: coverPositionY });
+        } else if (coverExternalUrl && coverExternalUrl !== initial.cover_image_url) {
+          // Cover scelta da Unsplash: si salva solo l'URL, nessun upload
+          trip = await updateTrip(trip.id, { cover_image_url: coverExternalUrl, cover_position_y: coverPositionY });
         } else if (coverPreview === null && initial.cover_image_url) {
           // User removed the image
           trip = await updateTrip(trip.id, { cover_image_url: null, cover_position_y: 0 });
@@ -170,7 +230,7 @@ export const TripForm: React.FC<TripFormProps> = ({ onSuccess, initial }) => {
         }
       } else {
         // Create: insert trip first to get ID, then upload
-        trip = await createTrip(user.id, { ...baseInput, cover_image_url: null });
+        trip = await createTrip(user.id, { ...baseInput, cover_image_url: coverExternalUrl ?? null });
         if (coverFile) {
           const url = await uploadCover(trip.id);
           if (url) trip = await updateTrip(trip.id, { cover_image_url: url, cover_position_y: coverPositionY });
@@ -306,7 +366,20 @@ export const TripForm: React.FC<TripFormProps> = ({ onSuccess, initial }) => {
                   </div>
                 </div>
                 <div className="absolute bottom-2.5 left-3 text-xs font-medium text-white/90 drop-shadow pointer-events-none">
-                  {coverFile ? `${(coverFile.size / 1024).toFixed(0)} KB` : t('trip.coverSet')}
+                  {coverFile ? (
+                    `${(coverFile.size / 1024).toFixed(0)} KB`
+                  ) : unsplashAttribution ? (
+                    <a
+                      href={unsplashAttribution.profileUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="pointer-events-auto underline decoration-white/40 hover:decoration-white"
+                    >
+                      {t('trip.coverUnsplashCredit', { name: unsplashAttribution.name })}
+                    </a>
+                  ) : (
+                    t('trip.coverSet')
+                  )}
                 </div>
               </div>
             ) : (
@@ -350,6 +423,83 @@ export const TripForm: React.FC<TripFormProps> = ({ onSuccess, initial }) => {
               onChange={(e) => handleFileSelect(e.target.files?.[0] ?? null)}
             />
           </div>
+
+          {isUnsplashConfigured() && (
+            <div className="mt-2">
+              <button
+                type="button"
+                onClick={toggleUnsplashPanel}
+                className="w-full flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-semibold text-slate-500 dark:text-slate-400 hover:text-gold hover:bg-gold/10 transition-colors cursor-pointer"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                {t('trip.coverUnsplashButton')}
+              </button>
+
+              {showUnsplashPanel && (
+                <div className="mt-2 p-3 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 space-y-2.5">
+                  {/* Niente <form> qui: è già dentro il <form> del viaggio, e un form
+                      annidato viene "fuso" dal browser con quello esterno — un bottone
+                      type="submit" qui dentro finiva per salvare l'intero viaggio invece
+                      di limitarsi a cercare (chiudeva la modale a ogni ricerca). */}
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={unsplashQuery}
+                      onChange={(e) => setUnsplashQuery(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          void runUnsplashSearch(unsplashQuery);
+                        }
+                      }}
+                      placeholder={t('trip.coverUnsplashSearchPlaceholder')}
+                      className="flex-1 min-w-0 text-xs rounded-lg border border-slate-300 dark:border-white/15 bg-white dark:bg-slate-900 px-3 py-2 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-gold/40"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => void runUnsplashSearch(unsplashQuery)}
+                      disabled={unsplashLoading || !unsplashQuery.trim()}
+                      className="px-3 py-2 rounded-lg text-xs font-semibold bg-gold/15 text-gold hover:bg-gold/25 transition-colors disabled:opacity-50 cursor-pointer"
+                    >
+                      {t('trip.coverUnsplashSearch')}
+                    </button>
+                  </div>
+
+                  {unsplashLoading && (
+                    <p className="text-[11px] text-slate-400 flex items-center gap-1.5">
+                      <Loader2 className="w-3 h-3 animate-spin" /> {t('trip.coverUnsplashLoading')}
+                    </p>
+                  )}
+
+                  {unsplashError && <p className="text-[11px] text-red-500">{unsplashError}</p>}
+
+                  {!unsplashLoading && !unsplashError && unsplashResults.length === 0 && (
+                    <p className="text-[11px] text-slate-400">{t('trip.coverUnsplashEmpty')}</p>
+                  )}
+
+                  {unsplashResults.length > 0 && (
+                    <div className="grid grid-cols-3 gap-1.5">
+                      {unsplashResults.map((photo) => (
+                        <button
+                          key={photo.id}
+                          type="button"
+                          onClick={() => handlePickUnsplash(photo)}
+                          title={t('trip.coverUnsplashCredit', { name: photo.authorName })}
+                          className="relative aspect-square rounded-lg overflow-hidden ring-1 ring-slate-200 dark:ring-white/10 hover:ring-2 hover:ring-gold transition-all cursor-pointer"
+                        >
+                          <img
+                            src={photo.thumbUrl}
+                            alt={t('trip.coverUnsplashCredit', { name: photo.authorName })}
+                            className="absolute inset-0 w-full h-full object-cover"
+                          />
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Full width (12 cols): Destinations */}

@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/supabase';
 import type {
   AccommodationRow,
+  ActivityCategoryRow,
   ActivityRow,
   ChecklistCategoryRow,
   ChecklistItemRow,
@@ -159,14 +160,24 @@ export const createTrip = async (userId: string, input: CreateTripInput): Promis
 // Activities
 // ----------------------------------------------------------------------------
 
+// Shared between ActivitySection (form/filters) and CalendarSection (category
+// color assignment) — both must build the same stably-sorted category list,
+// predefined ones included, or the same category would get a different color
+// in each view.
+export const ACTIVITY_CATEGORIES = ['attrazione', 'ristorante', 'transport', 'evento', 'altro'] as const;
+
 export interface ActivityInput {
   name: string;
   description?: string | null;
   activity_date?: string | null;
   activity_time?: string | null;
+  all_day?: boolean;
+  end_date?: string | null;
+  end_time?: string | null;
   location_city?: string | null;
   location_address?: string | null;
   category?: string | null;
+  icon?: string | null;
   status: 'planned' | 'booked' | 'completed';
   booking_ref?: string | null;
   notes?: string | null;
@@ -196,9 +207,13 @@ export const createActivity = async (
       description: input.description ?? null,
       activity_date: input.activity_date ?? null,
       activity_time: input.activity_time ?? null,
+      all_day: input.all_day ?? false,
+      end_date: input.end_date ?? null,
+      end_time: input.end_time ?? null,
       location_city: input.location_city ?? null,
       location_address: input.location_address ?? null,
       category: input.category ?? null,
+      icon: input.icon ?? null,
       status: input.status,
       booking_ref: input.booking_ref ?? null,
       notes: input.notes ?? null,
@@ -213,23 +228,28 @@ export const updateActivity = async (
   id: string,
   input: Partial<ActivityInput>
 ): Promise<ActivityRow> => {
-  const { data, error } = await supabase
-    .from('activities')
-    .update({
-      name: input.name,
-      description: input.description ?? null,
-      activity_date: input.activity_date ?? null,
-      activity_time: input.activity_time ?? null,
-      location_city: input.location_city ?? null,
-      location_address: input.location_address ?? null,
-      category: input.category ?? null,
-      status: input.status,
-      booking_ref: input.booking_ref ?? null,
-      notes: input.notes ?? null,
-    })
-    .eq('id', id)
-    .select()
-    .single();
+  // Genuinely partial: only fields present in `input` are written. The
+  // previous version always wrote every column via `?? null`, so a caller
+  // passing e.g. just `{ status: 'completed' }` silently wiped out the
+  // activity's name/date/category/etc — every field it omitted was
+  // `undefined`, and `undefined ?? null` is `null`.
+  const patch: Partial<ActivityRow> = {};
+  if (input.name !== undefined) patch.name = input.name;
+  if (input.description !== undefined) patch.description = input.description;
+  if (input.activity_date !== undefined) patch.activity_date = input.activity_date;
+  if (input.activity_time !== undefined) patch.activity_time = input.activity_time;
+  if (input.all_day !== undefined) patch.all_day = input.all_day;
+  if (input.end_date !== undefined) patch.end_date = input.end_date;
+  if (input.end_time !== undefined) patch.end_time = input.end_time;
+  if (input.location_city !== undefined) patch.location_city = input.location_city;
+  if (input.location_address !== undefined) patch.location_address = input.location_address;
+  if (input.category !== undefined) patch.category = input.category;
+  if (input.icon !== undefined) patch.icon = input.icon;
+  if (input.status !== undefined) patch.status = input.status;
+  if (input.booking_ref !== undefined) patch.booking_ref = input.booking_ref;
+  if (input.notes !== undefined) patch.notes = input.notes;
+
+  const { data, error } = await supabase.from('activities').update(patch).eq('id', id).select().single();
   if (error) throw error;
   return data as ActivityRow;
 };
@@ -237,6 +257,33 @@ export const updateActivity = async (
 export const deleteActivity = async (id: string): Promise<void> => {
   const { error } = await supabase.from('activities').delete().eq('id', id);
   if (error) throw error;
+};
+
+// ----------------------------------------------------------------------------
+// Activity categories (custom, senza icona: l'icona è sulla singola attività)
+// ----------------------------------------------------------------------------
+
+export const fetchActivityCategories = async (tripId: string): Promise<ActivityCategoryRow[]> => {
+  const { data, error } = await supabase
+    .from('activity_categories')
+    .select('*')
+    .eq('trip_id', tripId)
+    .order('created_at', { ascending: true });
+  if (error) throw error;
+  return (data ?? []) as ActivityCategoryRow[];
+};
+
+export const createActivityCategory = async (
+  tripId: string,
+  name: string
+): Promise<ActivityCategoryRow> => {
+  const { data, error } = await supabase
+    .from('activity_categories')
+    .insert({ trip_id: tripId, name })
+    .select()
+    .single();
+  if (error) throw error;
+  return data as ActivityCategoryRow;
 };
 
 // ----------------------------------------------------------------------------
@@ -339,6 +386,8 @@ export const updateAccommodation = async (
   id: string,
   input: Partial<AccommodationInput>
 ): Promise<AccommodationRow> => {
+  // Genuinely partial — vedi il commento di accPatch: un chiamante che passa
+  // solo { check_in_date } non deve azzerare address/cost/notes/ecc.
   const patch = accPatch(input);
   const { data, error } = await supabase
     .from('accommodations')
@@ -409,22 +458,21 @@ export const updateTransport = async (
   id: string,
   input: Partial<TransportInput>
 ): Promise<TransportRow> => {
-  const { data, error } = await supabase
-    .from('flights')
-    .update({
-      transport_type: input.transport_type,
-      departure_airport: input.departure_airport,
-      arrival_airport: input.arrival_airport,
-      departure_datetime: input.departure_datetime ?? null,
-      arrival_datetime: input.arrival_datetime ?? null,
-      airline: input.airline ?? null,
-      flight_number: input.flight_number ?? null,
-      booking_ref: input.booking_ref ?? null,
-      notes: input.notes ?? null,
-    })
-    .eq('id', id)
-    .select()
-    .single();
+  // Genuinely partial — see the comment on updateActivity for why this
+  // matters: a caller passing e.g. just `{ departure_datetime }` (dragging
+  // the event to a new time) must not wipe out airline/flight_number/etc.
+  const patch: Partial<TransportRow> = {};
+  if (input.transport_type !== undefined) patch.transport_type = input.transport_type;
+  if (input.departure_airport !== undefined) patch.departure_airport = input.departure_airport;
+  if (input.arrival_airport !== undefined) patch.arrival_airport = input.arrival_airport;
+  if (input.departure_datetime !== undefined) patch.departure_datetime = input.departure_datetime;
+  if (input.arrival_datetime !== undefined) patch.arrival_datetime = input.arrival_datetime;
+  if (input.airline !== undefined) patch.airline = input.airline;
+  if (input.flight_number !== undefined) patch.flight_number = input.flight_number;
+  if (input.booking_ref !== undefined) patch.booking_ref = input.booking_ref;
+  if (input.notes !== undefined) patch.notes = input.notes;
+
+  const { data, error } = await supabase.from('flights').update(patch).eq('id', id).select().single();
   if (error) throw error;
   return data as TransportRow;
 };

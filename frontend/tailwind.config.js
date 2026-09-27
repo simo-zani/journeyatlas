@@ -61,8 +61,12 @@ export default {
         // pills, filter pills and flag chips all use `rounded-xl` so every
         // rounded corner in the app reads as one consistent system. Change
         // it here once instead of touching each component.
-        'xl': '20px',
-        '2xl': '28px',
+        // Bumped from 20px: on tall content boxes (e.g. the day cards in the
+        // calendar) 20px read as barely-rounded next to the fully-rounded
+        // (`rounded-full`) nav pills right above them — same token, but the
+        // absolute radius looked negligible against a much bigger box.
+        'xl': '28px',
+        '2xl': '32px',
         'full': '9999px',
       },
       boxShadow: {

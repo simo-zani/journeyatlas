@@ -207,7 +207,7 @@ interface TransportFormProps {
   onCancel: () => void;
 }
 
-const TransportForm: React.FC<TransportFormProps> = ({ initial, onSubmit, onCancel }) => {
+export const TransportForm: React.FC<TransportFormProps> = ({ initial, onSubmit, onCancel }) => {
   const { t } = useTranslation();
   const [type, setType] = useState<TransportType>(initial?.transport_type ?? 'flight');
   const [departure, setDeparture] = useState(initial?.departure_airport ?? '');

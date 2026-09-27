@@ -491,7 +491,7 @@ export const TravelersPage: React.FC = () => {
             {friendsLoading ? (
               <section className="mb-10">
                 <SectionTitle icon={<Users className="w-3.5 h-3.5 text-gold" />}>
-                  I miei amici
+                  {t('travelers.myFriends')}
                 </SectionTitle>
                 <div className="flex gap-5">
                   {[...Array(5)].map((_, i) => (
@@ -505,7 +505,7 @@ export const TravelersPage: React.FC = () => {
             ) : friends.length > 0 ? (
               <section className="mb-10">
                 <SectionTitle icon={<Users className="w-3.5 h-3.5 text-gold" />}>
-                  I miei amici ({friends.length})
+                  {t('travelers.myFriends')} ({friends.length})
                 </SectionTitle>
                 <div className="flex gap-5 overflow-x-auto pt-2 pb-3 -mx-1 px-1">
                   {friends.map((friend) => (

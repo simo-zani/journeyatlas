@@ -387,7 +387,7 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
                                   : 'text-white hover:text-white/80'
                               }`}
                             >
-                              <CountryFlag code="it" size="sm" className="shadow-sm" />
+                              <CountryFlag code="it" size="lg" className="shadow-sm" />
                               <span>{isItalian ? 'Italiano' : 'Italian'}</span>
                             </button>
                             <button
@@ -399,7 +399,7 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
                                   : 'text-white hover:text-white/80'
                               }`}
                             >
-                              <CountryFlag code="us" size="sm" className="shadow-sm" />
+                              <CountryFlag code="us" size="lg" className="shadow-sm" />
                               <span>{isItalian ? 'Inglese' : 'English'}</span>
                             </button>
                           </div>

@@ -533,6 +533,7 @@
     "noResults": "No travelers found for \"{{query}}\"",
     "popular": "Most popular",
     "requests": "Friend requests",
+    "myFriends": "My friends",
     "unknown": "unknown"
   },
   "friend": {

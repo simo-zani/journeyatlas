@@ -533,6 +533,7 @@
     "noResults": "Nessun viaggiatore trovato per \"{{query}}\"",
     "popular": "I più ricercati",
     "requests": "Richieste ricevute",
+    "myFriends": "I miei amici",
     "unknown": "sconosciuto"
   },
   "friend": {

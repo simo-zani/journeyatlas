@@ -1,5 +1,7 @@
 -- ============================================================================
--- JourneyAtlas - Migration 0020: Accommodation stars
+-- JourneyAtlas - Migration 0022: Accommodation stars
+-- (rinominata da 0020_accommodation_stars.sql per liberare il numero 0020.
+--  Contenuto invariato, idempotente.)
 -- Aggiunge la classificazione a stelle degli hotel.
 --
 --   - stars  smallint NULL  (1..5, NULL = non valutata)

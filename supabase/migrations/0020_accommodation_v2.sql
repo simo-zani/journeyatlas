@@ -1,5 +1,8 @@
 -- ============================================================================
--- JourneyAtlas - Migration 0018: Accommodation v2
+-- JourneyAtlas - Migration 0020: Accommodation v2
+-- (rinominata da 0018_accommodation_v2.sql: il numero 0018 era gia' occupato
+--  da 0018_activity_icon_categories.sql. Il contenuto e' invariato e la
+--  migration e' idempotente, quindi rieseguirla non fa nulla.)
 -- Aggiunge le nuove colonne alla tabella accommodations:
 --   - type semplificato a hotel/apartment
 --   - booking_url      (link diretto alla prenotazione)

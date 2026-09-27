@@ -1,7 +1,9 @@
 -- ============================================================================
--- JourneyAtlas - Migration 0019: Accommodation photo_path
+-- JourneyAtlas - Migration 0021: Accommodation photo_path
+-- (rinominata da 0019_accommodation_photo_path.sql: il numero 0019 era gia'
+--  occupato da 0019_activity_duration.sql. Contenuto invariato, idempotente.)
 -- ---------------------------------------------------------------------------
--- La 0018 aveva previsto `photo_url` ma non il path dell'oggetto su storage.
+-- La 0020 aveva previsto `photo_url` ma non il path dell'oggetto su storage.
 -- Senza il path non si può sapere WHICH file cancellare quando la foto viene
 -- cambiata o rimossa, e in un viaggio condiviso il path derivato da
 -- auth.uid() punta alla cartella di chi sta modificando, non di chi aveva

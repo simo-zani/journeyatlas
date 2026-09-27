@@ -365,6 +365,8 @@
     "cityClear": "Togli la città",
     "checkIn": "Check-in",
     "checkOut": "Check-out",
+    "nights": "Notti",
+    "nightsValue": "{{count}} notti",
     "checkInDate": "Data check-in",
     "checkInTime": "Orario check-in",
     "checkOutDate": "Data check-out",

@@ -137,8 +137,54 @@ const CARD_ICON_SIZE = 'w-5 h-5';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const formatDate = (d: string | null) =>
-  d ? new Date(`${d}T00:00:00`).toLocaleDateString() : '';
+/** Data senza anno: la card mostra la notte di fine soggiorno, l'anno è
+ *  ridondante (è quello del viaggio) e ruba spazio nelle card strette. */
+const formatDayMonth = (d: string | null) =>
+  d
+    ? new Date(`${d}T00:00:00`).toLocaleDateString(undefined, {
+        day: 'numeric',
+        month: 'short',
+      })
+    : '';
+/**
+ * Su iPhone un link a `maps.apple.com` fa comparire il foglio di sistema
+ * "Apri in", che elenca Maps, Google e Waze se sono installati. Su desktop e
+ * Android si va diretti a Google Maps. L'iPad in modalità desktop si dichiara
+ * come Mac nel user agent, quindi per non mandarlo su Google controllo anche i
+ * punti touch.
+ */
+const isAppleMobile = () => {
+  const ua = navigator.userAgent;
+  if (/iPad|iPhone|iPod/.test(ua)) return true;
+  return /Mac/.test(ua) && navigator.maxTouchPoints > 1;
+};
+
+/**
+ * Vince sempre l'indirizzo scritto dall'utente. Le `coordinates` memorizzate
+ * arrivano dal picker città (vedi l'invio del form) e sono il centro del
+ * paese, non la struttura: usarle portava il pin in mezzo alla città. Le
+ * coordinate restano solo come ripiego se non c'è nessun testo da cercare.
+ * L'indirizzo viene prima della città perché i geocoder risolvono meglio
+ * l'elemento più specifico per primo.
+ */
+const mapsUrl = (row: AccommodationRow) => {
+  const place = [row.address, row.city].filter(Boolean).join(', ');
+  const query = place || (row.coordinates ? `${row.coordinates.lat},${row.coordinates.lon}` : '');
+  if (!query) return null;
+  return isAppleMobile()
+    ? `https://maps.apple.com/?q=${encodeURIComponent(query)}`
+    : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
+};
+
+/** Numero di notti = check-out meno check-in. Entrambe le date sono stringhe
+ *  'YYYY-MM-DD' interpretate come mezzanotte UTC, quindi la differenza in
+ *  giorni è esatta e immune ai fusi orari. */
+const countNights = (checkIn: string | null, checkOut: string | null) => {
+  if (!checkIn || !checkOut) return null;
+  const ms = new Date(`${checkOut}T00:00:00Z`).getTime() - new Date(`${checkIn}T00:00:00Z`).getTime();
+  const nights = Math.round(ms / 86400000);
+  return nights > 0 ? nights : null;
+};
 const formatTime = (t: string | null) =>
   t ? t.slice(0, 5) : '';
 const formatCost = (n: number | null, currency: string | null) =>
@@ -936,6 +982,26 @@ export const AccommodationSection: React.FC<AccommodationSectionProps> = ({
   useEffect(() => { void load(); }, [load]);
 
   /**
+   * Le card seguono il soggiorno dal più vecchio al più recente. Le date sono
+   * stringhe 'YYYY-MM-DD', quindi il confronto lessicografico coincide con
+   * quello cronologico: niente Date da parsare, niente rischi di fuso orario.
+   * Chi non ha una data di check-in non ha posizione cronologica e va in
+   * fondo; a parità di data l'ordine di inserimento è conservato, perché
+   * sort è stabile. Copia l'array: `items` è lo stato e non va mutato.
+   */
+  const sorted = useMemo(
+    () =>
+      [...items].sort((a, b) => {
+        if (!a.check_in_date && !b.check_in_date) return 0;
+        if (!a.check_in_date) return 1;
+        if (!b.check_in_date) return -1;
+        if (a.check_in_date === b.check_in_date) return 0;
+        return a.check_in_date < b.check_in_date ? -1 : 1;
+      }),
+    [items]
+  );
+
+  /**
    * Carica la foto dell'alloggio e restituisce url + path dell'oggetto. Il
    * `?v=` sulla public URL evita che il browser serva dalla cache la versione
    * precedente, dato che il path resta identico.
@@ -1045,10 +1111,12 @@ export const AccommodationSection: React.FC<AccommodationSectionProps> = ({
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-6">
-          {items.map((acc) => {
+          {sorted.map((acc) => {
       const hasFooterRow = Boolean(
         acc.contact_phone || acc.contact_email || acc.booking_platform || acc.booking_url
       );
+      const nights = countNights(acc.check_in_date, acc.check_out_date);
+      const maps = mapsUrl(acc);
       return (
             <Card key={acc.id} noPadding>
               {/* Photo header */}
@@ -1095,10 +1163,17 @@ export const AccommodationSection: React.FC<AccommodationSectionProps> = ({
 
                 {/* Location — il contenitore esiste sempre (min-h-10 = 2 righe
                     di text-sm) così le card senza indirizzo non "tirano su"
-                    quelle sotto. */}
+                    quelle sotto. Il link è un <a> vero, non un click
+                    JavaScript: è il foglio "Apri in" di iOS a fare il
+                    resto, e su desktop va su Google Maps. */}
                 <p className="flex items-start gap-1.5 text-sm text-slate-500 dark:text-slate-400 mt-2 min-h-10">
-                  {(acc.city || acc.address) && (
-                    <>
+                  {maps && (
+                    <a
+                      href={maps}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-start gap-1.5 min-w-0 hover:text-light-blue hover:underline transition-colors"
+                    >
                       <MapPin className={`${CARD_ICON_SIZE} shrink-0 mt-px`} />
                       <span
                         className="line-clamp-2 min-w-0"
@@ -1106,33 +1181,69 @@ export const AccommodationSection: React.FC<AccommodationSectionProps> = ({
                       >
                         {[acc.city, acc.address].filter(Boolean).join(', ')}
                       </span>
-                    </>
+                    </a>
                   )}
                 </p>
 
-                {/* Dates */}
-                {(acc.check_in_date || acc.check_out_date) && (
-                  <div className="grid grid-cols-2 gap-2 mt-2 text-sm">
-                    {acc.check_in_date && (
-                      <div className="bg-slate-100 dark:bg-white/5 rounded-xl px-3 py-2 text-center">
-                        <p className="text-xs text-slate-400 mb-0.5">
-                          {t('accommodation.checkIn')}
-                        </p>
-                        <p className="font-semibold">{formatDate(acc.check_in_date)}</p>
-                        {acc.check_in_time && (
-                          <p className="text-xs text-slate-400">{formatTime(acc.check_in_time)}</p>
-                        )}
+                {/* Arrivo e partenza nella stessa cella, divisi da un filetto;
+                    la cella di destra mostra le notti. Anno omesso: nella card
+                    è ridondante (è quello del viaggio) e stretto non ci sta. */}
+                {(acc.check_in_date || acc.check_out_date || nights) && (
+                  <div className="flex gap-2 mt-2 text-sm">
+                    {(acc.check_in_date || acc.check_out_date) && (
+                      <div className="flex-[2] min-w-0 bg-slate-100 dark:bg-white/5 rounded-xl px-2 py-2 text-center">
+                        <div className="flex items-stretch justify-center">
+                          {acc.check_in_date && (
+                            <div className="px-2 min-w-0">
+                              <p className="text-xs text-slate-400 mb-0.5">
+                                {t('accommodation.checkIn')}
+                              </p>
+                              <p className="font-semibold">
+                                {formatDayMonth(acc.check_in_date)}
+                              </p>
+                              {acc.check_in_time && (
+                                <p className="text-xs text-slate-400">
+                                  {formatTime(acc.check_in_time)}
+                                </p>
+                              )}
+                            </div>
+                          )}
+                          {acc.check_in_date && acc.check_out_date && (
+                            <span
+                              aria-hidden="true"
+                              className="mx-1 w-px shrink-0 bg-slate-300 dark:bg-slate-600"
+                            />
+                          )}
+                          {acc.check_out_date && (
+                            <div className="px-2 min-w-0">
+                              <p className="text-xs text-slate-400 mb-0.5">
+                                {t('accommodation.checkOut')}
+                              </p>
+                              <p className="font-semibold">
+                                {formatDayMonth(acc.check_out_date)}
+                              </p>
+                              {acc.check_out_time && (
+                                <p className="text-xs text-slate-400">
+                                  {formatTime(acc.check_out_time)}
+                                </p>
+                              )}
+                            </div>
+                          )}
+                        </div>
                       </div>
                     )}
-                    {acc.check_out_date && (
-                      <div className="bg-slate-100 dark:bg-white/5 rounded-xl px-3 py-2 text-center">
+                    {nights && (
+                      <div className="flex-1 min-w-0 bg-slate-100 dark:bg-white/5 rounded-xl px-2 py-2 text-center">
                         <p className="text-xs text-slate-400 mb-0.5">
-                          {t('accommodation.checkOut')}
+                          {t('accommodation.nights')}
                         </p>
-                        <p className="font-semibold">{formatDate(acc.check_out_date)}</p>
-                        {acc.check_out_time && (
-                          <p className="text-xs text-slate-400">{formatTime(acc.check_out_time)}</p>
-                        )}
+                        <p
+                          className="font-semibold flex items-center justify-center gap-1.5"
+                          title={t('accommodation.nightsValue', { count: nights })}
+                        >
+                          <Moon className={`${CARD_ICON_SIZE} shrink-0`} />
+                          {nights}
+                        </p>
                       </div>
                     )}
                   </div>

@@ -423,10 +423,15 @@ export interface TransportInput {
   arrival_airport: string;
   departure_datetime?: string | null;
   arrival_datetime?: string | null;
+  departure_terminal?: string | null;
+  arrival_terminal?: string | null;
   airline?: string | null;
   flight_number?: string | null;
   booking_ref?: string | null;
   notes?: string | null;
+  has_backpack?: boolean | null;
+  has_carry_on?: boolean | null;
+  has_checked_baggage?: boolean | null;
 }
 
 export const fetchTransports = async (tripId: string): Promise<TransportRow[]> => {
@@ -452,10 +457,15 @@ export const createTransport = async (
       arrival_airport: input.arrival_airport,
       departure_datetime: input.departure_datetime ?? null,
       arrival_datetime: input.arrival_datetime ?? null,
+      departure_terminal: input.departure_terminal ?? null,
+      arrival_terminal: input.arrival_terminal ?? null,
       airline: input.airline ?? null,
       flight_number: input.flight_number ?? null,
       booking_ref: input.booking_ref ?? null,
       notes: input.notes ?? null,
+      has_backpack: input.has_backpack ?? null,
+      has_carry_on: input.has_carry_on ?? null,
+      has_checked_baggage: input.has_checked_baggage ?? null,
     })
     .select()
     .single();
@@ -476,10 +486,15 @@ export const updateTransport = async (
   if (input.arrival_airport !== undefined) patch.arrival_airport = input.arrival_airport;
   if (input.departure_datetime !== undefined) patch.departure_datetime = input.departure_datetime;
   if (input.arrival_datetime !== undefined) patch.arrival_datetime = input.arrival_datetime;
+  if (input.departure_terminal !== undefined) patch.departure_terminal = input.departure_terminal;
+  if (input.arrival_terminal !== undefined) patch.arrival_terminal = input.arrival_terminal;
   if (input.airline !== undefined) patch.airline = input.airline;
   if (input.flight_number !== undefined) patch.flight_number = input.flight_number;
   if (input.booking_ref !== undefined) patch.booking_ref = input.booking_ref;
   if (input.notes !== undefined) patch.notes = input.notes;
+  if (input.has_backpack !== undefined) patch.has_backpack = input.has_backpack;
+  if (input.has_carry_on !== undefined) patch.has_carry_on = input.has_carry_on;
+  if (input.has_checked_baggage !== undefined) patch.has_checked_baggage = input.has_checked_baggage;
 
   const { data, error } = await supabase.from('flights').update(patch).eq('id', id).select().single();
   if (error) throw error;

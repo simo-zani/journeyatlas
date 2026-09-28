@@ -125,11 +125,16 @@ export type TransportRow = {
   arrival_airport: string;
   departure_datetime: string | null;
   arrival_datetime: string | null;
+  departure_terminal: string | null;
+  arrival_terminal: string | null;
   airline: string | null;
   flight_number: string | null;
   booking_ref: string | null;
   passengers: unknown[] | null;
   notes: string | null;
+  has_backpack: boolean | null;
+  has_carry_on: boolean | null;
+  has_checked_baggage: boolean | null;
   created_at: string;
 };
 

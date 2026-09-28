@@ -31,6 +31,7 @@ import { TripParticipantAvatars } from '@/components/trip/TripParticipantAvatars
 import { useAuth } from '@/auth/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { fetchTripParticipants } from '@/lib/api';
+import { useImageBrightness } from '@/lib/useImageBrightness';
 import type { Trip, TripParticipantDetail } from '@/lib/types';
 
 type TripSection =
@@ -133,6 +134,16 @@ export const TripDetailPage: React.FC = () => {
 
   const sectionLabel = (section: TripSection) => t(`tripSection.${section}`);
   const hasCover = Boolean(trip?.cover_image_url);
+  // Colore vero della cover sotto il testo, non il tema chiaro/scuro
+  // dell'app: null (in caricamento o non rilevabile) ricade sul chiaro
+  // esistente, l'unico che finora funzionava su qualunque foto.
+  const coverIsLight = useImageBrightness(trip?.cover_image_url);
+  /** Sceglie tra il trattamento per foto scura (bianco, invariato), quello
+   *  per foto chiara (blu scuro, come lo sfondo della dark mode) e quello
+   *  senza cover (colori legati al tema): unica logica per tutto il blocco
+   *  informazioni a sinistra della testata. */
+  const coverTextTone = (onDark: string, onLight: string, noCover: string) =>
+    !hasCover ? noCover : coverIsLight ? onLight : onDark;
 
   return (
     <div className="relative w-full max-w-[1680px] mx-auto transition-all duration-300">
@@ -165,9 +176,11 @@ export const TripDetailPage: React.FC = () => {
               <div className="flex items-center gap-3 mb-2 min-w-0">
                 <TripFlags destinations={trip.destinations} />
                 <h1
-                  className={`truncate text-3xl sm:text-4xl font-extrabold tracking-tight ${
-                    hasCover ? 'text-white drop-shadow-md' : 'text-slate-900 dark:text-slate-50'
-                  }`}
+                  className={`truncate text-3xl sm:text-4xl font-extrabold tracking-tight ${coverTextTone(
+                    '!text-white drop-shadow-md',
+                    '!text-dark-navy',
+                    'text-slate-900 dark:text-slate-50'
+                  )}`}
                 >
                   {trip.name}
                 </h1>
@@ -175,20 +188,24 @@ export const TripDetailPage: React.FC = () => {
 
               {trip.destinations && trip.destinations.length > 0 && (
                 <p
-                  className={`text-base font-medium truncate ${
-                    hasCover ? 'text-white/85 drop-shadow' : 'text-slate-600 dark:text-slate-400'
-                  }`}
+                  className={`text-base font-medium truncate ${coverTextTone(
+                    'text-white/85 drop-shadow',
+                    'text-dark-navy/85',
+                    'text-slate-600 dark:text-slate-400'
+                  )}`}
                 >
-                  {trip.destinations.map((d) => d.city).filter(Boolean).join(' · ')}
+                  {trip.destinations.map((d) => d.city).filter(Boolean).join(' → ')}
                 </p>
               )}
 
               {(trip.start_date || trip.end_date) && (
                 <div className="flex items-center gap-3 mt-1.5">
                   <div
-                    className={`flex flex-col gap-0.5 text-sm sm:text-base font-medium ${
-                      hasCover ? 'text-white/75 drop-shadow' : 'text-slate-500 dark:text-slate-400'
-                    }`}
+                    className={`flex flex-col gap-0.5 text-sm sm:text-base font-medium ${coverTextTone(
+                      'text-white/75 drop-shadow',
+                      'text-dark-navy/75',
+                      'text-slate-500 dark:text-slate-400'
+                    )}`}
                   >
                     <span>
                       {formatDate(trip.start_date)}
@@ -196,9 +213,11 @@ export const TripDetailPage: React.FC = () => {
                     </span>
                     {duration && (
                       <span
-                        className={`inline-flex items-center gap-1 text-xs sm:text-sm ${
-                          hasCover ? 'text-white/50' : 'text-slate-400 dark:text-slate-500'
-                        }`}
+                        className={`inline-flex items-center gap-1 text-xs sm:text-sm ${coverTextTone(
+                          'text-white/50',
+                          'text-dark-navy/50',
+                          'text-slate-400 dark:text-slate-500'
+                        )}`}
                       >
                         {/* Rising, shrinking "zzz" — lucide-react has no sleep icon, so this is a
                             small hand-built substitute rather than an unrelated bed/moon icon. */}
@@ -351,8 +370,6 @@ export const TripDetailPage: React.FC = () => {
           {activeSection === 'transport' && (
             <TransportSection
               tripId={trip.id}
-              tripStart={trip.start_date}
-              tripEnd={trip.end_date}
               tripDestinations={trip.destinations ?? []}
             />
           )}

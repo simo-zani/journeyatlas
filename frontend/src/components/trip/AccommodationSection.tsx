@@ -704,7 +704,7 @@ export const AccommodationSection: React.FC<AccommodationSectionProps> = ({
 
   return (
     <div>
-      <div className="flex justify-end mb-4">
+      <div className="flex justify-end mb-6">
         <Button onClick={() => setForm({ open: true, editing: null })}>
           <Plus className="w-5 h-5" />
           {t('accommodation.add')}
@@ -829,12 +829,10 @@ export const AccommodationSection: React.FC<AccommodationSectionProps> = ({
                               </p>
                               <p className="font-semibold">
                                 {formatDayMonth(acc.check_in_date)}
+                                {acc.check_in_time && (
+                                  <span className="font-normal text-slate-400"> ({formatTime(acc.check_in_time)})</span>
+                                )}
                               </p>
-                              {acc.check_in_time && (
-                                <p className="text-xs text-slate-400">
-                                  {formatTime(acc.check_in_time)}
-                                </p>
-                              )}
                             </div>
                           )}
                           {acc.check_in_date && acc.check_out_date && (
@@ -850,12 +848,10 @@ export const AccommodationSection: React.FC<AccommodationSectionProps> = ({
                               </p>
                               <p className="font-semibold">
                                 {formatDayMonth(acc.check_out_date)}
+                                {acc.check_out_time && (
+                                  <span className="font-normal text-slate-400"> ({formatTime(acc.check_out_time)})</span>
+                                )}
                               </p>
-                              {acc.check_out_time && (
-                                <p className="text-xs text-slate-400">
-                                  {formatTime(acc.check_out_time)}
-                                </p>
-                              )}
                             </div>
                           )}
                         </div>

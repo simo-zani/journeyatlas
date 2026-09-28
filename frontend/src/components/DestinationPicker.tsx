@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Loader2, MapPin, Plus, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Loader2, MapPin, Plus, X } from 'lucide-react';
 import type { Destination } from '@/lib/types';
 import { CountryFlag } from '@/components/CountryFlag';
 import {
@@ -14,13 +14,6 @@ interface DestinationPickerProps {
   value: Destination[];
   onChange: (destinations: Destination[]) => void;
 }
-
-const sameDestination = (a: Destination, b: Destination): boolean =>
-  a.city.toLowerCase() === b.city.toLowerCase() &&
-  a.country.toLowerCase() === b.country.toLowerCase();
-
-const isDuplicate = (list: Destination[], candidate: Destination): boolean =>
-  list.some((d) => sameDestination(d, candidate));
 
 export const DestinationPicker: React.FC<DestinationPickerProps> = ({ value, onChange }) => {
   const { t, i18n } = useTranslation();
@@ -85,15 +78,28 @@ export const DestinationPicker: React.FC<DestinationPickerProps> = ({ value, onC
   }, [query, i18n.language]);
 
   const addDestination = (destination: Destination) => {
-    if (isDuplicate(value, destination)) return;
+    // Niente controllo doppioni: un itinerario ad anello torna sulla stessa
+    // meta di partenza, e va rappresentato come tale, non scartato.
     onChange([...value, destination]);
     setQuery('');
     setOpen(false);
     setSuggestions([]);
   };
 
-  const removeDestination = (destination: Destination) => {
-    onChange(value.filter((d) => !sameDestination(d, destination)));
+  const removeDestination = (index: number) => {
+    onChange(value.filter((_, i) => i !== index));
+  };
+
+  /** L'ordine dell'elenco è l'ordine del viaggio: usato così com'è ovunque
+   *  le mete vengono elencate (testata del viaggio, consigliati aeroporto).
+   *  Serve poterlo cambiare dopo l'aggiunta, non solo scegliere l'ordine
+   *  in cui si cercano. */
+  const moveDestination = (index: number, direction: -1 | 1) => {
+    const target = index + direction;
+    if (target < 0 || target >= value.length) return;
+    const next = [...value];
+    [next[index], next[target]] = [next[target], next[index]];
+    onChange(next);
   };
 
   const trimmed = query.trim();
@@ -185,20 +191,38 @@ export const DestinationPicker: React.FC<DestinationPickerProps> = ({ value, onC
 
       {value.length > 0 && (
         <div className="flex flex-wrap gap-2 mt-3">
-          {value.map((destination) => (
+          {value.map((destination, index) => (
             <span
-              key={`${destination.city}-${destination.country}`}
-              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-light-blue/10 border border-light-blue/30 text-deep-blue dark:text-slate-300 text-sm font-medium max-w-full"
+              key={`${index}-${destination.city}-${destination.country}`}
+              className="inline-flex items-center gap-1 pl-1 pr-3 py-1.5 rounded-full bg-light-blue/10 border border-light-blue/30 text-deep-blue dark:text-slate-300 text-sm font-medium max-w-full"
             >
+              <button
+                type="button"
+                onClick={() => moveDestination(index, -1)}
+                disabled={index === 0}
+                aria-label={t('trip.moveDestinationEarlier')}
+                className="text-slate-500 hover:text-deep-blue dark:hover:text-gold disabled:opacity-30 disabled:pointer-events-none shrink-0 p-1"
+              >
+                <ChevronLeft className="w-5 h-5" />
+              </button>
               <span className="min-w-0 truncate">
                 {destination.city}
                 {destination.country ? `, ${destination.country}` : ''}
               </span>
               <button
                 type="button"
-                onClick={() => removeDestination(destination)}
+                onClick={() => moveDestination(index, 1)}
+                disabled={index === value.length - 1}
+                aria-label={t('trip.moveDestinationLater')}
+                className="text-slate-500 hover:text-deep-blue dark:hover:text-gold disabled:opacity-30 disabled:pointer-events-none shrink-0 p-1"
+              >
+                <ChevronRight className="w-5 h-5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => removeDestination(index)}
                 aria-label={t('trip.removeDestination')}
-                className="text-slate-500 hover:text-error shrink-0 p-1 -m-1"
+                className="text-slate-500 hover:text-error shrink-0 p-1 -m-1 ml-0.5"
               >
                 <X className="w-5 h-5" />
               </button>

@@ -95,9 +95,11 @@ export const airlineGradient = (iata: string | null | undefined, name: string | 
 /** Gradienti neutri per i mezzi senza compagnia (treno, pullman, traghetto,
  *  auto, altro) — non derivano da un hash: sono fissi, uno per tipo, per
  *  restare riconoscibili a colpo d'occhio nella lista. */
+export const BUS_YELLOW_GRADIENT: Gradient = ['#b45309', '#f59e0b'];
+
 export const TRANSPORT_TYPE_GRADIENTS: Record<string, Gradient> = {
   train: ['#1e293b', '#475569'],
-  bus: ['#3a2410', '#b8860b'],
+  bus: BUS_YELLOW_GRADIENT,
   ferry: ['#0d2b45', '#1d6fa5'],
   car: ['#292524', '#78716c'],
   other: ['#1f2937', '#4b5563'],
@@ -130,4 +132,9 @@ export const trainOperatorGradient = (
   if (n) return FALLBACK_GRADIENTS[hashString(n) % FALLBACK_GRADIENTS.length];
   return TRANSPORT_TYPE_GRADIENTS.train;
 };
+
+export const busOperatorGradient = (_name?: string | null | undefined): Gradient => {
+  return BUS_YELLOW_GRADIENT;
+};
+
 

@@ -12,7 +12,12 @@ import { stationByNameOrCode, type TrainStation } from '@/lib/trainStations';
 import { trainOperatorByName, type TrainOperator } from '@/lib/trainOperators';
 import { portByNameOrCode, type FerryPort } from '@/lib/ferryPorts';
 import { ferryOperatorByName, type FerryOperator } from '@/lib/ferryOperators';
-import { airlineGradient, trainOperatorGradient, TRANSPORT_TYPE_GRADIENTS } from '@/lib/airlineColors';
+import {
+  airlineGradient,
+  trainOperatorGradient,
+  busOperatorGradient,
+  TRANSPORT_TYPE_GRADIENTS,
+} from '@/lib/airlineColors';
 import {
   wallClockFromIso,
   convertWallClock,
@@ -121,6 +126,7 @@ export const TransportCard: React.FC<TransportCardProps> = ({
   const isFlight = transport.transport_type === 'flight';
   const isTrain = transport.transport_type === 'train';
   const isFerry = transport.transport_type === 'ferry';
+  const isBus = transport.transport_type === 'bus';
   const TypeIcon = TRANSPORT_ICONS[transport.transport_type] ?? TRANSPORT_ICONS.other;
 
   const depAirport = isFlight && airports ? airportByIata(airports, transport.departure_airport) : null;
@@ -141,6 +147,8 @@ export const TransportCard: React.FC<TransportCardProps> = ({
     ? trainOperatorGradient(trainOp, transport.airline)
     : isFerry
     ? (ferryOp?.gradient ?? TRANSPORT_TYPE_GRADIENTS.ferry)
+    : isBus
+    ? busOperatorGradient(transport.airline)
     : TRANSPORT_TYPE_GRADIENTS[transport.transport_type] ?? TRANSPORT_TYPE_GRADIENTS.other;
 
   const depWall = transport.departure_datetime ? wallClockFromIso(transport.departure_datetime) : null;
@@ -173,13 +181,7 @@ export const TransportCard: React.FC<TransportCardProps> = ({
     isFerry &&
     (transport.has_car_on_ferry || transport.has_deck_passage || transport.has_seat || transport.has_cabin);
 
-  const stripeLabel = isFlight
-    ? transport.airline || t(`transport.type.${transport.transport_type}`)
-    : isTrain
-    ? transport.airline || t(`transport.type.${transport.transport_type}`)
-    : isFerry
-    ? transport.airline || t(`transport.type.${transport.transport_type}`)
-    : t(`transport.type.${transport.transport_type}`);
+  const stripeLabel = transport.airline?.trim() || t(`transport.type.${transport.transport_type}`);
 
   return (
     <Card noPadding style={NOTCH_MASK}>
@@ -235,7 +237,7 @@ export const TransportCard: React.FC<TransportCardProps> = ({
             </div>
           ) : (
             <span
-              className="text-sm font-bold uppercase tracking-wide text-white whitespace-nowrap"
+              className="text-sm font-bold uppercase tracking-wide text-white whitespace-nowrap max-w-[130px] truncate leading-none text-center"
               style={{ transform: 'rotate(-90deg)' }}
               title={stripeLabel}
             >

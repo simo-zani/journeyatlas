@@ -348,7 +348,14 @@ export const TripDetailPage: React.FC = () => {
               tripDestinations={trip.destinations ?? []}
             />
           )}
-          {activeSection === 'transport' && <TransportSection tripId={trip.id} />}
+          {activeSection === 'transport' && (
+            <TransportSection
+              tripId={trip.id}
+              tripStart={trip.start_date}
+              tripEnd={trip.end_date}
+              tripDestinations={trip.destinations ?? []}
+            />
+          )}
           {activeSection === 'packing' && user && (
             <ChecklistSection tripId={trip.id} userId={user.id} />
           )}

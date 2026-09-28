@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/Button';
 import { EditProfileModal } from '@/components/EditProfileModal';
+import type { CityValue } from '@/components/trip/CityPicker';
 import { OverlayScrollbar } from '@/components/OverlayScrollbar';
 import { useAuth } from '@/auth/AuthContext';
 import { getTheme, setTheme } from '@/utils/theme';
@@ -101,6 +102,7 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
   const [loggingOut, setLoggingOut] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [username, setUsername] = useState<string | null>(null);
+  const [homeCity, setHomeCity] = useState<CityValue | null>(null);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
 
@@ -136,6 +138,7 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
     if (!user) {
       setAvatarUrl(null);
       setUsername(null);
+      setHomeCity(null);
       return;
     }
     let cancelled = false;
@@ -144,12 +147,16 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
         if (!cancelled) {
           setAvatarUrl(profile?.avatar_url ?? null);
           setUsername(profile?.username ?? null);
+          setHomeCity(
+            profile?.home_city ? { city: profile.home_city, coords: profile.home_city_coords ?? null } : null
+          );
         }
       })
       .catch(() => {
         if (!cancelled) {
           setAvatarUrl(null);
           setUsername(null);
+          setHomeCity(null);
         }
       });
     return () => {
@@ -734,9 +741,11 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
           email={user.email ?? ''}
           currentAvatarUrl={avatarUrl}
           currentUsername={username}
+          currentHomeCity={homeCity}
           onSaved={(next) => {
             setAvatarUrl(next.avatarUrl);
             setUsername(next.username);
+            setHomeCity(next.homeCity);
           }}
         />
       )}

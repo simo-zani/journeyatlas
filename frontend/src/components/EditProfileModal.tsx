@@ -5,12 +5,17 @@ import { Modal } from '@/components/Modal';
 import { Button } from '@/components/Button';
 import { Input } from '@/components/Input';
 import { Alert } from '@/components/Alert';
+import { CityPicker, type CityValue } from '@/components/trip/CityPicker';
 import { checkUsernameAvailable, updateProfile } from '@/lib/api';
 import { MODAL_ICON_SIZE } from '@/lib/ui';
 import { compressImage } from '@/lib/image';
 import { supabase } from '@/lib/supabase';
+import { setHomeCityCache } from '@/lib/useHomeCity';
+import type { Destination } from '@/lib/types';
 
 const USERNAME_PATTERN = /^[A-Za-z0-9_.-]+$/;
+/** Costante condivisa: il profilo non ha mete, quindi il picker resta libero. */
+const EMPTY_DESTINATIONS: Destination[] = [];
 
 interface EditProfileModalProps {
   open: boolean;
@@ -19,7 +24,12 @@ interface EditProfileModalProps {
   email: string;
   currentAvatarUrl: string | null;
   currentUsername: string | null;
-  onSaved: (next: { avatarUrl: string | null; username: string }) => void;
+  currentHomeCity: CityValue | null;
+  onSaved: (next: {
+    avatarUrl: string | null;
+    username: string;
+    homeCity: CityValue | null;
+  }) => void;
 }
 
 export const EditProfileModal: React.FC<EditProfileModalProps> = ({
@@ -29,6 +39,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
   email,
   currentAvatarUrl,
   currentUsername,
+  currentHomeCity,
   onSaved,
 }) => {
   const { t } = useTranslation();
@@ -42,6 +53,11 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
   const [isDragging, setIsDragging] = useState(false);
   const [username, setUsername] = useState(currentUsername ?? '');
   const [usernameEditing, setUsernameEditing] = useState(false);
+  // Città di residenza: serve ai consigli del campo aeroporto. Niente mete del
+  // viaggio qui, quindi il picker offre la ricerca libera.
+  const [homeCity, setHomeCityValue] = useState<CityValue>(
+    currentHomeCity ?? { city: '', coords: null }
+  );
   const [profileError, setProfileError] = useState<string | null>(null);
   const [savingProfile, setSavingProfile] = useState(false);
 
@@ -64,13 +80,14 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
     setAvatarRemoved(false);
     setUsername(currentUsername ?? '');
     setUsernameEditing(false);
+    setHomeCityValue(currentHomeCity ?? { city: '', coords: null });
     setProfileError(null);
     setShowPasswordFields(false);
     setNewPassword('');
     setConfirmNewPassword('');
     setPasswordError(null);
     setPasswordSuccess(false);
-  }, [open, currentAvatarUrl, currentUsername]);
+  }, [open, currentAvatarUrl, currentUsername, currentHomeCity]);
 
   const handleFileSelect = (selected: File | null) => {
     setProfileError(null);
@@ -107,10 +124,17 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
     setPasswordSuccess(false);
   };
 
+  const trimmedHomeCity = homeCity.city.trim();
+  const homeCityChanged =
+    trimmedHomeCity !== (currentHomeCity?.city ?? '') ||
+    (trimmedHomeCity !== '' &&
+      JSON.stringify(homeCity.coords) !== JSON.stringify(currentHomeCity?.coords ?? null));
+
   const hasProfileChanges =
     Boolean(file) ||
     (avatarRemoved && currentAvatarUrl !== null) ||
-    username.trim() !== (currentUsername ?? '');
+    username.trim() !== (currentUsername ?? '') ||
+    homeCityChanged;
 
   const handleSaveProfile = async () => {
     setProfileError(null);
@@ -149,8 +173,20 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
         nextAvatarUrl = null;
       }
 
-      await updateProfile(userId, { avatar_url: nextAvatarUrl, username: trimmedUsername });
-      onSaved({ avatarUrl: nextAvatarUrl, username: trimmedUsername });
+      const nextHomeCity: CityValue | null = trimmedHomeCity
+        ? { city: trimmedHomeCity, coords: homeCity.coords }
+        : null;
+
+      await updateProfile(userId, {
+        avatar_url: nextAvatarUrl,
+        username: trimmedUsername,
+        home_city: nextHomeCity ? nextHomeCity.city : null,
+        home_city_coords: nextHomeCity ? nextHomeCity.coords : null,
+      });
+      // Il form mezzo è spesso già montato: senza questo la nuova città
+      // arriverebbe solo al prossimo reload della pagina.
+      setHomeCityCache(userId, nextHomeCity);
+      onSaved({ avatarUrl: nextAvatarUrl, username: trimmedUsername, homeCity: nextHomeCity });
       onClose();
     } catch (err) {
       setProfileError(err instanceof Error ? err.message : t('common.error'));
@@ -311,6 +347,17 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
           </div>
 
           <div className="w-full space-y-3 mt-2">
+            <div className="text-left">
+              <label className="label">{t('profile.homeCity')}</label>
+              <CityPicker
+                value={homeCity}
+                onChange={setHomeCityValue}
+                tripDestinations={EMPTY_DESTINATIONS}
+                placeholder={t('cityPicker.placeholder')}
+                ariaLabel={t('profile.homeCity')}
+              />
+            </div>
+
             {profileError && <Alert type="error" message={profileError} onClose={() => setProfileError(null)} />}
 
             <Button type="button" className="w-full" onClick={handleSaveProfile} disabled={savingProfile || !hasProfileChanges}>

@@ -12,6 +12,10 @@ dist
 dist-ssr
 *.local
 
+# Cache delle risposte di Wikipedia per la generazione di airlineData.ts.
+# Si cancella per rileggere tutto da capo.
+scripts/wiki-airlines.json
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

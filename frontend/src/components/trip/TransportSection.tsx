@@ -20,6 +20,8 @@ import { Button } from '@/components/Button';
 import { Alert } from '@/components/Alert';
 import { Modal } from '@/components/Modal';
 import { DeleteButton } from '@/components/trip/DeleteButton';
+import { AirportPicker } from '@/components/trip/AirportPicker';
+import { AirlinePicker } from '@/components/trip/AirlinePicker';
 import {
   createTransport,
   deleteTransport,
@@ -27,10 +29,15 @@ import {
   updateTransport,
   type TransportInput,
 } from '@/lib/api';
-import type { TransportRow, TransportType } from '@/lib/types';
+import type { Destination, TransportRow, TransportType } from '@/lib/types';
 
 interface TransportSectionProps {
   tripId: string;
+  /** Finestra del viaggio: i datetime-local dei mezzi non possono uscirne. */
+  tripStart: string | null;
+  tripEnd: string | null;
+  /** Mete del viaggio: alimentano gli aeroporti consigliati nel form volo. */
+  tripDestinations: Destination[];
 }
 
 interface FormState {
@@ -66,7 +73,12 @@ const toLocalInput = (iso: string | null): string => {
 const formatDateTime = (iso: string | null): string =>
   iso ? new Date(iso).toLocaleString() : '';
 
-export const TransportSection: React.FC<TransportSectionProps> = ({ tripId }) => {
+export const TransportSection: React.FC<TransportSectionProps> = ({
+  tripId,
+  tripStart,
+  tripEnd,
+  tripDestinations,
+}) => {
   const { t } = useTranslation();
   const [items, setItems] = useState<TransportRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -195,6 +207,9 @@ export const TransportSection: React.FC<TransportSectionProps> = ({ tripId }) =>
           initial={form.editing}
           onSubmit={handleSubmit}
           onCancel={() => setForm({ open: false, editing: null })}
+          tripStart={tripStart}
+          tripEnd={tripEnd}
+          tripDestinations={tripDestinations}
         />
       </Modal>
     </div>
@@ -205,9 +220,21 @@ interface TransportFormProps {
   initial: TransportRow | null;
   onSubmit: (input: TransportInput) => Promise<void>;
   onCancel: () => void;
+  /** Finestra del viaggio: i datetime-local non possono uscire da qui. */
+  tripStart: string | null;
+  tripEnd: string | null;
+  /** Mete del viaggio: alimentano gli aeroporti consigliati. */
+  tripDestinations: Destination[];
 }
 
-export const TransportForm: React.FC<TransportFormProps> = ({ initial, onSubmit, onCancel }) => {
+export const TransportForm: React.FC<TransportFormProps> = ({
+  initial,
+  onSubmit,
+  onCancel,
+  tripStart,
+  tripEnd,
+  tripDestinations,
+}) => {
   const { t } = useTranslation();
   const [type, setType] = useState<TransportType>(initial?.transport_type ?? 'flight');
   const [departure, setDeparture] = useState(initial?.departure_airport ?? '');
@@ -232,9 +259,39 @@ export const TransportForm: React.FC<TransportFormProps> = ({ initial, onSubmit,
 
   const canSubmit = departure.trim().length > 0 && arrival.trim().length > 0;
 
+  // Un datetime-local è "YYYY-MM-DDTHH:mm" locale: il vincolo si legge solo
+  // nella parte data, altrimenti un'ora dopo la mezzanotte del giorno di
+  // partenza sembrerebbe fuori viaggio.
+  const outOfRange = (local: string) => {
+    if (!local) return false;
+    const day = local.slice(0, 10);
+    if (tripStart && day < tripStart) return true;
+    if (tripEnd && day > tripEnd) return true;
+    return false;
+  };
+
+  const dateError =
+    (departureAt && outOfRange(departureAt) ? 'departure' : null) ??
+    (arrivalAt && outOfRange(arrivalAt) ? 'arrival' : null);
+  // Un volo parte e arriva lo stesso giorno, quindi l'ordine tra i due orari
+  // non è un errore: l'errore è solo se si arriva prima di partire.
+  const arrivalBeforeDeparture = !dateError && departureAt && arrivalAt < departureAt;
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    if (dateError) {
+      setError(
+        t('trip.dateOutOfRange', {
+          range: [tripStart, tripEnd].filter(Boolean).join(' - '),
+        })
+      );
+      return;
+    }
+    if (arrivalBeforeDeparture) {
+      setError(t('transport.arrivalBeforeDeparture'));
+      return;
+    }
     setSubmitting(true);
     try {
       await onSubmit({
@@ -287,20 +344,47 @@ export const TransportForm: React.FC<TransportFormProps> = ({ initial, onSubmit,
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <Input
-          label={`${departureLabel} *`}
-          value={departure}
-          onChange={(e) => setDeparture(e.target.value)}
-          required
-          placeholder={placeholders.departure}
-        />
-        <Input
-          label={`${arrivalLabel} *`}
-          value={arrival}
-          onChange={(e) => setArrival(e.target.value)}
-          required
-          placeholder={placeholders.arrival}
-        />
+        {isFlight ? (
+          <>
+            <div>
+              <label className="label">{`${departureLabel} *`}</label>
+              <AirportPicker
+                value={departure}
+                onChange={setDeparture}
+                tripDestinations={tripDestinations}
+                placeholder={placeholders.departure}
+                ariaLabel={departureLabel}
+              />
+            </div>
+            <div>
+              <label className="label">{`${arrivalLabel} *`}</label>
+              <AirportPicker
+                value={arrival}
+                onChange={setArrival}
+                tripDestinations={tripDestinations}
+                placeholder={placeholders.arrival}
+                ariaLabel={arrivalLabel}
+              />
+            </div>
+          </>
+        ) : (
+          <>
+            <Input
+              label={`${departureLabel} *`}
+              value={departure}
+              onChange={(e) => setDeparture(e.target.value)}
+              required
+              placeholder={placeholders.departure}
+            />
+            <Input
+              label={`${arrivalLabel} *`}
+              value={arrival}
+              onChange={(e) => setArrival(e.target.value)}
+              required
+              placeholder={placeholders.arrival}
+            />
+          </>
+        )}
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -308,18 +392,47 @@ export const TransportForm: React.FC<TransportFormProps> = ({ initial, onSubmit,
           label={t('transport.departureAt')}
           type="datetime-local"
           value={departureAt}
+          min={tripStart ? `${tripStart}T00:00` : undefined}
+          max={tripEnd ? `${tripEnd}T23:59` : undefined}
           onChange={(e) => setDepartureAt(e.target.value)}
         />
         <Input
           label={t('transport.arrivalAt')}
           type="datetime-local"
           value={arrivalAt}
+          min={tripStart ? `${tripStart}T00:00` : undefined}
+          max={tripEnd ? `${tripEnd}T23:59` : undefined}
           onChange={(e) => setArrivalAt(e.target.value)}
         />
       </div>
 
+      {(dateError || arrivalBeforeDeparture) && (
+        <p className="text-sm text-error" role="alert">
+          {dateError
+            ? t('trip.dateOutOfRange', {
+                range: [tripStart, tripEnd].filter(Boolean).join(' - '),
+              })
+            : t('transport.arrivalBeforeDeparture')}
+        </p>
+      )}
+
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <Input label={companyLabel} value={airline} onChange={(e) => setAirline(e.target.value)} placeholder="e.g. ITA Airways" />
+        {isFlight ? (
+          <div>
+            <label className="label">{companyLabel}</label>
+            <AirlinePicker
+              value={airline}
+              onChange={setAirline}
+              ariaLabel={companyLabel}
+            />
+          </div>
+        ) : (
+          <Input
+            label={companyLabel}
+            value={airline}
+            onChange={(e) => setAirline(e.target.value)}
+          />
+        )}
         <Input
           label={numberLabel}
           value={flightNumber}

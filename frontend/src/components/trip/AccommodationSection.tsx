@@ -19,6 +19,7 @@ import {
   Coffee,
   CookingPot,
   Disc3,
+  DoorOpen,
   Dumbbell,
   ExternalLink,
   Heater,
@@ -52,7 +53,7 @@ import { Button } from '@/components/Button';
 import { Alert } from '@/components/Alert';
 import { Modal } from '@/components/Modal';
 import { DeleteButton } from '@/components/trip/DeleteButton';
-import { CountryFlag } from '@/components/CountryFlag';
+import { PickerInput, CityPicker, type CityValue } from '@/components/trip/CityPicker';
 import {
   createAccommodation,
   deleteAccommodation,
@@ -62,12 +63,7 @@ import {
 } from '@/lib/api';
 
 import { supabase } from '@/lib/supabase';
-import type { AccommodationRow, Coordinates, Destination } from '@/lib/types';
-import {
-  searchDestinations,
-  foldText,
-  type DestinationSuggestion,
-} from '@/lib/countries';
+import type { AccommodationRow, Destination } from '@/lib/types';
 import { MODAL_ICON_SIZE } from '@/lib/ui';
 import { useAuth } from '@/auth/AuthContext';
 
@@ -187,8 +183,6 @@ const countNights = (checkIn: string | null, checkOut: string | null) => {
 };
 const formatTime = (t: string | null) =>
   t ? t.slice(0, 5) : '';
-const formatCost = (n: number | null, currency: string | null) =>
-  n != null ? `${n} ${currency ?? 'EUR'}` : '';
 
 const isWithinTrip = (d: string, start: string | null, end: string | null) =>
   (!start || d >= start) && (!end || d <= end);
@@ -356,69 +350,6 @@ const PlatformLogo: React.FC<{ platform: string; className?: string }> = ({
   );
 };
 
-// ─── Picker input ─────────────────────────────────────────────────────────────
-
-/**
- * Input con icona a sinistra e azione a destra, usato dai picker città e
- * piattaforma.
- *
- * Non si appoggia a `pl-11` sull'<input>: `.input-field` è definito in
- * index.css DOPO `@tailwind utilities` e vince il conflitto di padding, quindi
- * l'icona assolutamente posizionata finiva sopra il placeholder. Qui l'icona
- * è un fratello flex del campo, quindi il padding la gestisce il layout e non
- * c'è nulla da sovrascrivere. Stesso approccio di `DestinationPicker`.
- */
-const PickerInput: React.FC<{
-  value: string;
-  onChange: (v: string) => void;
-  onFocus?: () => void;
-  onKeyDown?: React.KeyboardEventHandler<HTMLInputElement>;
-  placeholder?: string;
-  leading?: React.ReactNode;
-  trailing?: React.ReactNode;
-  role?: string;
-  ariaLabel?: string;
-  ariaControls?: string;
-  ariaExpanded?: boolean;
-  ariaActiveDescendant?: string;
-  /** Serve per il focus programmatico (es. rilasciare il campo dopo la scelta). */
-  inputRef?: React.Ref<HTMLInputElement>;
-}> = ({
-  value,
-  onChange,
-  onFocus,
-  onKeyDown,
-  placeholder,
-  leading,
-  trailing,
-  role,
-  ariaLabel,
-  ariaControls,
-  ariaExpanded,
-  ariaActiveDescendant,
-  inputRef,
-}) => (
-  <div className="flex items-center gap-2 input-field focus-within:border-gold focus-within:ring-4 focus-within:ring-gold/15">
-    {leading}
-    <input
-      ref={inputRef}
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      onFocus={onFocus}
-      onKeyDown={onKeyDown}
-      placeholder={placeholder}
-      role={role}
-      aria-label={ariaLabel}
-      aria-expanded={ariaExpanded}
-      aria-controls={ariaControls}
-      aria-autocomplete={role === 'combobox' ? 'list' : undefined}
-      aria-activedescendant={ariaActiveDescendant}
-      className="w-full min-w-0 bg-transparent outline-none text-slate-900 dark:text-slate-100 placeholder:text-slate-500 dark:placeholder:text-slate-400"
-    />
-    {trailing}
-  </div>
-);
-
 const STAR_MAX = 5;
 
 /** `sm` per la card (accanto al badge), `md` per il selettore nel form. */
@@ -483,323 +414,6 @@ const StarRating: React.FC<{
           </button>
         );
       })}
-    </div>
-  );
-};
-
-// ─── City picker (Nominatim, singolo risultato) ───────────────────────────────
-
-interface CityValue {
-  city: string;
-  coords: Coordinates | null;
-}
-
-interface CityPickerProps {
-  value: CityValue;
-  onChange: (value: CityValue) => void;
-  tripDestinations: Destination[];
-  placeholder?: string;
-}
-
-interface CityOption {
-  key: string;
-  city: string;
-  country: string;
-  countryCode: string | null;
-  coords: Coordinates | null;
-}
-
-const CityPicker: React.FC<CityPickerProps> = ({
-  value,
-  onChange,
-  tripDestinations,
-  placeholder,
-}) => {
-  const { t, i18n } = useTranslation();
-  const [query, setQuery] = useState(value.city);
-  const [open, setOpen] = useState(false);
-  const [suggestions, setSuggestions] = useState<DestinationSuggestion[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [searchError, setSearchError] = useState(false);
-  const [activeIndex, setActiveIndex] = useState(-1);
-  const ref = useRef<HTMLDivElement>(null);
-  const abort = useRef<AbortController | null>(null);
-  const skipSync = useRef(false);
-  const inputRef = useRef<HTMLInputElement>(null);
-  // Testo già confermato con un click: non va interrogato Nominatim di nuovo,
-  // altrimenti l'effetto sotto ripartirebbe e riaprirebbe la lista.
-  const accepted = useRef('');
-
-  // Il testo digitato vive nello stato locale; `onChange` viene chiamato a ogni
-  // keystroke così il form resta un campo libero. Il flag evita che il reset a
-  // `value.city` (dopo una pick) faccia ripartire la ricerca.
-  useEffect(() => {
-    if (skipSync.current) {
-      skipSync.current = false;
-      return;
-    }
-    setQuery(value.city);
-  }, [value.city]);
-
-  useEffect(() => {
-    const handleOutside = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    };
-    const handleKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        setOpen(false);
-        setActiveIndex(-1);
-      }
-    };
-    document.addEventListener('mousedown', handleOutside);
-    document.addEventListener('keydown', handleKey);
-    return () => {
-      document.removeEventListener('mousedown', handleOutside);
-      document.removeEventListener('keydown', handleKey);
-      abort.current?.abort();
-    };
-  }, []);
-
-  // ── Ricerca ───────────────────────────────────────────────────────────────
-  // Non parte se il testo è già stato scelto: `pick()` scrive il nome in `query`
-  // e senza questo controllo l'effetto si riattiverebbe, chiamerebbe Nominatim e
-  // riaprirebbe la lista, obbligando a un secondo click.
-  useEffect(() => {
-    const trimmed = query.trim();
-    if (trimmed.length < 2) {
-      abort.current?.abort();
-      setSuggestions([]);
-      setLoading(false);
-      setSearchError(false);
-      return;
-    }
-    if (trimmed === accepted.current) {
-      abort.current?.abort();
-      return;
-    }
-    abort.current?.abort();
-    const ctrl = new AbortController();
-    abort.current = ctrl;
-    setLoading(true);
-    setSearchError(false);
-    const timer = setTimeout(async () => {
-      try {
-        const res = await searchDestinations(trimmed, ctrl.signal, i18n.language);
-        setSuggestions(res);
-        setOpen(true);
-      } catch (err) {
-        if ((err as Error).name !== 'AbortError') setSearchError(true);
-      } finally {
-        if (!ctrl.signal.aborted) setLoading(false);
-      }
-    }, 350);
-    return () => {
-      clearTimeout(timer);
-      ctrl.abort();
-    };
-  }, [query, i18n.language]);
-
-  // Le mete del viaggio hanno la priorità assoluta e, con query vuota, sono
-  // TUTTE: appena il campo prende il fuoco l'utente vede subito dove sta
-  // andando, senza dover scrivere nulla.
-  const options: CityOption[] = useMemo(() => {
-    const q = foldText(query);
-    const matches = (d: Destination) => {
-      if (!d.city) return false;
-      if (!q) return true;
-      const city = foldText(d.city);
-      // Iniziare per la query batte "conterla": con "bos" l'utente vuole
-      // Boston, non tutte le città che hanno "bos" da qualche parte.
-      return city.startsWith(q) || city.includes(q) || foldText(d.country ?? '').includes(q);
-    };
-    const fromTrip = tripDestinations.filter(matches).map((d) => ({
-      key: `trip-${d.city}`,
-      city: d.city,
-      country: d.country ?? '',
-      countryCode: null,
-      coords: d.coords ?? null,
-    }));
-    const fromNominatim = suggestions
-      .filter((s) => !fromTrip.some((t) => t.city.toLowerCase() === s.city.toLowerCase()))
-      .map((s) => ({
-        key: `osm-${s.city}-${s.country}`,
-        city: s.city,
-        country: s.country,
-        countryCode: s.countryCode,
-        coords: s.coords,
-      }));
-    return [...fromTrip, ...fromNominatim];
-  }, [tripDestinations, suggestions, query]);
-
-  // Un solo header "mete del viaggio" sopra il gruppo, non uno per riga.
-  const tripOptionCount = useMemo(
-    () => tripDestinations.filter((d) => d.city).length,
-    [tripDestinations]
-  );
-
-  useEffect(() => setActiveIndex(-1), [options.length]);
-
-  const pick = (option: CityOption) => {
-    skipSync.current = true;
-    // Segna il testo come già scelto: l'effetto di ricerca lo salta, quindi la
-    // lista non si riapre e il click successivo non serve.
-    accepted.current = option.city.trim();
-    onChange({ city: option.city, coords: option.coords });
-    setQuery(option.city);
-    setOpen(false);
-    setActiveIndex(-1);
-    setSuggestions([]);
-    setSearchError(false);
-    setLoading(false);
-    abort.current?.abort();
-    // Il campo ha già il valore: si rilascia il focus invece di lasciare il
-    // cursore in un input che non serve più.
-    inputRef.current?.blur();
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (!open || options.length === 0) return;
-    if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      setActiveIndex((i) => (i + 1) % options.length);
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      setActiveIndex((i) => (i <= 0 ? options.length - 1 : i - 1));
-    } else if (e.key === 'Enter' && activeIndex >= 0) {
-      e.preventDefault();
-      pick(options[activeIndex]);
-    }
-  };
-
-  // Mantiene l'opzione attiva visibile durante la navigazione da tastiera.
-  // Si cerca per id, non per indice: il <ul> contiene anche le righe di
-  // intestazione, quindi la posizione non coincide con quella delle opzioni.
-  useEffect(() => {
-    if (activeIndex < 0) return;
-    document
-      .getElementById(`acc-city-opt-${activeIndex}`)
-      ?.scrollIntoView({ block: 'nearest' });
-  }, [activeIndex]);
-
-  // Con 0-1 caratteri non si interroga Nominatim, ma le mete del viaggio
-  // (se ce ne sono) sono comunque un suggerimento utile.
-  const searching = query.trim().length >= 2;
-  const showList = open && (searching || tripOptionCount > 0);
-  const showTripHeader = tripOptionCount > 0 && options.some((o) => o.key.startsWith('trip-'));
-  const showWorldHeader = searching && suggestions.length > 0;
-
-  return (
-    <div ref={ref} className="relative">
-      <PickerInput
-        value={query}
-        onChange={(v) => {
-          // Digitare a mano invalida la scelta precedente: altrimenti tornare
-          // indietro di un carattere e riscriverlo non ripartirebbe nulla.
-          accepted.current = '';
-          setQuery(v);
-          onChange({ city: v, coords: null });
-        }}
-        onFocus={() => setOpen(true)}
-        onKeyDown={handleKeyDown}
-        inputRef={inputRef}
-        placeholder={placeholder ?? t('accommodation.cityPlaceholder')}
-        leading={<Search className={`${MODAL_ICON_SIZE} text-slate-400 shrink-0`} />}
-        trailing={
-          loading ? (
-            <Loader2 className={`${MODAL_ICON_SIZE} text-gold animate-spin shrink-0`} />
-          ) : query ? (
-            <button
-              type="button"
-              onClick={() => {
-                accepted.current = '';
-                setQuery('');
-                onChange({ city: '', coords: null });
-              }}
-              aria-label={t('accommodation.cityClear')}
-              className="text-slate-400 hover:text-error transition-colors shrink-0"
-            >
-              <X className={MODAL_ICON_SIZE} />
-            </button>
-          ) : null
-        }
-        role="combobox"
-        ariaLabel={t('accommodation.city')}
-        ariaControls="acc-city-listbox"
-        ariaExpanded={showList}
-        ariaActiveDescendant={activeIndex >= 0 ? `acc-city-opt-${activeIndex}` : undefined}
-      />
-
-      {showList && (
-        <div className="absolute z-50 mt-1 w-full rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#0f1c35] overflow-hidden max-h-72 overflow-y-auto">
-          {searchError && (
-            <p className="px-3 py-2 text-sm text-slate-500 dark:text-slate-400">
-              {t('accommodation.citySearchError')}
-            </p>
-          )}
-
-          {showTripHeader && (
-            <p className="text-xs text-slate-400 px-3 pt-2 pb-1 font-medium uppercase tracking-wider sticky top-0 bg-white dark:bg-[#0f1c35]">
-              {t('accommodation.cityHint')}
-            </p>
-          )}
-
-          {!loading && !searchError && options.length === 0 && (
-            <p className="px-3 py-2 text-sm text-slate-500 dark:text-slate-400">
-              {t('accommodation.cityNoResults', { value: query.trim() })}
-            </p>
-          )}
-
-          <ul id="acc-city-listbox" role="listbox">
-            {options.map((option, i) => {
-              const isSeparatorBefore =
-                showWorldHeader &&
-                i === Math.min(tripOptionCount, options.length) &&
-                !option.key.startsWith('trip-');
-              return (
-                <React.Fragment key={option.key}>
-                  {isSeparatorBefore && (
-                    <li
-                      role="presentation"
-                      className="text-xs text-slate-400 px-3 pt-2 pb-1 font-medium uppercase tracking-wider border-t border-slate-200 dark:border-slate-700 mt-1"
-                    >
-                      {t('accommodation.cityWorld')}
-                    </li>
-                  )}
-                  <li
-                    id={`acc-city-opt-${i}`}
-                    role="option"
-                    aria-selected={activeIndex === i}
-                  >
-                    <button
-                      type="button"
-                      // Impedisce che il mousedown chiuda il dropdown prima del click.
-                      onMouseDown={(e) => e.preventDefault()}
-                      onClick={() => pick(option)}
-                      onMouseEnter={() => setActiveIndex(i)}
-                      className={`w-full text-left px-3 py-2 flex items-center gap-2 text-sm transition-colors ${
-                        activeIndex === i ? 'bg-gold/10' : 'hover:bg-gold/10'
-                      }`}
-                    >
-                      {option.countryCode ? (
-                        <CountryFlag
-                          code={option.countryCode}
-                          label={`${option.city}, ${option.country}`}
-                        />
-                      ) : (
-                        <MapPin className={`${MODAL_ICON_SIZE} text-gold shrink-0`} />
-                      )}
-                      <span className="font-medium truncate">{option.city}</span>
-                      {option.country && (
-                        <span className="text-slate-400 text-xs truncate">{option.country}</span>
-                      )}
-                    </button>
-                  </li>
-                </React.Fragment>
-              );
-            })}
-          </ul>
-        </div>
-      )}
     </div>
   );
 };
@@ -1116,12 +730,18 @@ export const AccommodationSection: React.FC<AccommodationSectionProps> = ({
         acc.contact_phone || acc.contact_email || acc.booking_platform || acc.booking_url
       );
       const nights = countNights(acc.check_in_date, acc.check_out_date);
+      // Le camere si contano solo negli hotel: un appartamento è per
+      // definizione l'intero, quindi il numero non ha senso lì.
+      const rooms =
+        acc.type === 'hotel' && acc.rooms_count != null && acc.rooms_count > 0
+          ? acc.rooms_count
+          : null;
       const maps = mapsUrl(acc);
       return (
             <Card key={acc.id} noPadding>
               {/* Photo header */}
               {acc.photo_url && (
-                <div className="relative h-36 overflow-hidden rounded-t-2xl">
+                <div className="relative h-36 overflow-hidden rounded-t-xl">
                   <img
                     src={acc.photo_url}
                     alt={acc.name}
@@ -1131,13 +751,21 @@ export const AccommodationSection: React.FC<AccommodationSectionProps> = ({
                 </div>
               )}
 
-              <div className="p-4">
+              {/* px-5 = 20px ai lati e sotto l'ultima riga della card (badge
+                  tipo/stelle/camere). Sopra resta 16px, il margine sotto cui è
+                  centrato il titolo. La foto sta fuori da questo div e resta a
+                  filo del bordo. */}
+              <div className="px-5 pt-4 pb-5">
                 <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    {/* Due righe sempre: se il nome è corto o manca, le righe
-                        vuote tengono allineati i metadati di tutte le card. */}
+                  <div className="min-w-0 flex min-h-14 items-center">
+                    {/* Due righe sempre: se il nome è corto o manca, lo spazio
+                        vuoto tiene allineati i metadati di tutte le card. Il
+                        titolo è centrato in quello spazio, così il margine
+                        sopra (fine foto) e sotto (indirizzo) si compensano
+                        invece di essere sbilanciati. Il line-clamp sta sul
+                        <h3> perché si porta dietro `display: -webkit-box`. */}
                     <h3
-                      className="font-poppins font-bold text-lg leading-7 line-clamp-2 min-h-14 break-words"
+                      className="font-poppins font-bold text-lg leading-7 line-clamp-2 break-words"
                       title={acc.name}
                     >
                       {acc.name}
@@ -1163,10 +791,11 @@ export const AccommodationSection: React.FC<AccommodationSectionProps> = ({
 
                 {/* Location — il contenitore esiste sempre (min-h-10 = 2 righe
                     di text-sm) così le card senza indirizzo non "tirano su"
-                    quelle sotto. Il link è un <a> vero, non un click
-                    JavaScript: è il foglio "Apri in" di iOS a fare il
-                    resto, e su desktop va su Google Maps. */}
-                <p className="flex items-start gap-1.5 text-sm text-slate-500 dark:text-slate-400 mt-2 min-h-10">
+                    quelle sotto. mt-4 = il padding sopra il titolo, così il
+                    titolo ha lo stesso margine sotto e sopra. Il link è un <a>
+                    vero, non un click JavaScript: è il foglio "Apri in" di iOS a
+                    fare il resto, e su desktop va su Google Maps. */}
+                <p className="flex items-start gap-1.5 text-sm text-slate-500 dark:text-slate-400 mt-4 min-h-10">
                   {maps && (
                     <a
                       href={maps}
@@ -1247,13 +876,6 @@ export const AccommodationSection: React.FC<AccommodationSectionProps> = ({
                       </div>
                     )}
                   </div>
-                )}
-
-                {/* Cost */}
-                {formatCost(acc.cost_total, acc.currency) && (
-                  <p className="text-sm font-semibold text-deep-blue dark:text-gold mt-2">
-                    {formatCost(acc.cost_total, acc.currency)}
-                  </p>
                 )}
 
                 {/* Amenities — solo icona, il nome è nel title/aria-label.
@@ -1347,6 +969,15 @@ export const AccommodationSection: React.FC<AccommodationSectionProps> = ({
                       {acc.stars != null && acc.stars > 0 && (
                         <StarRating value={acc.stars} size="sm" />
                       )}
+                      {rooms != null && (
+                        <span
+                          className="inline-flex items-center gap-1 text-xs font-semibold text-slate-500 dark:text-slate-400"
+                          title={t('accommodation.roomsValue', { count: rooms })}
+                        >
+                          <DoorOpen className={`${CARD_ICON_SIZE} shrink-0`} />
+                          {t('accommodation.roomsValue', { count: rooms })}
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1422,6 +1053,11 @@ export const AccommodationForm: React.FC<AccommodationFormProps> = ({
     const s = initial?.stars ?? 0;
     return s >= 1 && s <= STAR_MAX ? s : 0;
   });
+  // Stringa vuota = non specificato. Solo hotel: su un appartamento la camera
+  // è l'appartamento stesso (vedi l'invio, che azzera il campo).
+  const [roomsCount, setRoomsCount] = useState(
+    initial?.rooms_count != null && initial.rooms_count > 0 ? String(initial.rooms_count) : ''
+  );
   const [contactPhone, setContactPhone] = useState(initial?.contact_phone ?? '');
   const [contactEmail, setContactEmail] = useState(initial?.contact_email ?? '');
   // Gli optional sono salvati per chiave, non per etichetta tradotta.
@@ -1560,6 +1196,10 @@ export const AccommodationForm: React.FC<AccommodationFormProps> = ({
         // Le stelle valgono solo per gli hotel: su un appartamento non hanno
         // significato, quindi non si salvano.
         stars: type === 'hotel' && stars > 0 ? stars : null,
+        // Idem per le camere: l'appartamento è già l'intero, quindi il conteggio
+        // (e il numero salvato in precedenza) si azzera. Il > 0 tiene fuori anche
+        // lo 0 digitato a mano, che il CHECK del DB rifiuterebbe.
+        rooms_count: type === 'hotel' && Number(roomsCount) > 0 ? Number(roomsCount) : null,
         address: address.trim() || null,
         city: city.city.trim() || null,
         coordinates: city.city.trim() ? city.coords : null,
@@ -1650,6 +1290,20 @@ export const AccommodationForm: React.FC<AccommodationFormProps> = ({
         </div>
       )}
 
+      {/* Camere: solo per hotel, facoltativa come le stelle. */}
+      {type === 'hotel' && (
+        <Input
+          label={t('accommodation.rooms')}
+          type="number"
+          min="1"
+          step="1"
+          inputMode="numeric"
+          value={roomsCount}
+          onChange={(e) => setRoomsCount(e.target.value)}
+          placeholder="2"
+        />
+      )}
+
       {/* City */}
       <div>
         <label className="label">{t('accommodation.city')}</label>
@@ -1657,7 +1311,7 @@ export const AccommodationForm: React.FC<AccommodationFormProps> = ({
           value={city}
           onChange={setCity}
           tripDestinations={tripDestinations}
-          placeholder={t('accommodation.cityPlaceholder')}
+          placeholder={t('cityPicker.placeholder')}
         />
       </div>
 

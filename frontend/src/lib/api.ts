@@ -33,7 +33,13 @@ export const fetchProfile = async (userId: string): Promise<ProfileRow | null> =
 
 export const updateProfile = async (
   userId: string,
-  input: { avatar_url?: string | null; username?: string }
+  input: {
+    avatar_url?: string | null;
+    username?: string;
+    /** null = azzera il campo, come per gli altri optional. */
+    home_city?: string | null;
+    home_city_coords?: Coordinates | null;
+  }
 ): Promise<ProfileRow> => {
   const { data, error } = await supabase
     .from('profiles')
@@ -295,6 +301,8 @@ export interface AccommodationInput {
   type: 'hotel' | 'apartment';
   /** Stelle dell'hotel, 1-5. null quando non valutata. */
   stars?: number | null;
+  /** Camere prenotate, solo per gli hotel. null quando non specificato. */
+  rooms_count?: number | null;
   address?: string | null;
   city?: string | null;
   coordinates?: Coordinates | null;
@@ -334,6 +342,7 @@ const accFields = (input: Partial<AccommodationInput>) => ({
   name: input.name,
   type: input.type,
   stars: input.stars ?? null,
+  rooms_count: input.rooms_count ?? null,
   address: input.address ?? null,
   city: input.city ?? null,
   coordinates: input.coordinates ?? null,

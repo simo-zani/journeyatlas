@@ -34,6 +34,9 @@ export type ProfileRow = {
   avatar_url: string | null;
   default_currency: string | null;
   timezone: string | null;
+  /** Città di partenza abituale: serve a consigliare gli aeroporti più vicini. */
+  home_city: string | null;
+  home_city_coords: Coordinates | null;
   created_at: string;
 };
 
@@ -137,6 +140,8 @@ export type AccommodationRow = {
   type: 'hotel' | 'apartment';
   /** Stelle dell'hotel, 1-5. NULL quando non valutata. */
   stars: number | null;
+  /** Camere prenotate, solo per gli hotel. NULL quando non specificato. */
+  rooms_count: number | null;
   address: string | null;
   city: string | null;
   coordinates: Coordinates | null;

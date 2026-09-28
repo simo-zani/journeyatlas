@@ -135,6 +135,10 @@ export type TransportRow = {
   has_backpack: boolean | null;
   has_carry_on: boolean | null;
   has_checked_baggage: boolean | null;
+  has_seat: boolean | null;
+  has_cabin: boolean | null;
+  has_car_on_ferry: boolean | null;
+  has_deck_passage: boolean | null;
   created_at: string;
 };
 

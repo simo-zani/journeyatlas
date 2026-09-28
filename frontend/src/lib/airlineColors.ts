@@ -102,3 +102,32 @@ export const TRANSPORT_TYPE_GRADIENTS: Record<string, Gradient> = {
   car: ['#292524', '#78716c'],
   other: ['#1f2937', '#4b5563'],
 };
+
+export const trainOperatorGradient = (
+  operator: { gradient: Gradient } | null | undefined,
+  name: string | null | undefined
+): Gradient => {
+  if (operator?.gradient) return operator.gradient;
+  const n = (name || '').trim().toLowerCase();
+  if (n.includes('trenitalia') || n.includes('ferrovie')) return ['#00693e', '#c1152a'];
+  if (n.includes('italo') || n.includes('ntv')) return ['#6c0d1e', '#b81438'];
+  if (n.includes('frecciarossa')) return ['#8f0014', '#d91b24'];
+  if (n.includes('trenord')) return ['#004f2f', '#009a49'];
+  if (n.includes('sncf') || n.includes('tgv')) return ['#541426', '#871b38'];
+  if (n.includes('db') || n.includes('deutsche')) return ['#b80c0c', '#e61414'];
+  if (n.includes('renfe')) return ['#61183e', '#91235b'];
+  if (n.includes('sbb')) return ['#b30000', '#e60000'];
+  if (n.includes('obb') || n.includes('öbb')) return ['#ba190a', '#da2614'];
+  if (n.includes('eurostar')) return ['#082a4d', '#e09b00'];
+  if (n.includes('shinkansen') || n.includes('japan rail') || n.includes('jr')) return ['#003366', '#0066cc'];
+  if (n.includes('china railway') || n.includes('gaotie')) return ['#a80000', '#d81b24'];
+  if (n.includes('indian rail') || n.includes('vande bharat')) return ['#002855', '#c86f00'];
+  if (n.includes('amtrak')) return ['#002552', '#004c82'];
+  if (n.includes('brightline')) return ['#c99a00', '#facc15'];
+  if (n.includes('via rail')) return ['#9a6700', '#eab308'];
+  if (n.includes('ghan') || n.includes('journey beyond')) return ['#78281f', '#b45309'];
+  if (n.includes('korail') || n.includes('ktx')) return ['#1d4ed8', '#0284c7'];
+  if (n) return FALLBACK_GRADIENTS[hashString(n) % FALLBACK_GRADIENTS.length];
+  return TRANSPORT_TYPE_GRADIENTS.train;
+};
+

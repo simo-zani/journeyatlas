@@ -1,12 +1,16 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Loader2, Plus, Route } from 'lucide-react';
+import { Clock, Loader2, Plus, Route } from 'lucide-react';
 import { Input } from '@/components/Input';
 import { Button } from '@/components/Button';
 import { Alert } from '@/components/Alert';
 import { Modal } from '@/components/Modal';
 import { AirportPicker } from '@/components/trip/AirportPicker';
 import { AirlinePicker } from '@/components/trip/AirlinePicker';
+import { StationPicker } from '@/components/trip/StationPicker';
+import { TrainOperatorPicker } from '@/components/trip/TrainOperatorPicker';
+import { PortPicker } from '@/components/trip/PortPicker';
+import { FerryOperatorPicker } from '@/components/trip/FerryOperatorPicker';
 import { TransportCard } from '@/components/trip/TransportCard';
 import {
   createTransport,
@@ -17,9 +21,20 @@ import {
 } from '@/lib/api';
 import { loadAirports, nearestAirportTz, type Airport } from '@/lib/airports';
 import { loadAirlines, type Airline } from '@/lib/airlines';
+import { loadTrainStations, type TrainStation } from '@/lib/trainStations';
+import { loadTrainOperators, type TrainOperator } from '@/lib/trainOperators';
+import { loadFerryPorts, type FerryPort } from '@/lib/ferryPorts';
+import { loadFerryOperators, type FerryOperator } from '@/lib/ferryOperators';
 import { useHomeCity } from '@/lib/useHomeCity';
 import { DEFAULT_HOME_TZ } from '@/lib/flightTime';
-import { TRANSPORT_TYPES, TRANSPORT_ICONS, BAGGAGE_OPTIONS, type BaggageOption } from '@/lib/transportMeta';
+import {
+  TRANSPORT_TYPES,
+  TRANSPORT_ICONS,
+  BAGGAGE_OPTIONS,
+  TRAIN_OPTIONS,
+  FERRY_OPTIONS,
+  type BaggageOption,
+} from '@/lib/transportMeta';
 import type { Destination, TransportRow, TransportType } from '@/lib/types';
 
 interface TransportSectionProps {
@@ -37,6 +52,12 @@ const FLIGHT_PLACEHOLDERS: Record<'departure' | 'arrival' | 'number', string> = 
   departure: 'FCO',
   arrival: 'BKK',
   number: 'AZ 084',
+};
+
+const TRAIN_PLACEHOLDERS: Record<'departure' | 'arrival' | 'number', string> = {
+  departure: 'Milano Centrale',
+  arrival: 'Roma Termini',
+  number: 'FR 9540',
 };
 
 const pad = (n: number) => String(n).padStart(2, '0');
@@ -60,7 +81,22 @@ export const TransportSection: React.FC<TransportSectionProps> = ({
   // caricano una volta qui e si passano giù, invece di un fetch per card.
   const [airports, setAirports] = useState<Airport[] | null>(null);
   const [airlines, setAirlines] = useState<Airline[] | null>(null);
+  const [stations, setStations] = useState<TrainStation[] | null>(null);
+  const [trainOperators, setTrainOperators] = useState<TrainOperator[] | null>(null);
+  const [ferryPorts, setFerryPorts] = useState<FerryPort[] | null>(null);
+  const [ferryOperators, setFerryOperators] = useState<FerryOperator[] | null>(null);
+  const [showHomeTz, setShowHomeTz] = useState<boolean>(() => {
+    return localStorage.getItem('journeyatlas_show_home_tz') === 'true';
+  });
   const homeCity = useHomeCity();
+
+  const handleToggleHomeTz = () => {
+    setShowHomeTz((prev) => {
+      const next = !prev;
+      localStorage.setItem('journeyatlas_show_home_tz', String(next));
+      return next;
+    });
+  };
 
   // Il fuso di riferimento del viaggiatore: quello dell'aeroporto più vicino
   // a casa sua, non un valore fisso sull'Italia — la città di casa non ha un
@@ -94,6 +130,18 @@ export const TransportSection: React.FC<TransportSectionProps> = ({
     void loadAirlines().then((all) => {
       if (active) setAirlines(all);
     });
+    void loadTrainStations().then((all) => {
+      if (active) setStations(all);
+    });
+    void loadTrainOperators().then((all) => {
+      if (active) setTrainOperators(all);
+    });
+    void loadFerryPorts().then((all) => {
+      if (active) setFerryPorts(all);
+    });
+    void loadFerryOperators().then((all) => {
+      if (active) setFerryOperators(all);
+    });
     return () => {
       active = false;
     };
@@ -116,7 +164,36 @@ export const TransportSection: React.FC<TransportSectionProps> = ({
 
   return (
     <div>
-      <div className="flex justify-end mb-6">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+        <button
+          type="button"
+          role="switch"
+          aria-checked={showHomeTz}
+          onClick={handleToggleHomeTz}
+          className="group inline-flex items-center gap-2.5 px-3.5 py-1.5 rounded-full bg-slate-100 dark:bg-white/[0.06] hover:bg-slate-200/70 dark:hover:bg-white/[0.1] active:scale-[0.97] border border-slate-200/70 dark:border-white/10 transition-all duration-200 cursor-pointer select-none"
+          title={t('transport.toggleHomeTzTooltip')}
+        >
+          <Clock
+            className={`w-3.5 h-3.5 text-gold shrink-0 transition-transform duration-300 ease-out ${
+              showHomeTz ? 'rotate-12 scale-110' : 'rotate-0 scale-100'
+            }`}
+          />
+          <span className="text-xs font-medium text-slate-700 dark:text-slate-300">
+            {t('transport.showHomeTz')}
+          </span>
+          <span
+            className={`relative inline-flex h-[18px] w-[32px] shrink-0 items-center rounded-full p-[2px] transition-colors duration-300 ease-in-out ${
+              showHomeTz ? 'bg-gold' : 'bg-slate-300 dark:bg-slate-700'
+            }`}
+          >
+            <span
+              className={`inline-block h-[14px] w-[14px] rounded-full bg-white shadow-sm transition-transform duration-300 ease-out ${
+                showHomeTz ? 'translate-x-[14px]' : 'translate-x-0'
+              }`}
+            />
+          </span>
+        </button>
+
         <Button onClick={() => setForm({ open: true, editing: null })}>
           <Plus className="w-5 h-5" />
           {t('transport.add')}
@@ -138,14 +215,19 @@ export const TransportSection: React.FC<TransportSectionProps> = ({
           <p className="empty-state-message">{t('transport.emptySub')}</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {items.map((transport) => (
             <TransportCard
               key={transport.id}
               transport={transport}
               airports={airports}
               airlines={airlines}
+              stations={stations}
+              trainOperators={trainOperators}
+              ferryPorts={ferryPorts}
+              ferryOperators={ferryOperators}
               homeTz={homeTz}
+              showHomeTz={showHomeTz}
               onEdit={() => setForm({ open: true, editing: transport })}
               onDelete={() => handleDelete(transport.id)}
             />
@@ -198,8 +280,40 @@ export const TransportForm: React.FC<TransportFormProps> = ({
   const [hasBackpack, setHasBackpack] = useState(initial?.has_backpack ?? false);
   const [hasCarryOn, setHasCarryOn] = useState(initial?.has_carry_on ?? false);
   const [hasCheckedBaggage, setHasCheckedBaggage] = useState(initial?.has_checked_baggage ?? false);
+  const [hasSeat, setHasSeat] = useState(initial?.has_seat ?? false);
+  const [hasCabin, setHasCabin] = useState(initial?.has_cabin ?? false);
+  const [hasCarOnFerry, setHasCarOnFerry] = useState(initial?.has_car_on_ferry ?? false);
+  const [hasDeckPassage, setHasDeckPassage] = useState(initial?.has_deck_passage ?? false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  const handleToggleTrainOption = (key: 'has_seat' | 'has_cabin') => {
+    if (key === 'has_seat') {
+      setHasSeat((prev) => !prev);
+      setHasCabin(false);
+    } else {
+      setHasCabin((prev) => !prev);
+      setHasSeat(false);
+    }
+  };
+
+  const handleToggleFerryOption = (key: 'has_car_on_ferry' | 'has_deck_passage' | 'has_seat' | 'has_cabin') => {
+    if (key === 'has_car_on_ferry') {
+      setHasCarOnFerry((prev) => !prev);
+    } else if (key === 'has_deck_passage') {
+      setHasDeckPassage((prev) => !prev);
+      setHasSeat(false);
+      setHasCabin(false);
+    } else if (key === 'has_seat') {
+      setHasSeat((prev) => !prev);
+      setHasDeckPassage(false);
+      setHasCabin(false);
+    } else if (key === 'has_cabin') {
+      setHasCabin((prev) => !prev);
+      setHasDeckPassage(false);
+      setHasSeat(false);
+    }
+  };
 
   const baggageState: Record<BaggageOption['key'], boolean> = {
     has_backpack: hasBackpack,
@@ -213,12 +327,34 @@ export const TransportForm: React.FC<TransportFormProps> = ({
   };
 
   const isFlight = type === 'flight';
+  const isTrain = type === 'train';
+  const isFerry = type === 'ferry';
   const placeholders = isFlight
     ? FLIGHT_PLACEHOLDERS
+    : isTrain
+    ? TRAIN_PLACEHOLDERS
     : ({ departure: '', arrival: '', number: '' } as Record<'departure' | 'arrival' | 'number', string>);
-  const departureLabel = isFlight ? t('transport.departureAirport') : t('transport.departureStation');
-  const arrivalLabel = isFlight ? t('transport.arrivalAirport') : t('transport.arrivalStation');
-  const companyLabel = isFlight ? t('transport.airline') : t('transport.operator');
+  const departureLabel = isFlight
+    ? t('transport.departureAirport')
+    : isTrain
+    ? t('transport.departureStation')
+    : isFerry
+    ? t('transport.departurePort')
+    : t('transport.departureStation');
+  const arrivalLabel = isFlight
+    ? t('transport.arrivalAirport')
+    : isTrain
+    ? t('transport.arrivalStation')
+    : isFerry
+    ? t('transport.arrivalPort')
+    : t('transport.arrivalStation');
+  const companyLabel = isFlight
+    ? t('transport.airline')
+    : isTrain
+    ? t('transport.trainOperator')
+    : isFerry
+    ? t('transport.ferryOperator')
+    : t('transport.operator');
   const numberLabel = isFlight ? t('transport.flightNumber') : t('transport.vehicleNumber');
 
   const canSubmit = departure.trim().length > 0 && arrival.trim().length > 0;
@@ -252,9 +388,13 @@ export const TransportForm: React.FC<TransportFormProps> = ({
         flight_number: flightNumber || null,
         booking_ref: bookingRef || null,
         notes: notes || null,
-        has_backpack: hasBackpack,
-        has_carry_on: hasCarryOn,
-        has_checked_baggage: hasCheckedBaggage,
+        has_backpack: isFlight ? hasBackpack : false,
+        has_carry_on: isFlight ? hasCarryOn : false,
+        has_checked_baggage: isFlight ? hasCheckedBaggage : false,
+        has_seat: isTrain || isFerry ? hasSeat : false,
+        has_cabin: isTrain || isFerry ? hasCabin : false,
+        has_car_on_ferry: isFerry ? hasCarOnFerry : false,
+        has_deck_passage: isFerry ? hasDeckPassage : false,
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : t('common.error'));
@@ -308,6 +448,52 @@ export const TransportForm: React.FC<TransportFormProps> = ({
             <div>
               <label className="label">{`${arrivalLabel} *`}</label>
               <AirportPicker
+                value={arrival}
+                onChange={setArrival}
+                tripDestinations={tripDestinations}
+                placeholder={placeholders.arrival}
+                ariaLabel={arrivalLabel}
+              />
+            </div>
+          </>
+        ) : isTrain ? (
+          <>
+            <div>
+              <label className="label">{`${departureLabel} *`}</label>
+              <StationPicker
+                value={departure}
+                onChange={setDeparture}
+                tripDestinations={tripDestinations}
+                placeholder={placeholders.departure}
+                ariaLabel={departureLabel}
+              />
+            </div>
+            <div>
+              <label className="label">{`${arrivalLabel} *`}</label>
+              <StationPicker
+                value={arrival}
+                onChange={setArrival}
+                tripDestinations={tripDestinations}
+                placeholder={placeholders.arrival}
+                ariaLabel={arrivalLabel}
+              />
+            </div>
+          </>
+        ) : isFerry ? (
+          <>
+            <div>
+              <label className="label">{`${departureLabel} *`}</label>
+              <PortPicker
+                value={departure}
+                onChange={setDeparture}
+                tripDestinations={tripDestinations}
+                placeholder={placeholders.departure}
+                ariaLabel={departureLabel}
+              />
+            </div>
+            <div>
+              <label className="label">{`${arrivalLabel} *`}</label>
+              <PortPicker
                 value={arrival}
                 onChange={setArrival}
                 tripDestinations={tripDestinations}
@@ -384,6 +570,24 @@ export const TransportForm: React.FC<TransportFormProps> = ({
               ariaLabel={companyLabel}
             />
           </div>
+        ) : isTrain ? (
+          <div>
+            <label className="label">{companyLabel}</label>
+            <TrainOperatorPicker
+              value={airline}
+              onChange={setAirline}
+              ariaLabel={companyLabel}
+            />
+          </div>
+        ) : isFerry ? (
+          <div>
+            <label className="label">{companyLabel}</label>
+            <FerryOperatorPicker
+              value={airline}
+              onChange={setAirline}
+              ariaLabel={companyLabel}
+            />
+          </div>
         ) : (
           <Input
             label={companyLabel}
@@ -399,7 +603,7 @@ export const TransportForm: React.FC<TransportFormProps> = ({
         />
       </div>
 
-      {type !== 'car' && (
+      {isFlight && (
         <div>
           <label className="label">{t('transport.baggageLabel')}</label>
           <div className="flex flex-wrap gap-2">
@@ -410,6 +614,67 @@ export const TransportForm: React.FC<TransportFormProps> = ({
                   key={key}
                   type="button"
                   onClick={() => baggageSetters[key](!active)}
+                  aria-pressed={active}
+                  className={`inline-flex items-center gap-2 px-3 py-2 rounded-xl border text-sm font-semibold transition-all ${
+                    active
+                      ? 'border-gold bg-gold/15 text-gold-dark dark:text-gold-light'
+                      : 'border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:border-gold hover:text-gold'
+                  }`}
+                >
+                  <Icon className="w-5 h-5" />
+                  {t(labelKey)}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {isTrain && (
+        <div>
+          <label className="label">{t('transport.trainOptionsLabel')}</label>
+          <div className="flex flex-wrap gap-2">
+            {TRAIN_OPTIONS.map(({ key, icon: Icon, labelKey }) => {
+              const active = key === 'has_seat' ? hasSeat : hasCabin;
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => handleToggleTrainOption(key)}
+                  aria-pressed={active}
+                  className={`inline-flex items-center gap-2 px-3 py-2 rounded-xl border text-sm font-semibold transition-all ${
+                    active
+                      ? 'border-gold bg-gold/15 text-gold-dark dark:text-gold-light'
+                      : 'border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:border-gold hover:text-gold'
+                  }`}
+                >
+                  <Icon className="w-5 h-5" />
+                  {t(labelKey)}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {isFerry && (
+        <div>
+          <label className="label">{t('transport.ferryOptionsLabel')}</label>
+          <div className="flex flex-wrap gap-2">
+            {FERRY_OPTIONS.map(({ key, icon: Icon, labelKey }) => {
+              const active =
+                key === 'has_car_on_ferry'
+                  ? hasCarOnFerry
+                  : key === 'has_deck_passage'
+                  ? hasDeckPassage
+                  : key === 'has_seat'
+                  ? hasSeat
+                  : hasCabin;
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => handleToggleFerryOption(key)}
                   aria-pressed={active}
                   className={`inline-flex items-center gap-2 px-3 py-2 rounded-xl border text-sm font-semibold transition-all ${
                     active

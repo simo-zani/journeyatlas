@@ -4,9 +4,15 @@ import { Pencil } from 'lucide-react';
 import { Card } from '@/components/Card';
 import { DeleteButton } from '@/components/trip/DeleteButton';
 import { AirlineLogo } from '@/components/trip/AirlinePicker';
+import { TrainOperatorLogo } from '@/components/trip/TrainOperatorPicker';
+import { FerryOperatorLogo } from '@/components/trip/FerryOperatorPicker';
 import { airportByIata, type Airport } from '@/lib/airports';
 import { airlineByName, type Airline } from '@/lib/airlines';
-import { airlineGradient, TRANSPORT_TYPE_GRADIENTS } from '@/lib/airlineColors';
+import { stationByNameOrCode, type TrainStation } from '@/lib/trainStations';
+import { trainOperatorByName, type TrainOperator } from '@/lib/trainOperators';
+import { portByNameOrCode, type FerryPort } from '@/lib/ferryPorts';
+import { ferryOperatorByName, type FerryOperator } from '@/lib/ferryOperators';
+import { airlineGradient, trainOperatorGradient, TRANSPORT_TYPE_GRADIENTS } from '@/lib/airlineColors';
 import {
   wallClockFromIso,
   convertWallClock,
@@ -14,7 +20,7 @@ import {
   wallClockDiffMinutes,
   type WallClock,
 } from '@/lib/flightTime';
-import { TRANSPORT_ICONS, BAGGAGE_OPTIONS } from '@/lib/transportMeta';
+import { TRANSPORT_ICONS, BAGGAGE_OPTIONS, TRAIN_OPTIONS, FERRY_OPTIONS } from '@/lib/transportMeta';
 import { MODAL_ICON_SIZE } from '@/lib/ui';
 import type { TransportRow } from '@/lib/types';
 
@@ -24,9 +30,15 @@ interface TransportCardProps {
    *  e fuso orario, non bloccata dietro uno spinner. */
   airports: Airport[] | null;
   airlines: Airline[] | null;
+  stations?: TrainStation[] | null;
+  trainOperators?: TrainOperator[] | null;
+  ferryPorts?: FerryPort[] | null;
+  ferryOperators?: FerryOperator[] | null;
   /** Fuso di riferimento del viaggiatore: quello dell'aeroporto più vicino a
    *  casa sua (vedi TransportSection), non un valore fisso sull'Italia. */
   homeTz: string;
+  /** Mostra o nasconde la conversione con il fuso orario di riferimento */
+  showHomeTz?: boolean;
   onEdit: () => void;
   onDelete: () => Promise<void>;
 }
@@ -95,32 +107,49 @@ export const TransportCard: React.FC<TransportCardProps> = ({
   transport,
   airports,
   airlines,
+  stations,
+  trainOperators,
+  ferryPorts,
+  ferryOperators,
   homeTz,
+  showHomeTz = false,
   onEdit,
   onDelete,
 }) => {
   const { t } = useTranslation();
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const isFlight = transport.transport_type === 'flight';
+  const isTrain = transport.transport_type === 'train';
+  const isFerry = transport.transport_type === 'ferry';
   const TypeIcon = TRANSPORT_ICONS[transport.transport_type] ?? TRANSPORT_ICONS.other;
 
   const depAirport = isFlight && airports ? airportByIata(airports, transport.departure_airport) : null;
   const arrAirport = isFlight && airports ? airportByIata(airports, transport.arrival_airport) : null;
   const airline = transport.airline && airlines ? airlineByName(airlines, transport.airline) : null;
 
+  const depStation = isTrain && stations ? stationByNameOrCode(stations, transport.departure_airport) : null;
+  const arrStation = isTrain && stations ? stationByNameOrCode(stations, transport.arrival_airport) : null;
+  const trainOp = isTrain && trainOperators ? trainOperatorByName(trainOperators, transport.airline) : null;
+
+  const depPort = isFerry && ferryPorts ? portByNameOrCode(ferryPorts, transport.departure_airport) : null;
+  const arrPort = isFerry && ferryPorts ? portByNameOrCode(ferryPorts, transport.arrival_airport) : null;
+  const ferryOp = isFerry && ferryOperators ? ferryOperatorByName(ferryOperators, transport.airline) : null;
+
   const gradient = isFlight
     ? airlineGradient(airline?.iata, transport.airline)
+    : isTrain
+    ? trainOperatorGradient(trainOp, transport.airline)
+    : isFerry
+    ? (ferryOp?.gradient ?? TRANSPORT_TYPE_GRADIENTS.ferry)
     : TRANSPORT_TYPE_GRADIENTS[transport.transport_type] ?? TRANSPORT_TYPE_GRADIENTS.other;
 
   const depWall = transport.departure_datetime ? wallClockFromIso(transport.departure_datetime) : null;
   const arrWall = transport.arrival_datetime ? wallClockFromIso(transport.arrival_datetime) : null;
 
-  // Solo un volo con entrambi gli aeroporti riconosciuti ha un fuso certo:
-  // per gli altri mezzi (o un aeroporto scritto a mano) si mostrano solo gli
-  // orari a muro, senza inventare una conversione.
-  const tzAware = Boolean(isFlight && depAirport?.tz && arrAirport?.tz && depWall && arrWall);
-  const depTz = depAirport?.tz;
-  const arrTz = arrAirport?.tz;
+  // Se entrambi i punti hanno un fuso certo calcoliamo la durata esatta e l'offset
+  const depTz = isFlight ? depAirport?.tz : isTrain ? depStation?.tz : isFerry ? depPort?.tz : undefined;
+  const arrTz = isFlight ? arrAirport?.tz : isTrain ? arrStation?.tz : isFerry ? arrPort?.tz : undefined;
+  const tzAware = Boolean(depTz && arrTz && depWall && arrWall);
 
   const durationMin =
     depWall && arrWall
@@ -135,39 +164,32 @@ export const TransportCard: React.FC<TransportCardProps> = ({
 
   const depDiffMin = tzAware ? tzDiffMinutes(depWall!, homeTz, depTz!) : 0;
   const arrDiffMin = tzAware ? tzDiffMinutes(arrWall!, homeTz, arrTz!) : 0;
-  // Solo se il fuso trovato differisce davvero da casa: due aeroporti in
-  // fusi IANA diversi ma con lo stesso offset (es. Madrid e Roma) non devono
-  // mostrare un orario di casa ridondante uguale a quello locale.
   const depHome = tzAware && depDiffMin !== 0 ? convertWallClock(depWall!, depTz!, homeTz) : null;
   const arrHome = tzAware && arrDiffMin !== 0 ? convertWallClock(arrWall!, arrTz!, homeTz) : null;
 
-  const hasBaggage = transport.has_backpack || transport.has_carry_on || transport.has_checked_baggage;
+  const hasBaggage = isFlight && (transport.has_backpack || transport.has_carry_on || transport.has_checked_baggage);
+  const hasTrainOptions = isTrain && (transport.has_seat || transport.has_cabin);
+  const hasFerryOptions =
+    isFerry &&
+    (transport.has_car_on_ferry || transport.has_deck_passage || transport.has_seat || transport.has_cabin);
 
-  // Il nome è di riserva: si vede solo quando la compagnia non è nel
-  // catalogo (niente logo) o per i mezzi senza compagnia.
   const stripeLabel = isFlight
+    ? transport.airline || t(`transport.type.${transport.transport_type}`)
+    : isTrain
+    ? transport.airline || t(`transport.type.${transport.transport_type}`)
+    : isFerry
     ? transport.airline || t(`transport.type.${transport.transport_type}`)
     : t(`transport.type.${transport.transport_type}`);
 
   return (
-    // La maschera fora davvero la card intera (sfondo, bordo, angoli,
-    // contenuto), non un cerchio dipinto sopra: bordo e angoli restano
-    // intatti ovunque tranne ai due fori, che mostrano la pagina dietro
-    // invece dello sfondo neutro della card.
     <Card noPadding style={NOTCH_MASK}>
       <div className="relative flex h-full">
-        {/* Striscia sinistra, stile carta d'imbarco: logo (o nome, se la
-            compagnia non è nel catalogo) ruotato in verticale verso
-            l'interno della card, bordo tratteggiato verso il corpo. */}
+        {/* Striscia sinistra, stile carta d'imbarco / biglietto */}
         <div
           className="relative w-[64px] shrink-0 flex items-center justify-center py-[14px] px-1"
           style={{ background: `linear-gradient(160deg, ${gradient[0]}, ${gradient[1]})` }}
         >
           {isFlight && airline?.logo ? (
-            // Niente più pillola bianca dietro: il logo galleggia sul
-            // gradiente, con un alone bianco (drop-shadow ripetuto in
-            // 4 direzioni, l'unico modo via CSS di "bordare" un PNG/SVG
-            // già renderizzato) a fargli da contorno per restare leggibile.
             <AirlineLogo
               airline={airline}
               className="h-[20px] w-auto max-w-[130px]"
@@ -177,6 +199,40 @@ export const TransportCard: React.FC<TransportCardProps> = ({
                   'drop-shadow(1px 0 0 white) drop-shadow(-1px 0 0 white) drop-shadow(0 1px 0 white) drop-shadow(0 -1px 0 white)',
               }}
             />
+          ) : isTrain && trainOp ? (
+            <div
+              className="flex items-center gap-1.5 whitespace-nowrap"
+              style={{ transform: 'rotate(-90deg)' }}
+            >
+              <TrainOperatorLogo
+                operator={trainOp}
+                className="w-5 h-5 shrink-0"
+                style={{
+                  filter:
+                    'drop-shadow(1px 0 0 white) drop-shadow(-1px 0 0 white) drop-shadow(0 1px 0 white) drop-shadow(0 -1px 0 white)',
+                }}
+              />
+              <span className="text-xs font-bold text-white leading-tight tracking-wide max-w-[90px] truncate">
+                {trainOp.name}
+              </span>
+            </div>
+          ) : isFerry && ferryOp ? (
+            <div
+              className="flex items-center gap-1.5 whitespace-nowrap"
+              style={{ transform: 'rotate(-90deg)' }}
+            >
+              <FerryOperatorLogo
+                operator={ferryOp}
+                className="w-5 h-5 shrink-0"
+                style={{
+                  filter:
+                    'drop-shadow(1px 0 0 white) drop-shadow(-1px 0 0 white) drop-shadow(0 1px 0 white) drop-shadow(0 -1px 0 white)',
+                }}
+              />
+              <span className="text-xs font-bold text-white leading-tight tracking-wide max-w-[90px] truncate">
+                {ferryOp.name}
+              </span>
+            </div>
           ) : (
             <span
               className="text-sm font-bold uppercase tracking-wide text-white whitespace-nowrap"
@@ -187,11 +243,6 @@ export const TransportCard: React.FC<TransportCardProps> = ({
             </span>
           )}
 
-          {/* Sfumatura: il colore della striscia prosegue oltre il
-              tratteggio e si spegne a trasparente, invece di interrompersi
-              di netto sul corpo della card. Leggera (parte già attenuata) e
-              su una distanza più lunga, con uno stop intermedio, così lo
-              spegnimento è graduale invece che un taglio netto in fondo. */}
           <div
             className="absolute top-0 bottom-0 left-[64px] w-[96px] pointer-events-none"
             style={{
@@ -202,22 +253,36 @@ export const TransportCard: React.FC<TransportCardProps> = ({
           <div className="absolute right-0 top-0 bottom-0 border-r-2 border-dashed border-white/35" />
         </div>
 
-        {/* Corpo — position:relative lo mette sopra la sfumatura della
-            striscia (entrambe positioned, ordine DOM decide lo stacking):
-            senza, la sfumatura (positioned) coprirebbe questo testo statico
-            anche se dipinta prima. */}
+        {/* Corpo */}
         <div className="relative flex-1 min-w-0 p-[16px] flex flex-col">
           <div className="flex items-start justify-between gap-1">
             <div className="min-w-0 flex-1">
-              <p className="font-poppins font-bold text-xl leading-tight">{transport.departure_airport}</p>
+              {/* Titolo principale: città per treno/traghetto, codice per aereo, nome grezzo altrimenti */}
+              <p
+                className="font-poppins font-bold text-lg sm:text-xl leading-tight truncate"
+                title={depStation?.city ?? depPort?.city ?? transport.departure_airport}
+              >
+                {depStation?.city ?? depPort?.city ?? transport.departure_airport}
+              </p>
               {transport.departure_terminal && (
                 <p className="text-sm font-bold text-gold-dark dark:text-gold leading-tight">
                   {transport.departure_terminal}
                 </p>
               )}
+              {/* Sottotitolo: nome aeroporto / nome stazione / nome porto */}
               {depAirport && (
                 <p className="text-[11px] text-slate-400 dark:text-slate-500 truncate" title={depAirport.name}>
                   {depAirport.name}
+                </p>
+              )}
+              {depStation && depStation.name.toLowerCase() !== depStation.city.toLowerCase() && (
+                <p className="text-[11px] text-slate-400 dark:text-slate-500 truncate" title={depStation.name}>
+                  {depStation.name}
+                </p>
+              )}
+              {depPort && depPort.name.toLowerCase() !== depPort.city.toLowerCase() && (
+                <p className="text-[11px] text-slate-400 dark:text-slate-500 truncate" title={depPort.name}>
+                  {depPort.name}
                 </p>
               )}
             </div>
@@ -250,15 +315,32 @@ export const TransportCard: React.FC<TransportCardProps> = ({
             </div>
 
             <div className="min-w-0 flex-1 text-right">
-              <p className="font-poppins font-bold text-xl leading-tight">{transport.arrival_airport}</p>
+              {/* Titolo principale: città per treno/traghetto, codice per aereo, nome grezzo altrimenti */}
+              <p
+                className="font-poppins font-bold text-lg sm:text-xl leading-tight truncate"
+                title={arrStation?.city ?? arrPort?.city ?? transport.arrival_airport}
+              >
+                {arrStation?.city ?? arrPort?.city ?? transport.arrival_airport}
+              </p>
               {transport.arrival_terminal && (
                 <p className="text-sm font-bold text-gold-dark dark:text-gold leading-tight">
                   {transport.arrival_terminal}
                 </p>
               )}
+              {/* Sottotitolo: nome aeroporto / nome stazione / nome porto */}
               {arrAirport && (
                 <p className="text-[11px] text-slate-400 dark:text-slate-500 truncate" title={arrAirport.name}>
                   {arrAirport.name}
+                </p>
+              )}
+              {arrStation && arrStation.name.toLowerCase() !== arrStation.city.toLowerCase() && (
+                <p className="text-[11px] text-slate-400 dark:text-slate-500 truncate" title={arrStation.name}>
+                  {arrStation.name}
+                </p>
+              )}
+              {arrPort && arrPort.name.toLowerCase() !== arrPort.city.toLowerCase() && (
+                <p className="text-[11px] text-slate-400 dark:text-slate-500 truncate" title={arrPort.name}>
+                  {arrPort.name}
                 </p>
               )}
             </div>
@@ -269,10 +351,19 @@ export const TransportCard: React.FC<TransportCardProps> = ({
               {depWall && (
                 <div className="flex-1 min-w-0 bg-slate-100 dark:bg-white/5 rounded-xl px-2 py-2 text-center">
                   <p className="text-xs text-slate-400 mb-0.5">{t('transport.departureAt')}</p>
-                  <p className="font-semibold flex items-center justify-center gap-1 flex-wrap">
-                    {formatHM(depWall)}
+                  <p className="font-semibold flex items-center justify-center flex-wrap">
+                    <span>{formatHM(depWall)}</span>
                     {tzAware && depDiffMin !== 0 && depHome && (
-                      <HomeOffset diffMin={depDiffMin} home={depHome} wall={depWall} />
+                      <span
+                        aria-hidden={!showHomeTz}
+                        className={`inline-flex items-center overflow-hidden transition-all duration-300 ease-out ${
+                          showHomeTz
+                            ? 'max-w-[150px] opacity-100 translate-x-0 scale-100 ml-1.5'
+                            : 'max-w-0 opacity-0 -translate-x-2 scale-95 ml-0 pointer-events-none'
+                        }`}
+                      >
+                        <HomeOffset diffMin={depDiffMin} home={depHome} wall={depWall} />
+                      </span>
                     )}
                   </p>
                   <p className="text-xs text-slate-400">{formatDayMonth(depWall)}</p>
@@ -281,10 +372,19 @@ export const TransportCard: React.FC<TransportCardProps> = ({
               {arrWall && (
                 <div className="flex-1 min-w-0 bg-slate-100 dark:bg-white/5 rounded-xl px-2 py-2 text-center">
                   <p className="text-xs text-slate-400 mb-0.5">{t('transport.arrivalAt')}</p>
-                  <p className="font-semibold flex items-center justify-center gap-1 flex-wrap">
-                    {formatHM(arrWall)}
+                  <p className="font-semibold flex items-center justify-center flex-wrap">
+                    <span>{formatHM(arrWall)}</span>
                     {tzAware && arrDiffMin !== 0 && arrHome && (
-                      <HomeOffset diffMin={arrDiffMin} home={arrHome} wall={arrWall} />
+                      <span
+                        aria-hidden={!showHomeTz}
+                        className={`inline-flex items-center overflow-hidden transition-all duration-300 ease-out ${
+                          showHomeTz
+                            ? 'max-w-[150px] opacity-100 translate-x-0 scale-100 ml-1.5'
+                            : 'max-w-0 opacity-0 -translate-x-2 scale-95 ml-0 pointer-events-none'
+                        }`}
+                      >
+                        <HomeOffset diffMin={arrDiffMin} home={arrHome} wall={arrWall} />
+                      </span>
                     )}
                   </p>
                   <p className="text-xs text-slate-400">{formatDayMonth(arrWall)}</p>
@@ -304,8 +404,37 @@ export const TransportCard: React.FC<TransportCardProps> = ({
             </div>
           )}
 
+          {hasTrainOptions && (
+            <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 mt-2.5 text-xs font-medium text-gold-dark dark:text-gold">
+              {TRAIN_OPTIONS.filter((o) => transport[o.key]).map(({ key, icon: Icon, labelKey }) => (
+                <span key={key} className="inline-flex items-center gap-1">
+                  <Icon className="w-[14px] h-[14px]" />
+                  {t(labelKey)}
+                </span>
+              ))}
+            </div>
+          )}
+
+          {hasFerryOptions && (
+            <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 mt-2.5 text-xs font-medium text-gold-dark dark:text-gold">
+              {FERRY_OPTIONS.filter((o) => transport[o.key]).map(({ key, icon: Icon, labelKey }) => (
+                <span key={key} className="inline-flex items-center gap-1">
+                  <Icon className="w-[14px] h-[14px]" />
+                  {t(labelKey)}
+                </span>
+              ))}
+            </div>
+          )}
+
           <div className="mt-auto pt-3 flex items-center justify-between gap-1">
-            <TypeIcon className={`${MODAL_ICON_SIZE} text-slate-400 shrink-0`} />
+            <div className="flex items-center gap-1.5 min-w-0">
+              <TypeIcon className={`${MODAL_ICON_SIZE} text-slate-400 shrink-0`} />
+              {transport.flight_number && (
+                <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 truncate">
+                  {transport.flight_number}
+                </span>
+              )}
+            </div>
             <div className="flex items-center gap-1">
               {!confirmingDelete && (
                 <button

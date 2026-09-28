@@ -432,6 +432,10 @@ export interface TransportInput {
   has_backpack?: boolean | null;
   has_carry_on?: boolean | null;
   has_checked_baggage?: boolean | null;
+  has_seat?: boolean | null;
+  has_cabin?: boolean | null;
+  has_car_on_ferry?: boolean | null;
+  has_deck_passage?: boolean | null;
 }
 
 export const fetchTransports = async (tripId: string): Promise<TransportRow[]> => {
@@ -466,6 +470,10 @@ export const createTransport = async (
       has_backpack: input.has_backpack ?? null,
       has_carry_on: input.has_carry_on ?? null,
       has_checked_baggage: input.has_checked_baggage ?? null,
+      has_seat: input.has_seat ?? null,
+      has_cabin: input.has_cabin ?? null,
+      has_car_on_ferry: input.has_car_on_ferry ?? null,
+      has_deck_passage: input.has_deck_passage ?? null,
     })
     .select()
     .single();
@@ -495,6 +503,10 @@ export const updateTransport = async (
   if (input.has_backpack !== undefined) patch.has_backpack = input.has_backpack;
   if (input.has_carry_on !== undefined) patch.has_carry_on = input.has_carry_on;
   if (input.has_checked_baggage !== undefined) patch.has_checked_baggage = input.has_checked_baggage;
+  if (input.has_seat !== undefined) patch.has_seat = input.has_seat;
+  if (input.has_cabin !== undefined) patch.has_cabin = input.has_cabin;
+  if (input.has_car_on_ferry !== undefined) patch.has_car_on_ferry = input.has_car_on_ferry;
+  if (input.has_deck_passage !== undefined) patch.has_deck_passage = input.has_deck_passage;
 
   const { data, error } = await supabase.from('flights').update(patch).eq('id', id).select().single();
   if (error) throw error;

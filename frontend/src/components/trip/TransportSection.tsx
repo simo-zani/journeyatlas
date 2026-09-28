@@ -1,27 +1,13 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import {
-  Bus,
-  Car,
-  Loader2,
-  MoreHorizontal,
-  Pencil,
-  Plane,
-  Plus,
-  Route,
-  Ship,
-  TrainFront,
-  type LucideIcon,
-} from 'lucide-react';
-import { Card } from '@/components/Card';
-import { Badge } from '@/components/Badge';
+import { Loader2, Plus, Route } from 'lucide-react';
 import { Input } from '@/components/Input';
 import { Button } from '@/components/Button';
 import { Alert } from '@/components/Alert';
 import { Modal } from '@/components/Modal';
-import { DeleteButton } from '@/components/trip/DeleteButton';
 import { AirportPicker } from '@/components/trip/AirportPicker';
 import { AirlinePicker } from '@/components/trip/AirlinePicker';
+import { TransportCard } from '@/components/trip/TransportCard';
 import {
   createTransport,
   deleteTransport,
@@ -29,13 +15,15 @@ import {
   updateTransport,
   type TransportInput,
 } from '@/lib/api';
+import { loadAirports, nearestAirportTz, type Airport } from '@/lib/airports';
+import { loadAirlines, type Airline } from '@/lib/airlines';
+import { useHomeCity } from '@/lib/useHomeCity';
+import { DEFAULT_HOME_TZ } from '@/lib/flightTime';
+import { TRANSPORT_TYPES, TRANSPORT_ICONS, BAGGAGE_OPTIONS, type BaggageOption } from '@/lib/transportMeta';
 import type { Destination, TransportRow, TransportType } from '@/lib/types';
 
 interface TransportSectionProps {
   tripId: string;
-  /** Finestra del viaggio: i datetime-local dei mezzi non possono uscirne. */
-  tripStart: string | null;
-  tripEnd: string | null;
   /** Mete del viaggio: alimentano gli aeroporti consigliati nel form volo. */
   tripDestinations: Destination[];
 }
@@ -44,17 +32,6 @@ interface FormState {
   open: boolean;
   editing: TransportRow | null;
 }
-
-const TRANSPORT_TYPES: TransportType[] = ['flight', 'train', 'bus', 'ferry', 'car', 'other'];
-
-const TRANSPORT_ICONS: Record<TransportType, LucideIcon> = {
-  flight: Plane,
-  train: TrainFront,
-  bus: Bus,
-  ferry: Ship,
-  car: Car,
-  other: MoreHorizontal,
-};
 
 const FLIGHT_PLACEHOLDERS: Record<'departure' | 'arrival' | 'number', string> = {
   departure: 'FCO',
@@ -70,13 +47,8 @@ const toLocalInput = (iso: string | null): string => {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 };
 
-const formatDateTime = (iso: string | null): string =>
-  iso ? new Date(iso).toLocaleString() : '';
-
 export const TransportSection: React.FC<TransportSectionProps> = ({
   tripId,
-  tripStart,
-  tripEnd,
   tripDestinations,
 }) => {
   const { t } = useTranslation();
@@ -84,6 +56,19 @@ export const TransportSection: React.FC<TransportSectionProps> = ({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>({ open: false, editing: null });
+  // Servono alla card (logo, città, fuso orario), non solo al form: si
+  // caricano una volta qui e si passano giù, invece di un fetch per card.
+  const [airports, setAirports] = useState<Airport[] | null>(null);
+  const [airlines, setAirlines] = useState<Airline[] | null>(null);
+  const homeCity = useHomeCity();
+
+  // Il fuso di riferimento del viaggiatore: quello dell'aeroporto più vicino
+  // a casa sua, non un valore fisso sull'Italia — la città di casa non ha un
+  // fuso proprio nei dati, ma l'aeroporto più vicino sì (vedi nearestAirportTz).
+  const homeTz = useMemo(
+    () => (airports && homeCity?.coords ? nearestAirportTz(airports, homeCity.coords) : null) ?? DEFAULT_HOME_TZ,
+    [airports, homeCity]
+  );
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -100,6 +85,19 @@ export const TransportSection: React.FC<TransportSectionProps> = ({
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    let active = true;
+    void loadAirports().then((all) => {
+      if (active) setAirports(all);
+    });
+    void loadAirlines().then((all) => {
+      if (active) setAirlines(all);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const handleSubmit = async (input: TransportInput) => {
     if (form.editing) {
@@ -118,7 +116,7 @@ export const TransportSection: React.FC<TransportSectionProps> = ({
 
   return (
     <div>
-      <div className="flex justify-end mb-4">
+      <div className="flex justify-end mb-6">
         <Button onClick={() => setForm({ open: true, editing: null })}>
           <Plus className="w-5 h-5" />
           {t('transport.add')}
@@ -140,61 +138,18 @@ export const TransportSection: React.FC<TransportSectionProps> = ({
           <p className="empty-state-message">{t('transport.emptySub')}</p>
         </div>
       ) : (
-        <div className="space-y-4">
-          {items.map((transport) => {
-            const TypeIcon = TRANSPORT_ICONS[transport.transport_type] ?? MoreHorizontal;
-            return (
-              <Card key={transport.id} compact>
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <TypeIcon className="w-5 h-5 text-deep-blue dark:text-gold shrink-0" />
-                      <span className="font-poppins font-bold text-lg">{transport.departure_airport}</span>
-                      <span className="text-slate-400">→</span>
-                      <span className="font-poppins font-bold text-lg">{transport.arrival_airport}</span>
-                    </div>
-
-                    {formatDateTime(transport.departure_datetime) && (
-                      <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
-                        {t('transport.departureAt')}: {formatDateTime(transport.departure_datetime)}
-                      </p>
-                    )}
-                    {formatDateTime(transport.arrival_datetime) && (
-                      <p className="text-sm text-slate-600 dark:text-slate-400">
-                        {t('transport.arrivalAt')}: {formatDateTime(transport.arrival_datetime)}
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="flex items-center gap-2 shrink-0">
-                    <Badge variant="info">
-                      {t(`transport.type.${transport.transport_type}`)}
-                    </Badge>
-                    {(transport.airline || transport.flight_number) && (
-                      <Badge variant="info">
-                        {[transport.airline, transport.flight_number].filter(Boolean).join(' · ')}
-                      </Badge>
-                    )}
-                    <button
-                      onClick={() => setForm({ open: true, editing: transport })}
-                      className="p-2.5 rounded-xl text-slate-400 hover:text-light-blue hover:bg-light-blue/10 transition-colors"
-                      aria-label={t('common.edit')}
-                      title={t('common.edit')}
-                    >
-                      <Pencil className="w-5 h-5" />
-                    </button>
-                    <DeleteButton onDelete={() => handleDelete(transport.id)} />
-                  </div>
-                </div>
-
-                {transport.booking_ref && (
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
-                    {t('transport.bookingRef')}: {transport.booking_ref}
-                  </p>
-                )}
-              </Card>
-            );
-          })}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-6">
+          {items.map((transport) => (
+            <TransportCard
+              key={transport.id}
+              transport={transport}
+              airports={airports}
+              airlines={airlines}
+              homeTz={homeTz}
+              onEdit={() => setForm({ open: true, editing: transport })}
+              onDelete={() => handleDelete(transport.id)}
+            />
+          ))}
         </div>
       )}
 
@@ -207,8 +162,6 @@ export const TransportSection: React.FC<TransportSectionProps> = ({
           initial={form.editing}
           onSubmit={handleSubmit}
           onCancel={() => setForm({ open: false, editing: null })}
-          tripStart={tripStart}
-          tripEnd={tripEnd}
           tripDestinations={tripDestinations}
         />
       </Modal>
@@ -220,9 +173,6 @@ interface TransportFormProps {
   initial: TransportRow | null;
   onSubmit: (input: TransportInput) => Promise<void>;
   onCancel: () => void;
-  /** Finestra del viaggio: i datetime-local non possono uscire da qui. */
-  tripStart: string | null;
-  tripEnd: string | null;
   /** Mete del viaggio: alimentano gli aeroporti consigliati. */
   tripDestinations: Destination[];
 }
@@ -231,8 +181,6 @@ export const TransportForm: React.FC<TransportFormProps> = ({
   initial,
   onSubmit,
   onCancel,
-  tripStart,
-  tripEnd,
   tripDestinations,
 }) => {
   const { t } = useTranslation();
@@ -241,12 +189,28 @@ export const TransportForm: React.FC<TransportFormProps> = ({
   const [arrival, setArrival] = useState(initial?.arrival_airport ?? '');
   const [departureAt, setDepartureAt] = useState(toLocalInput(initial?.departure_datetime ?? null));
   const [arrivalAt, setArrivalAt] = useState(toLocalInput(initial?.arrival_datetime ?? null));
+  const [departureTerminal, setDepartureTerminal] = useState(initial?.departure_terminal ?? '');
+  const [arrivalTerminal, setArrivalTerminal] = useState(initial?.arrival_terminal ?? '');
   const [airline, setAirline] = useState(initial?.airline ?? '');
   const [flightNumber, setFlightNumber] = useState(initial?.flight_number ?? '');
   const [bookingRef, setBookingRef] = useState(initial?.booking_ref ?? '');
   const [notes, setNotes] = useState(initial?.notes ?? '');
+  const [hasBackpack, setHasBackpack] = useState(initial?.has_backpack ?? false);
+  const [hasCarryOn, setHasCarryOn] = useState(initial?.has_carry_on ?? false);
+  const [hasCheckedBaggage, setHasCheckedBaggage] = useState(initial?.has_checked_baggage ?? false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  const baggageState: Record<BaggageOption['key'], boolean> = {
+    has_backpack: hasBackpack,
+    has_carry_on: hasCarryOn,
+    has_checked_baggage: hasCheckedBaggage,
+  };
+  const baggageSetters: Record<BaggageOption['key'], (v: boolean) => void> = {
+    has_backpack: setHasBackpack,
+    has_carry_on: setHasCarryOn,
+    has_checked_baggage: setHasCheckedBaggage,
+  };
 
   const isFlight = type === 'flight';
   const placeholders = isFlight
@@ -259,35 +223,15 @@ export const TransportForm: React.FC<TransportFormProps> = ({
 
   const canSubmit = departure.trim().length > 0 && arrival.trim().length > 0;
 
-  // Un datetime-local è "YYYY-MM-DDTHH:mm" locale: il vincolo si legge solo
-  // nella parte data, altrimenti un'ora dopo la mezzanotte del giorno di
-  // partenza sembrerebbe fuori viaggio.
-  const outOfRange = (local: string) => {
-    if (!local) return false;
-    const day = local.slice(0, 10);
-    if (tripStart && day < tripStart) return true;
-    if (tripEnd && day > tripEnd) return true;
-    return false;
-  };
-
-  const dateError =
-    (departureAt && outOfRange(departureAt) ? 'departure' : null) ??
-    (arrivalAt && outOfRange(arrivalAt) ? 'arrival' : null);
-  // Un volo parte e arriva lo stesso giorno, quindi l'ordine tra i due orari
-  // non è un errore: l'errore è solo se si arriva prima di partire.
-  const arrivalBeforeDeparture = !dateError && departureAt && arrivalAt < departureAt;
+  // Un mezzo può benissimo partire o arrivare fuori dalle date "ufficiali"
+  // del viaggio: un volo di rientro notturno atterra spesso il giorno dopo
+  // l'ultimo pernottamento, senza che quella sia una notte in più di viaggio.
+  // Niente vincolo di range qui: solo l'ordine tra i due orari ha senso.
+  const arrivalBeforeDeparture = departureAt && arrivalAt < departureAt;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    if (dateError) {
-      setError(
-        t('trip.dateOutOfRange', {
-          range: [tripStart, tripEnd].filter(Boolean).join(' - '),
-        })
-      );
-      return;
-    }
     if (arrivalBeforeDeparture) {
       setError(t('transport.arrivalBeforeDeparture'));
       return;
@@ -302,10 +246,15 @@ export const TransportForm: React.FC<TransportFormProps> = ({
           ? new Date(departureAt).toISOString()
           : null,
         arrival_datetime: arrivalAt ? new Date(arrivalAt).toISOString() : null,
+        departure_terminal: departureTerminal || null,
+        arrival_terminal: arrivalTerminal || null,
         airline: airline || null,
         flight_number: flightNumber || null,
         booking_ref: bookingRef || null,
         notes: notes || null,
+        has_backpack: hasBackpack,
+        has_carry_on: hasCarryOn,
+        has_checked_baggage: hasCheckedBaggage,
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : t('common.error'));
@@ -314,7 +263,7 @@ export const TransportForm: React.FC<TransportFormProps> = ({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-6">
       {error && <Alert type="error" message={error} onClose={() => setError(null)} />}
 
       <div>
@@ -343,7 +292,7 @@ export const TransportForm: React.FC<TransportFormProps> = ({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-6">
         {isFlight ? (
           <>
             <div>
@@ -387,36 +336,45 @@ export const TransportForm: React.FC<TransportFormProps> = ({
         )}
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      {isFlight && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-6">
+          <Input
+            label={t('transport.departureTerminal')}
+            value={departureTerminal}
+            onChange={(e) => setDepartureTerminal(e.target.value)}
+            placeholder={t('transport.terminalPlaceholder')}
+          />
+          <Input
+            label={t('transport.arrivalTerminal')}
+            value={arrivalTerminal}
+            onChange={(e) => setArrivalTerminal(e.target.value)}
+            placeholder={t('transport.terminalPlaceholder')}
+          />
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-6">
         <Input
           label={t('transport.departureAt')}
           type="datetime-local"
           value={departureAt}
-          min={tripStart ? `${tripStart}T00:00` : undefined}
-          max={tripEnd ? `${tripEnd}T23:59` : undefined}
           onChange={(e) => setDepartureAt(e.target.value)}
         />
         <Input
           label={t('transport.arrivalAt')}
           type="datetime-local"
           value={arrivalAt}
-          min={tripStart ? `${tripStart}T00:00` : undefined}
-          max={tripEnd ? `${tripEnd}T23:59` : undefined}
           onChange={(e) => setArrivalAt(e.target.value)}
         />
       </div>
 
-      {(dateError || arrivalBeforeDeparture) && (
+      {arrivalBeforeDeparture && (
         <p className="text-sm text-error" role="alert">
-          {dateError
-            ? t('trip.dateOutOfRange', {
-                range: [tripStart, tripEnd].filter(Boolean).join(' - '),
-              })
-            : t('transport.arrivalBeforeDeparture')}
+          {t('transport.arrivalBeforeDeparture')}
         </p>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-6">
         {isFlight ? (
           <div>
             <label className="label">{companyLabel}</label>
@@ -440,6 +398,33 @@ export const TransportForm: React.FC<TransportFormProps> = ({
           placeholder={placeholders.number}
         />
       </div>
+
+      {type !== 'car' && (
+        <div>
+          <label className="label">{t('transport.baggageLabel')}</label>
+          <div className="flex flex-wrap gap-2">
+            {BAGGAGE_OPTIONS.map(({ key, icon: Icon, labelKey }) => {
+              const active = baggageState[key];
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => baggageSetters[key](!active)}
+                  aria-pressed={active}
+                  className={`inline-flex items-center gap-2 px-3 py-2 rounded-xl border text-sm font-semibold transition-all ${
+                    active
+                      ? 'border-gold bg-gold/15 text-gold-dark dark:text-gold-light'
+                      : 'border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:border-gold hover:text-gold'
+                  }`}
+                >
+                  <Icon className="w-5 h-5" />
+                  {t(labelKey)}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       <Input
         label={t('transport.bookingRef')}

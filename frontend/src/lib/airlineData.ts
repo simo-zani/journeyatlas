@@ -75,6 +75,7 @@ A9|Georgian Airways|GE|https://upload.wikimedia.org/wikipedia/en/thumb/4/40/Geor
 G3|Gol Linhas Aéreas|BR|https://upload.wikimedia.org/wikipedia/commons/thumb/f/ff/Gol_Linhas_A%C3%A9reas_Inteligentes_logo_%282015%2C_without_the_slogan%29.svg/250px-Gol_Linhas_A%C3%A9reas_Inteligentes_logo_%282015%2C_without_the_slogan%29.svg.png
 GF|Gulf Air|BH|https://upload.wikimedia.org/wikipedia/en/thumb/9/90/Gulf_Air_Logo_2018.svg/250px-Gulf_Air_Logo_2018.svg.png
 HU|Hainan Airlines|CN|https://upload.wikimedia.org/wikipedia/en/thumb/c/cd/Hainan_Airlines_Logo.svg/250px-Hainan_Airlines_Logo.svg.png
+IB|Iberia|ES|https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Logotipo_de_Iberia.svg/250px-Logotipo_de_Iberia.svg.png
 6E|IndiGo|IN|https://upload.wikimedia.org/wikipedia/en/thumb/6/69/IndiGo.svg/250px-IndiGo.svg.png
 AZ|ITA Airways|IT|https://upload.wikimedia.org/wikipedia/commons/thumb/5/54/ITA_Airways_logo_light-on-dark.svg/250px-ITA_Airways_logo_light-on-dark.svg.png
 JL|Japan Airlines|JP|https://upload.wikimedia.org/wikipedia/en/thumb/d/dd/Japan_Airlines_Logo_%282011%29.svg/250px-Japan_Airlines_Logo_%282011%29.svg.png

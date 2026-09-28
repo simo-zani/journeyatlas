@@ -166,7 +166,9 @@ export const AirportPicker: React.FC<AirportPickerProps> = ({
   return (
     <div ref={ref} className="relative">
       <PickerInput
-        value={value}
+        // Con un aeroporto già scelto il testo digitato duplicherebbe la
+        // pillola: si mostra solo quella, e digitare riparte da zero.
+        value={selected ? '' : value}
         onChange={(v) => {
           setOpen(true);
           onChange(v);
@@ -176,7 +178,7 @@ export const AirportPicker: React.FC<AirportPickerProps> = ({
         }}
         onKeyDown={handleKeyDown}
         inputRef={inputRef}
-        placeholder={placeholder ?? t('transport.airportPlaceholder')}
+        placeholder={selected ? undefined : placeholder ?? t('transport.airportPlaceholder')}
         leading={
           selected ? (
             <span className="shrink-0 rounded-md bg-gold/15 px-1.5 py-0.5 text-xs font-bold text-gold">

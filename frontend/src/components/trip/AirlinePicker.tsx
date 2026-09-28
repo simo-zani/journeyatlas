@@ -21,9 +21,10 @@ export interface AirlinePickerProps {
  * Il logo è un PNG esterno: se il file non c'è più o la rete lo blocca, senza
  * questo fallback nella lista compare un buco e nel campo un'icona spaiata.
  */
-const AirlineLogo: React.FC<{ airline: Airline; className?: string }> = ({
+export const AirlineLogo: React.FC<{ airline: Airline; className?: string; style?: React.CSSProperties }> = ({
   airline,
   className = 'w-6 h-6',
+  style,
 }) => {
   const [failed, setFailed] = useState(false);
   useEffect(() => setFailed(false), [airline.logo]);
@@ -32,6 +33,7 @@ const AirlineLogo: React.FC<{ airline: Airline; className?: string }> = ({
     return (
       <span
         className={`${className} rounded-md bg-gold/15 text-gold text-[10px] font-bold flex items-center justify-center shrink-0 uppercase`}
+        style={style}
         aria-hidden="true"
       >
         {airline.name.charAt(0)}
@@ -48,6 +50,7 @@ const AirlineLogo: React.FC<{ airline: Airline; className?: string }> = ({
       loading="lazy"
       onError={() => setFailed(true)}
       className={`${className} object-contain shrink-0`}
+      style={style}
     />
   );
 };
@@ -220,8 +223,8 @@ export const AirlinePicker: React.FC<AirlinePickerProps> = ({
                   <AirlineLogo airline={airline} />
                   <span className="font-medium truncate">{airline.name}</span>
                   <span className="ml-auto flex items-center gap-2 shrink-0">
-                    <CountryFlag code={airline.country} size="sm" />
-                    <span className="font-semibold text-slate-500 dark:text-slate-300">
+                    <CountryFlag code={airline.country} size="md" />
+                    <span className="w-[32px] text-right font-semibold text-slate-500 dark:text-slate-300">
                       {airline.iata}
                     </span>
                   </span>

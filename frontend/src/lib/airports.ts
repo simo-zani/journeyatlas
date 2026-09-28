@@ -20,6 +20,9 @@ export interface Airport {
   country: string;
   lat: number;
   lon: number;
+  /** Fuso orario IANA (es. "Europe/Rome"), da lat/lon via `geo-tz` in fase di
+   *  generazione dei dati. Serve a convertire gli orari dei voli. */
+  tz: string;
   /** true = grande aeroporto di linea, false = medio. */
   large: boolean;
   /** true = ha voli di linea regolari. Esclude aviazione generale e basi
@@ -69,7 +72,7 @@ const SEARCH_LIMIT = 8;
 let cache: Airport[] | null = null;
 
 const parseLine = (line: string): Airport => {
-  const [iata, name, city, country, lat, lon, size, service, keywords = ''] = line.split('|');
+  const [iata, name, city, country, lat, lon, tz, size, service, keywords = ''] = line.split('|');
   const fName = foldText(name);
   const fCity = foldText(city);
   return {
@@ -79,6 +82,7 @@ const parseLine = (line: string): Airport => {
     country,
     lat: Number(lat),
     lon: Number(lon),
+    tz,
     large: size === 'l',
     scheduled: service === 's',
     m: {
@@ -140,6 +144,26 @@ const byUsefulness = (x: AirportWithDistance, y: AirportWithDistance): number =>
   Number(y.airport.scheduled) - Number(x.airport.scheduled) ||
   Number(y.airport.large) - Number(x.airport.large) ||
   x.km - y.km;
+
+/**
+ * Fuso orario approssimato di un punto qualsiasi (es. la città di casa nel
+ * profilo, che non è un aeroporto e non ha un fuso proprio nei dati): quello
+ * dell'aeroporto più vicino, senza limite di raggio. I fusi cambiano su aree
+ * enormi rispetto alla distanza dall'aeroporto più vicino, quindi l'errore è
+ * trascurabile tranne per una città esattamente a cavallo di un confine.
+ */
+export const nearestAirportTz = (all: Airport[], origin: Coordinates): string | null => {
+  let best: Airport | null = null;
+  let bestKm = Infinity;
+  for (const airport of all) {
+    const km = distanceKm(origin, airport);
+    if (km < bestKm) {
+      bestKm = km;
+      best = airport;
+    }
+  }
+  return best?.tz ?? null;
+};
 
 /**
  * Aeroporti più vicini a un punto, entro il raggio. È il cuore dei consigliati:

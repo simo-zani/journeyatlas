@@ -1549,8 +1549,6 @@ export const CalendarSection: React.FC<CalendarSectionProps> = ({ trip, onSelect
             initial={editingEvent.raw as TransportRow}
             onSubmit={handleEditTransport}
             onCancel={() => setEditingEvent(null)}
-            tripStart={trip.start_date}
-            tripEnd={trip.end_date}
             tripDestinations={trip.destinations ?? []}
           />
         )}

@@ -78,6 +78,8 @@
     "budget": "Budget",
     "budgetPlaceholder": "es. 1500",
     "removeDestination": "Rimuovi meta",
+    "moveDestinationEarlier": "Sposta prima",
+    "moveDestinationLater": "Sposta dopo",
     "participants": "Partecipanti",
     "upcoming": "In programma",
     "archived": "Archiviato",
@@ -486,7 +488,16 @@
     "airlineResults": "Risultati",
     "airlineNoResults": "Nessuna compagnia trovata per \"{{value}}\". Scrivila comunque.",
     "airlineStartTyping": "Scrivi il nome della compagnia o il codice IATA.",
-    "airlineClear": "Togli la compagnia"
+    "airlineClear": "Togli la compagnia",
+    "departureTerminal": "Terminal Partenza",
+    "arrivalTerminal": "Terminal Arrivo",
+    "terminalPlaceholder": "es. T1",
+    "baggageLabel": "Bagaglio incluso",
+    "baggage": {
+      "backpack": "Zaino",
+      "carryOn": "Bagaglio a mano",
+      "checkedBaggage": "Valigia da stiva"
+    }
   },
   "checklist": {
     "add": "Aggiungi Voce",

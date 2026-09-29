@@ -49,6 +49,9 @@ import {
   type TransportInput,
 } from '@/lib/api';
 import { buildCategoryColorMap, CATEGORY_OTHER_VAR, getCategoryColor } from '@/lib/categoryColors';
+import { loadAirports, airportByIata, type Airport } from '@/lib/airports';
+import { loadTrainStations, stationByNameOrCode, type TrainStation } from '@/lib/trainStations';
+import { loadFerryPorts, portByNameOrCode, type FerryPort } from '@/lib/ferryPorts';
 import type {
   AccommodationRow,
   ActivityCategoryRow,
@@ -86,6 +89,14 @@ export interface UnifiedEvent {
   category?: string | null;
   status?: string | null;
   transportType?: TransportType;
+  /** Full display name of departure location (airport/station/port name) */
+  depName?: string | null;
+  /** Full display name of arrival location */
+  arrName?: string | null;
+  /** Operator / airline name for the transport */
+  operatorName?: string | null;
+  /** Flight/train/ferry number */
+  vehicleNumber?: string | null;
   raw: ActivityRow | TransportRow | AccommodationRow;
 }
 
@@ -106,20 +117,6 @@ const TRANSPORT_ICONS: Record<TransportType, LucideIcon> = {
 // the day/week grid and month mini-badges read as the same system.
 const TRANSPORT_COLOR = '#3B82F6';
 const ACCOMMODATION_COLOR = '#10B981';
-
-const getEventBadgeColor = (type: EventType) => {
-  switch (type) {
-    case 'activity':
-      return 'bg-purple-500/15 text-purple-600 dark:text-purple-300 ring-1 ring-purple-500/30';
-    case 'transport':
-      return 'bg-blue-500/15 text-blue-600 dark:text-blue-300 ring-1 ring-blue-500/30';
-    case 'accommodation_checkin':
-    case 'accommodation_checkout':
-      return 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-300 ring-1 ring-emerald-500/30';
-    default:
-      return 'bg-gold/15 text-gold-light ring-1 ring-gold/30';
-  }
-};
 
 const getEventIcon = (event: UnifiedEvent) => {
   if (event.type === 'activity') return Mountain;
@@ -221,22 +218,46 @@ interface EventRowProps {
   onClick?: () => void;
 }
 
-/** Mini boarding-pass style card for transport events in the agenda view. */
-const TransportEventRow: React.FC<EventRowProps> = ({ ev, color, copiedRef, onCopyRef, onClick }) => {
+/** Shared booking-ref button used in both row variants. */
+const BookingRefButton: React.FC<{ bookingRef: string; copiedRef: string | null; onCopyRef: (r: string) => void; small?: boolean }> = ({ bookingRef, copiedRef, onCopyRef, small }) => {
+  const { t } = useTranslation();
+  return (
+    <button
+      onClick={(e) => { e.stopPropagation(); onCopyRef(bookingRef); }}
+      className={`group flex items-center gap-1 rounded-full font-mono font-bold bg-amber-500/15 text-amber-700 dark:text-amber-300 ring-1 ring-amber-500/30 hover:bg-amber-500/25 transition-all cursor-pointer shrink-0 ${
+        small ? 'px-2 py-0.5 text-[10px]' : 'px-3 py-1 text-xs'
+      }`}
+      title={t('common.copy', 'Copia codice')}
+    >
+      <Ticket className={small ? 'w-3 h-3 text-amber-600 dark:text-amber-400' : 'w-3.5 h-3.5 text-amber-600 dark:text-amber-400'} />
+      <span>{bookingRef}</span>
+      {copiedRef === bookingRef ? (
+        <Check className={small ? 'w-3 h-3 text-emerald-600 dark:text-emerald-400' : 'w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400'} />
+      ) : (
+        <Copy className={small ? 'w-2.5 h-2.5 opacity-60 group-hover:opacity-100' : 'w-3 h-3 opacity-60 group-hover:opacity-100'} />
+      )}
+    </button>
+  );
+};
+
+/**
+ * Unified agenda row — used for ALL event types.
+ * Layout: [left color stripe] [time] [icon bubble] [content] [booking ref]
+ *
+ * Transport events get an enhanced inner layout (dep→arr route + depName + operator/number on right).
+ * Activities and accommodations show title + subtitle + location.
+ */
+const EventRow: React.FC<EventRowProps> = ({ ev, color, copiedRef, onCopyRef, onClick }) => {
   const { t } = useTranslation();
   const Icon = getEventIcon(ev);
-  const tr = ev.raw as TransportRow;
+  const isTransport = ev.type === 'transport';
 
-  // Parse subtitle: "TYPE · Operator · FlightNumber" or subsets
-  const subtitleParts = (ev.subtitle ?? '').split(' · ').filter(Boolean);
-  // Operator is typically part [1] (after the type), flight number [2]
-  const operatorName = subtitleParts.length >= 2 ? subtitleParts[1] : null;
-  const flightNumber = subtitleParts.length >= 3 ? subtitleParts[2] : tr.flight_number || null;
-
-  // Departure / Arrival display names from location string "X ➔ Y"
+  // --- Transport-specific data ---
   const locationParts = (ev.location ?? '').split(' ➔ ');
-  const depLabel = locationParts[0]?.trim() || null;
-  const arrLabel = locationParts[1]?.trim() || null;
+  const depCode = isTransport ? (locationParts[0]?.trim() || null) : null;
+  const arrCode = isTransport ? (locationParts[1]?.trim() || null) : null;
+  const depName = isTransport ? (ev.depName ?? null) : null;
+  const operatorLabel = [ev.operatorName, ev.vehicleNumber].filter(Boolean).join(' · ') || null;
 
   return (
     <div
@@ -244,156 +265,102 @@ const TransportEventRow: React.FC<EventRowProps> = ({ ev, color, copiedRef, onCo
       className={`relative flex rounded-xl overflow-hidden border border-slate-200/50 dark:border-white/[0.07] shadow-sm hover:shadow-md transition-all ${onClick ? 'cursor-pointer' : ''}`}
     >
       {/* Left color stripe */}
-      <div
-        className="w-[6px] shrink-0 self-stretch"
-        style={{ background: color }}
-      />
+      <div className="w-[5px] shrink-0 self-stretch" style={{ background: color }} />
 
-      {/* Main content */}
-      <div className="flex-1 min-w-0 flex items-center gap-3 px-3.5 py-3 bg-slate-900/[0.02] dark:bg-white/[0.02] hover:bg-slate-900/[0.05] dark:hover:bg-white/[0.05] transition-colors">
+      {/* Main content area */}
+      <div className="flex-1 min-w-0 flex items-center gap-3 px-3.5 py-3 bg-slate-900/[0.02] dark:bg-white/[0.02] hover:bg-slate-900/[0.04] dark:hover:bg-white/[0.04] transition-colors">
+
         {/* Time */}
-        <div className="text-xs font-bold text-slate-500 dark:text-slate-400 whitespace-nowrap w-[4.5rem] shrink-0">
+        <div className="text-xs font-bold text-slate-500 dark:text-slate-400 whitespace-nowrap w-[4rem] shrink-0 text-center">
           {formatEventTime(ev, t)}
         </div>
 
-        {/* Icon badge */}
+        {/* Icon bubble — same size and style for all types */}
         <div
-          className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-          style={{ backgroundColor: `color-mix(in srgb, ${color} 15%, transparent)`, color }}
-        >
-          <Icon className="w-5 h-5" />
-        </div>
-
-        {/* Route info */}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-1.5 min-w-0">
-            {depLabel && (
-              <span className="font-bold text-sm text-slate-900 dark:text-slate-100 truncate max-w-[6rem]">{depLabel}</span>
-            )}
-            <svg width="24" height="8" viewBox="0 0 24 8" fill="none" className="shrink-0 text-slate-300 dark:text-slate-600">
-              <path d="M1 4 H16" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeDasharray="2.5 2.2" />
-              <path d="M13 1 L20 4 L13 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-            {arrLabel && (
-              <span className="font-bold text-sm text-slate-900 dark:text-slate-100 truncate max-w-[6rem]">{arrLabel}</span>
-            )}
-          </div>
-          {(operatorName || flightNumber) && (
-            <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5 truncate">
-              {[operatorName, flightNumber].filter(Boolean).join(' · ')}
-            </p>
-          )}
-        </div>
-
-        {/* Booking ref */}
-        {ev.bookingRef && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onCopyRef(ev.bookingRef!);
-            }}
-            className="group flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-mono font-bold bg-amber-500/15 text-amber-700 dark:text-amber-300 ring-1 ring-amber-500/30 hover:bg-amber-500/25 transition-all cursor-pointer shrink-0"
-            title={t('common.copy', 'Copia codice')}
-          >
-            <Ticket className="w-3 h-3 text-amber-600 dark:text-amber-400" />
-            <span>{ev.bookingRef}</span>
-            {copiedRef === ev.bookingRef ? (
-              <Check className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
-            ) : (
-              <Copy className="w-2.5 h-2.5 opacity-60 group-hover:opacity-100" />
-            )}
-          </button>
-        )}
-      </div>
-    </div>
-  );
-};
-
-/** One agenda-style row — icon bubble, time, title, location, booking ref.
- * Shared by the Agenda list and the month view's day-detail modal. Clicking
- * anywhere on the row (but not the booking-ref button) opens the edit form. */
-const EventRow: React.FC<EventRowProps> = ({ ev, color, copiedRef, onCopyRef, onClick }) => {
-  const { t } = useTranslation();
-  const Icon = getEventIcon(ev);
-  const badgeColor = getEventBadgeColor(ev.type);
-
-  // Transport events get the specialized mini-ticket layout
-  if (ev.type === 'transport') {
-    return <TransportEventRow ev={ev} color={color} copiedRef={copiedRef} onCopyRef={onCopyRef} onClick={onClick} />;
-  }
-
-  return (
-    <div
-      onClick={onClick}
-      className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-xl bg-slate-900/[0.03] dark:bg-white/[0.03] hover:bg-slate-900/[0.06] dark:hover:bg-white/[0.06] transition-colors border border-slate-200/40 dark:border-white/5 ${onClick ? 'cursor-pointer' : ''}`}
-    >
-      <div className="flex items-start sm:items-center gap-3 min-w-0">
-        {/* Time badge */}
-        <div className="w-[7.5rem] shrink-0 text-sm font-bold text-slate-600 dark:text-slate-400">
-          <span className="whitespace-nowrap">{formatEventTime(ev, t)}</span>
-        </div>
-
-        {/* Event Icon badge — enlarged */}
-        <div
-          className={`w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 shadow-sm ${ev.type === 'activity' ? '' : badgeColor}`}
-          style={ev.type === 'activity' ? { backgroundColor: `color-mix(in srgb, ${color} 18%, transparent)`, color } : undefined}
+          className="w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 shadow-sm"
+          style={{ backgroundColor: `color-mix(in srgb, ${color} 18%, transparent)`, color }}
         >
           {ev.type === 'activity' ? (
-            <ActivityIcon icon={(ev.raw as ActivityRow).icon} size={26} />
+            <ActivityIcon icon={(ev.raw as ActivityRow).icon} size={22} />
           ) : (
-            <Icon className="w-7 h-7" />
+            <Icon className="w-5 h-5" />
           )}
         </div>
 
-        {/* Title, Subtitle, Location */}
-        <div className="min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <h4 className="font-semibold text-sm text-slate-900 dark:text-slate-100 truncate">{ev.title}</h4>
-            {ev.spanInfo && (
-              <span
-                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-gold/15 text-gold-dark dark:text-gold-light shrink-0"
-                title={t('calendar.spanDay', { current: ev.spanInfo.dayIndex, total: ev.spanInfo.totalDays })}
-              >
-                <CalendarRange className="w-3 h-3" />
-                {ev.spanInfo.dayIndex}/{ev.spanInfo.totalDays}
-              </span>
+        {/* Content — transport vs other */}
+        {isTransport ? (
+          // Transport: route codes + dep location name + operator/number on right
+          <>
+            <div className="flex-1 min-w-0">
+              {/* dep code ➔ arr code */}
+              <div className="flex items-center gap-1.5 min-w-0">
+                {depCode && <span className="font-bold text-sm text-slate-900 dark:text-slate-100 truncate">{depCode}</span>}
+                <svg width="22" height="8" viewBox="0 0 22 8" fill="none" className="shrink-0 text-slate-300 dark:text-slate-600">
+                  <path d="M1 4 H14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeDasharray="2.5 2.2" />
+                  <path d="M11 1 L18 4 L11 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                {arrCode && <span className="font-bold text-sm text-slate-900 dark:text-slate-100 truncate">{arrCode}</span>}
+              </div>
+              {/* Departure location full name */}
+              {depName && (
+                <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5 truncate">
+                  <MapPin className="w-3 h-3 inline-block mr-0.5 -mt-px shrink-0" />
+                  {depName}
+                </p>
+              )}
+            </div>
+            {/* Operator + vehicle number on the right */}
+            <div className="shrink-0 text-right hidden sm:block">
+              {operatorLabel && (
+                <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 whitespace-nowrap">{operatorLabel}</p>
+              )}
+              {ev.bookingRef && (
+                <div className="mt-1">
+                  <BookingRefButton bookingRef={ev.bookingRef} copiedRef={copiedRef} onCopyRef={onCopyRef} small />
+                </div>
+              )}
+            </div>
+            {/* On mobile, booking ref inline */}
+            {ev.bookingRef && (
+              <div className="shrink-0 sm:hidden">
+                <BookingRefButton bookingRef={ev.bookingRef} copiedRef={copiedRef} onCopyRef={onCopyRef} small />
+              </div>
             )}
-            {ev.type !== 'activity' && ev.subtitle && (
-              <span className="text-[11px] font-medium text-slate-400 dark:text-slate-500 truncate">
-                · {ev.subtitle}
-              </span>
+          </>
+        ) : (
+          // Activity / Accommodation: title + subtitle + location
+          <>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h4 className="font-semibold text-sm text-slate-900 dark:text-slate-100 truncate">{ev.title}</h4>
+                {ev.spanInfo && (
+                  <span
+                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-gold/15 text-gold-dark dark:text-gold-light shrink-0"
+                    title={t('calendar.spanDay', { current: ev.spanInfo.dayIndex, total: ev.spanInfo.totalDays })}
+                  >
+                    <CalendarRange className="w-3 h-3" />
+                    {ev.spanInfo.dayIndex}/{ev.spanInfo.totalDays}
+                  </span>
+                )}
+                {ev.subtitle && (
+                  <span className="text-[11px] font-medium text-slate-400 dark:text-slate-500 truncate">
+                    · {ev.subtitle}
+                  </span>
+                )}
+              </div>
+              {ev.location && (
+                <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1 mt-0.5 truncate">
+                  <MapPin className="w-3 h-3 shrink-0 text-slate-400" />
+                  <span className="truncate">{ev.location}</span>
+                </p>
+              )}
+            </div>
+            {ev.bookingRef && (
+              <BookingRefButton bookingRef={ev.bookingRef} copiedRef={copiedRef} onCopyRef={onCopyRef} />
             )}
-          </div>
-          {ev.location && (
-            <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1 mt-0.5 truncate">
-              <MapPin className="w-3 h-3 shrink-0 text-slate-400" />
-              <span className="truncate">{ev.location}</span>
-            </p>
-          )}
-        </div>
+          </>
+        )}
       </div>
-
-      {/* Booking Reference Badge */}
-      {ev.bookingRef && (
-        <div className="flex items-center gap-1.5 shrink-0 self-start sm:self-auto ml-auto sm:ml-0">
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onCopyRef(ev.bookingRef!);
-            }}
-            className="group flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono font-bold bg-amber-500/15 text-amber-700 dark:text-amber-300 ring-1 ring-amber-500/30 hover:bg-amber-500/25 transition-all cursor-pointer"
-            title={t('common.copy', 'Copia codice')}
-          >
-            <Ticket className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
-            <span>{ev.bookingRef}</span>
-            {copiedRef === ev.bookingRef ? (
-              <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 ml-1" />
-            ) : (
-              <Copy className="w-3 h-3 opacity-60 group-hover:opacity-100 ml-1" />
-            )}
-          </button>
-        </div>
-      )}
     </div>
   );
 };
@@ -593,6 +560,17 @@ export const CalendarSection: React.FC<CalendarSectionProps> = ({ trip, onSelect
   const [editingEvent, setEditingEvent] = useState<UnifiedEvent | null>(null);
   const [creatingForDate, setCreatingForDate] = useState<string | null>(null);
 
+  // Location lookup data — loaded lazily (each lib caches internally)
+  const [airports, setAirports] = useState<Airport[]>([]);
+  const [stations, setStations] = useState<TrainStation[]>([]);
+  const [ferryPorts, setFerryPorts] = useState<FerryPort[]>([]);
+
+  useEffect(() => {
+    void loadAirports().then(setAirports);
+    void loadTrainStations().then(setStations);
+    void loadFerryPorts().then(setFerryPorts);
+  }, []);
+
   // Week view: the day-header row and all-day strip sit above the
   // scrollable hour grid, so when that grid's vertical scrollbar appears it
   // eats into ITS width only — the header row, with no scrollbar, stays
@@ -748,24 +726,50 @@ export const CalendarSection: React.FC<CalendarSectionProps> = ({ trip, onSelect
       if (tr.departure_datetime) {
         const { date: depDate, time: depTime } = localDateTimeParts(tr.departure_datetime);
         const title = `${tr.departure_airport || ''} ➔ ${tr.arrival_airport || ''}`;
-        const subtitle = [
-          tr.transport_type ? tr.transport_type.toUpperCase() : null,
-          tr.airline,
-          tr.flight_number,
-        ]
-          .filter(Boolean)
-          .join(' · ');
+
+        // Resolve full location names for departure and arrival
+        const isFlight = tr.transport_type === 'flight';
+        const isTrain = tr.transport_type === 'train';
+        const isFerry = tr.transport_type === 'ferry';
+
+        let depName: string | null = null;
+        let arrName: string | null = null;
+
+        if (isFlight && airports.length > 0) {
+          const depAp = airportByIata(airports, tr.departure_airport);
+          const arrAp = airportByIata(airports, tr.arrival_airport);
+          depName = depAp ? depAp.name : null;
+          arrName = arrAp ? arrAp.name : null;
+        } else if (isTrain && stations.length > 0) {
+          const depSt = stationByNameOrCode(stations, tr.departure_airport);
+          const arrSt = stationByNameOrCode(stations, tr.arrival_airport);
+          depName = depSt ? (depSt.city !== depSt.name ? depSt.name : depSt.city) : (tr.departure_airport || null);
+          arrName = arrSt ? (arrSt.city !== arrSt.name ? arrSt.name : arrSt.city) : (tr.arrival_airport || null);
+        } else if (isFerry && ferryPorts.length > 0) {
+          const depPt = portByNameOrCode(ferryPorts, tr.departure_airport);
+          const arrPt = portByNameOrCode(ferryPorts, tr.arrival_airport);
+          depName = depPt ? (depPt.city !== depPt.name ? depPt.name : depPt.city) : (tr.departure_airport || null);
+          arrName = arrPt ? (arrPt.city !== arrPt.name ? arrPt.name : arrPt.city) : (tr.arrival_airport || null);
+        } else if (!isFlight) {
+          // bus/car/other — use the raw string directly as dep/arr name
+          depName = tr.departure_airport || null;
+          arrName = tr.arrival_airport || null;
+        }
 
         list.push({
           id: `tr-dep-${tr.id}`,
           type: 'transport',
           title: title || t('transport.title', 'Trasporto'),
-          subtitle,
+          subtitle: tr.transport_type ? tr.transport_type.toUpperCase() : null,
           date: depDate,
           time: depTime,
           location: `${tr.departure_airport} ➔ ${tr.arrival_airport}`,
           bookingRef: tr.booking_ref || null,
           transportType: tr.transport_type,
+          depName,
+          arrName,
+          operatorName: tr.airline || null,
+          vehicleNumber: tr.flight_number || null,
           raw: tr,
         });
       }
@@ -806,7 +810,7 @@ export const CalendarSection: React.FC<CalendarSectionProps> = ({ trip, onSelect
     }
 
     return list;
-  }, [activities, transports, accommodations, t]);
+  }, [activities, transports, accommodations, airports, stations, ferryPorts, t]);
 
   // Filter events
   const filteredEvents = useMemo(() => {

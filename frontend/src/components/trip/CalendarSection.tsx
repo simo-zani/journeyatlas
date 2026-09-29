@@ -18,6 +18,8 @@ import {
   MapPin,
   Mountain,
   Plane,
+  PlaneLanding,
+  PlaneTakeoff,
   Plus,
   Route,
   Ship,
@@ -94,6 +96,8 @@ export interface UnifiedEvent {
   category?: string | null;
   status?: string | null;
   transportType?: TransportType;
+  /** Flight phase for distinct departure and landing calendar events */
+  flightPhase?: 'departure' | 'arrival' | null;
   /** Full display name of departure location (airport/station/port name) */
   depName?: string | null;
   /** Full display name of arrival location */
@@ -134,6 +138,11 @@ const ACCOMMODATION_COLOR = '#10B981';
 const getEventIcon = (event: UnifiedEvent) => {
   if (event.type === 'activity') return Mountain;
   if (event.type === 'transport') {
+    if (event.transportType === 'flight') {
+      if (event.flightPhase === 'departure') return PlaneTakeoff;
+      if (event.flightPhase === 'arrival') return PlaneLanding;
+      return Plane;
+    }
     return event.transportType ? TRANSPORT_ICONS[event.transportType] : Route;
   }
   return BedDouble;
@@ -296,15 +305,8 @@ const AccommodationPlatformBadge: React.FC<{ platform: string | null | undefined
   return <PlatformLogoCal platform={platform} className="w-5 h-5 shrink-0" />;
 };
 
-/**
- * Ticket badge for transport events: company logo + vehicle number.
- * - Pullman/Bus: yellow/amber themed.
- * - Flights: company logo prominent (with clean white pill background so dark transparent logos are crisp); name as fallback if no logo.
- * - Trains/Ferries: logo + operator name.
- * - Vehicle number displayed cleanly with monospace font.
- * - NO barcodes, NO fake punch holes, compact height matching row line.
- */
-const TransportTicketBadge: React.FC<{ ev: UnifiedEvent }> = ({ ev }) => {
+/** Operator logo for transport events — free image/icon, no container box, with outline stroke. */
+const TransportOperatorLogo: React.FC<{ ev: UnifiedEvent }> = ({ ev }) => {
   const isFlight = ev.transportType === 'flight';
   const isTrain = ev.transportType === 'train';
   const isFerry = ev.transportType === 'ferry';
@@ -312,77 +314,70 @@ const TransportTicketBadge: React.FC<{ ev: UnifiedEvent }> = ({ ev }) => {
 
   const [imgError, setImgError] = useState(false);
 
-  if (!ev.operatorName && !ev.vehicleNumber && !ev.airline && !ev.trainOp && !ev.ferryOp) return null;
+  if (isFlight) {
+    if (ev.airline?.logo && !imgError) {
+      return (
+        <img
+          src={ev.airline.logo}
+          alt={ev.airline.name}
+          title={ev.airline.name}
+          referrerPolicy="no-referrer"
+          className="h-5 max-w-[85px] w-auto object-contain shrink-0 drop-shadow-[0_0_1px_rgba(0,0,0,0.6)] dark:drop-shadow-[0_0_1.2px_rgba(255,255,255,0.9)]"
+          onError={() => setImgError(true)}
+        />
+      );
+    }
+    return (
+      <span className="font-semibold text-xs text-slate-600 dark:text-slate-300 truncate max-w-[110px]">
+        {ev.operatorName || ev.airline?.name || 'Volo'}
+      </span>
+    );
+  }
 
-  // Pullman/bus is always yellow/amber
-  const containerClass = isBus
-    ? 'bg-amber-400/15 border-amber-400/50 text-amber-900 dark:text-amber-200 dark:bg-amber-400/10'
-    : 'bg-slate-100/90 dark:bg-white/[0.06] border-slate-200/90 dark:border-white/10 text-slate-700 dark:text-slate-200';
-
-  const dividerClass = isBus ? 'bg-amber-400/40' : 'bg-slate-300 dark:bg-white/15';
-
-  const showAirlineLogo = isFlight && ev.airline?.logo && !imgError;
-
-  return (
-    <div
-      className={`shrink-0 h-8 px-2.5 rounded-lg border flex items-center gap-2 text-xs select-none shadow-xs ${containerClass}`}
-    >
-      {/* Operator Logo / Name */}
-      {showAirlineLogo ? (
-        <div className="h-5 px-1 rounded bg-white flex items-center justify-center shrink-0 shadow-xs">
-          <img
-            src={ev.airline!.logo!}
-            alt={ev.airline!.name}
-            title={ev.airline!.name}
-            referrerPolicy="no-referrer"
-            className="h-3.5 max-w-[80px] w-auto object-contain"
-            onError={() => setImgError(true)}
-          />
-        </div>
-      ) : isFlight ? (
-        <span className="font-semibold text-xs truncate max-w-[120px]">
-          {ev.operatorName || ev.airline?.name || 'Volo'}
-        </span>
-      ) : isTrain ? (
-        <div className="flex items-center gap-1.5 shrink-0">
-          {ev.trainOp && <TrainOperatorLogo operator={ev.trainOp} className="w-4.5 h-4.5 shrink-0" />}
-          <span className="font-semibold text-xs truncate max-w-[100px]">
-            {ev.operatorName || ev.trainOp?.name || 'Treno'}
+  if (isTrain) {
+    return (
+      <div className="flex items-center gap-1.5 shrink-0">
+        {ev.trainOp && <TrainOperatorLogo operator={ev.trainOp} className="w-5 h-5 shrink-0" />}
+        {ev.operatorName && (
+          <span className="font-semibold text-xs text-slate-600 dark:text-slate-300 truncate max-w-[100px]">
+            {ev.operatorName}
           </span>
-        </div>
-      ) : isFerry ? (
-        <div className="flex items-center gap-1.5 shrink-0">
-          {ev.ferryOp && <FerryOperatorLogo operator={ev.ferryOp} className="w-4.5 h-4.5 shrink-0" />}
-          <span className="font-semibold text-xs truncate max-w-[100px]">
-            {ev.operatorName || ev.ferryOp?.name || 'Traghetto'}
-          </span>
-        </div>
-      ) : isBus ? (
-        <div className="flex items-center gap-1.5 shrink-0">
-          <Bus className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
-          {ev.operatorName && (
-            <span className="font-semibold text-xs truncate max-w-[100px]">
-              {ev.operatorName}
-            </span>
-          )}
-        </div>
-      ) : (
-        ev.operatorName && (
-          <span className="font-semibold text-xs truncate max-w-[100px]">{ev.operatorName}</span>
-        )
-      )}
+        )}
+      </div>
+    );
+  }
 
-      {/* Divider between operator and vehicle number */}
-      {ev.vehicleNumber && (
-        <>
-          <span className={`w-px h-3.5 ${dividerClass} shrink-0`} />
-          <span className="font-mono font-bold text-xs tracking-wider shrink-0">
-            {ev.vehicleNumber}
+  if (isFerry) {
+    return (
+      <div className="flex items-center gap-1.5 shrink-0">
+        {ev.ferryOp && <FerryOperatorLogo operator={ev.ferryOp} className="w-5 h-5 shrink-0" />}
+        {ev.operatorName && (
+          <span className="font-semibold text-xs text-slate-600 dark:text-slate-300 truncate max-w-[100px]">
+            {ev.operatorName}
           </span>
-        </>
-      )}
-    </div>
-  );
+        )}
+      </div>
+    );
+  }
+
+  if (isBus) {
+    return (
+      <div className="flex items-center gap-1.5 shrink-0">
+        <Bus className="w-4.5 h-4.5 text-amber-600 dark:text-amber-400 shrink-0" />
+        {ev.operatorName && (
+          <span className="font-semibold text-xs text-amber-700 dark:text-amber-300 truncate max-w-[100px]">
+            {ev.operatorName}
+          </span>
+        )}
+      </div>
+    );
+  }
+
+  return ev.operatorName ? (
+    <span className="font-semibold text-xs text-slate-600 dark:text-slate-300 truncate max-w-[100px]">
+      {ev.operatorName}
+    </span>
+  ) : null;
 };
 
 /**
@@ -394,12 +389,6 @@ const EventRow: React.FC<EventRowProps> = ({ ev, color, copiedRef, onCopyRef, on
   const Icon = getEventIcon(ev);
   const isTransport = ev.type === 'transport';
   const isAccommodation = ev.type === 'accommodation_checkin' || ev.type === 'accommodation_checkout';
-
-  // Transport-specific parsed data
-  const locationParts = (ev.location ?? '').split(' ➔ ');
-  const depCode = isTransport ? (locationParts[0]?.trim() || null) : null;
-  const arrCode = isTransport ? (locationParts[1]?.trim() || null) : null;
-  const depName = isTransport ? (ev.depName ?? null) : null;
 
   // Accommodation platform (from raw row)
   const accPlatform = isAccommodation
@@ -434,68 +423,51 @@ const EventRow: React.FC<EventRowProps> = ({ ev, color, copiedRef, onCopyRef, on
           )}
         </div>
 
-        {/* Content — transport vs other */}
-        {isTransport ? (
-          // Transport: route codes + dep location name
-          <div className="flex-1 min-w-0">
-            {/* dep code ➔ arr code */}
-            <div className="flex items-center gap-1.5 min-w-0">
-              {depCode && <span className="font-bold text-sm text-slate-900 dark:text-slate-100 truncate">{depCode}</span>}
-              <svg width="22" height="8" viewBox="0 0 22 8" fill="none" className="shrink-0 text-slate-300 dark:text-slate-600">
-                <path d="M1 4 H14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeDasharray="2.5 2.2" />
-                <path d="M11 1 L18 4 L11 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-              {arrCode && <span className="font-bold text-sm text-slate-900 dark:text-slate-100 truncate">{arrCode}</span>}
-            </div>
-            {/* Departure location full name */}
-            {depName && (
-              <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5 truncate">
-                <MapPin className="w-3 h-3 inline-block mr-0.5 -mt-px shrink-0" />
-                {depName}
-              </p>
+        {/* Content — title + subtitle + address (same style and weight for all events) */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap min-w-0">
+            <h4 className="font-semibold text-sm text-slate-900 dark:text-slate-100 truncate">{ev.title}</h4>
+            {ev.spanInfo && (
+              <span
+                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-gold/15 text-gold-dark dark:text-gold-light shrink-0"
+                title={t('calendar.spanDay', { current: ev.spanInfo.dayIndex, total: ev.spanInfo.totalDays })}
+              >
+                <CalendarRange className="w-3 h-3" />
+                {ev.spanInfo.dayIndex}/{ev.spanInfo.totalDays}
+              </span>
+            )}
+            {ev.subtitle && (
+              <span className="text-[11px] font-medium text-slate-400 dark:text-slate-500 truncate">
+                · {ev.subtitle}
+              </span>
             )}
           </div>
-        ) : (
-          // Activity / Accommodation: title + subtitle + location
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <h4 className="font-semibold text-sm text-slate-900 dark:text-slate-100 truncate">{ev.title}</h4>
-              {ev.spanInfo && (
-                <span
-                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-gold/15 text-gold-dark dark:text-gold-light shrink-0"
-                  title={t('calendar.spanDay', { current: ev.spanInfo.dayIndex, total: ev.spanInfo.totalDays })}
-                >
-                  <CalendarRange className="w-3 h-3" />
-                  {ev.spanInfo.dayIndex}/{ev.spanInfo.totalDays}
-                </span>
-              )}
-              {ev.subtitle && (
-                <span className="text-[11px] font-medium text-slate-400 dark:text-slate-500 truncate">
-                  · {ev.subtitle}
-                </span>
-              )}
-            </div>
-            {ev.location && (
-              <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1 mt-0.5 truncate">
-                <MapPin className="w-3 h-3 shrink-0 text-slate-400" />
-                <span className="truncate">{ev.location}</span>
-              </p>
-            )}
-          </div>
-        )}
+          {ev.location && (
+            <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1 mt-0.5 truncate">
+              <MapPin className="w-3 h-3 shrink-0 text-slate-400" />
+              <span className="truncate">{ev.location}</span>
+            </p>
+          )}
+        </div>
 
         {/* Right-side badges — single horizontal line so all events have identical height */}
         <div className="shrink-0 hidden sm:flex items-center gap-2">
-          {isTransport && <TransportTicketBadge ev={ev} />}
-          {isAccommodation && <AccommodationPlatformBadge platform={accPlatform} />}
-          {ev.bookingRef && (
+          {isTransport && <TransportOperatorLogo ev={ev} />}
+          {isAccommodation && accPlatform && <AccommodationPlatformBadge platform={accPlatform} />}
+          {isTransport && ev.vehicleNumber && (
+            <BookingRefButton bookingRef={ev.vehicleNumber} copiedRef={copiedRef} onCopyRef={onCopyRef} small />
+          )}
+          {ev.bookingRef && ev.bookingRef !== ev.vehicleNumber && (
             <BookingRefButton bookingRef={ev.bookingRef} copiedRef={copiedRef} onCopyRef={onCopyRef} small />
           )}
         </div>
         {/* Mobile: horizontal line */}
         <div className="shrink-0 sm:hidden flex items-center gap-1.5">
-          {isAccommodation && <AccommodationPlatformBadge platform={accPlatform} />}
-          {ev.bookingRef && (
+          {isAccommodation && accPlatform && <AccommodationPlatformBadge platform={accPlatform} />}
+          {isTransport && ev.vehicleNumber && (
+            <BookingRefButton bookingRef={ev.vehicleNumber} copiedRef={copiedRef} onCopyRef={onCopyRef} small />
+          )}
+          {ev.bookingRef && ev.bookingRef !== ev.vehicleNumber && (
             <BookingRefButton bookingRef={ev.bookingRef} copiedRef={copiedRef} onCopyRef={onCopyRef} small />
           )}
         </div>
@@ -866,59 +838,84 @@ export const CalendarSection: React.FC<CalendarSectionProps> = ({ trip, onSelect
       });
     }
 
-    // 2. Transports (Departure and optional arrival)
+    // 2. Transports (Departure and Arrival)
     for (const tr of transports) {
+      const isFlight = tr.transport_type === 'flight';
+      const isTrain = tr.transport_type === 'train';
+      const isFerry = tr.transport_type === 'ferry';
+
+      // Airport lookups for flights
+      let depAp: Airport | null = null;
+      let arrAp: Airport | null = null;
+      if (isFlight && airports.length > 0) {
+        depAp = airportByIata(airports, tr.departure_airport);
+        arrAp = airportByIata(airports, tr.arrival_airport);
+      }
+
+      let depName: string | null = null;
+      let arrName: string | null = null;
+      if (isFlight) {
+        depName = depAp ? depAp.name : (tr.departure_airport || null);
+        arrName = arrAp ? arrAp.name : (tr.arrival_airport || null);
+      } else if (isTrain && stations.length > 0) {
+        const depSt = stationByNameOrCode(stations, tr.departure_airport);
+        const arrSt = stationByNameOrCode(stations, tr.arrival_airport);
+        depName = depSt ? (depSt.city !== depSt.name ? depSt.name : depSt.city) : (tr.departure_airport || null);
+        arrName = arrSt ? (arrSt.city !== arrSt.name ? arrSt.name : arrSt.city) : (tr.arrival_airport || null);
+      } else if (isFerry && ferryPorts.length > 0) {
+        const depPt = portByNameOrCode(ferryPorts, tr.departure_airport);
+        const arrPt = portByNameOrCode(ferryPorts, tr.arrival_airport);
+        depName = depPt ? (depPt.city !== depPt.name ? depPt.name : depPt.city) : (tr.departure_airport || null);
+        arrName = arrPt ? (arrPt.city !== arrPt.name ? arrPt.name : arrPt.city) : (tr.arrival_airport || null);
+      } else if (!isFlight) {
+        depName = tr.departure_airport || null;
+        arrName = tr.arrival_airport || null;
+      }
+
+      // Location address strings with airport/station, terminal, and address
+      const formatAirportLocation = (ap: Airport | null, iata: string, rawTerminal: string | null) => {
+        const name = ap ? ap.name : (iata || '');
+        const terminal = rawTerminal
+          ? (rawTerminal.toLowerCase().startsWith('terminal') ? rawTerminal : `Terminal ${rawTerminal}`)
+          : null;
+        const address = ap ? [ap.city, ap.country].filter(Boolean).join(', ') : null;
+        return [name, terminal, address].filter(Boolean).join(' · ');
+      };
+
+      const depLocation = isFlight
+        ? formatAirportLocation(depAp, tr.departure_airport, tr.departure_terminal)
+        : ([depName, tr.departure_terminal ? `Binario/Terminal ${tr.departure_terminal}` : null].filter(Boolean).join(' · ') || null);
+
+      const arrLocation = isFlight
+        ? formatAirportLocation(arrAp, tr.arrival_airport, tr.arrival_terminal)
+        : ([arrName, tr.arrival_terminal ? `Binario/Terminal ${tr.arrival_terminal}` : null].filter(Boolean).join(' · ') || null);
+
+      // Resolve operator objects for logos
+      const resolvedAirline = (isFlight && airlines.length > 0 && tr.airline)
+        ? airlineByName(airlines, tr.airline) : null;
+      const resolvedTrainOp = (isTrain && trainOperators.length > 0 && tr.airline)
+        ? trainOperatorByName(trainOperators, tr.airline) : null;
+      const resolvedFerryOp = (isFerry && ferryOperators.length > 0 && tr.airline)
+        ? ferryOperatorByName(ferryOperators, tr.airline) : null;
+
+      // 2a. Departure event
       if (tr.departure_datetime) {
         const { date: depDate, time: depTime } = localDateTimeParts(tr.departure_datetime);
-        const title = `${tr.departure_airport || ''} ➔ ${tr.arrival_airport || ''}`;
-
-        // Resolve full location names for departure and arrival
-        const isFlight = tr.transport_type === 'flight';
-        const isTrain = tr.transport_type === 'train';
-        const isFerry = tr.transport_type === 'ferry';
-
-        let depName: string | null = null;
-        let arrName: string | null = null;
-
-        if (isFlight && airports.length > 0) {
-          const depAp = airportByIata(airports, tr.departure_airport);
-          const arrAp = airportByIata(airports, tr.arrival_airport);
-          depName = depAp ? depAp.name : null;
-          arrName = arrAp ? arrAp.name : null;
-        } else if (isTrain && stations.length > 0) {
-          const depSt = stationByNameOrCode(stations, tr.departure_airport);
-          const arrSt = stationByNameOrCode(stations, tr.arrival_airport);
-          depName = depSt ? (depSt.city !== depSt.name ? depSt.name : depSt.city) : (tr.departure_airport || null);
-          arrName = arrSt ? (arrSt.city !== arrSt.name ? arrSt.name : arrSt.city) : (tr.arrival_airport || null);
-        } else if (isFerry && ferryPorts.length > 0) {
-          const depPt = portByNameOrCode(ferryPorts, tr.departure_airport);
-          const arrPt = portByNameOrCode(ferryPorts, tr.arrival_airport);
-          depName = depPt ? (depPt.city !== depPt.name ? depPt.name : depPt.city) : (tr.departure_airport || null);
-          arrName = arrPt ? (arrPt.city !== arrPt.name ? arrPt.name : arrPt.city) : (tr.arrival_airport || null);
-        } else if (!isFlight) {
-          // bus/car/other — use the raw string directly as dep/arr name
-          depName = tr.departure_airport || null;
-          arrName = tr.arrival_airport || null;
-        }
-
-        // Resolve operator objects for logos
-        const resolvedAirline = (isFlight && airlines.length > 0 && tr.airline)
-          ? airlineByName(airlines, tr.airline) : null;
-        const resolvedTrainOp = (isTrain && trainOperators.length > 0 && tr.airline)
-          ? trainOperatorByName(trainOperators, tr.airline) : null;
-        const resolvedFerryOp = (isFerry && ferryOperators.length > 0 && tr.airline)
-          ? ferryOperatorByName(ferryOperators, tr.airline) : null;
+        const depTitle = isFlight
+          ? `${t('calendar.flightDeparture', 'Partenza')}: ${tr.departure_airport || ''} ➔ ${tr.arrival_airport || ''}`
+          : `${tr.departure_airport || ''} ➔ ${tr.arrival_airport || ''}`;
 
         list.push({
           id: `tr-dep-${tr.id}`,
           type: 'transport',
-          title: title || t('transport.title', 'Trasporto'),
+          title: depTitle || t('transport.title', 'Trasporto'),
           subtitle: tr.transport_type ? tr.transport_type.toUpperCase() : null,
           date: depDate,
           time: depTime,
-          location: `${tr.departure_airport} ➔ ${tr.arrival_airport}`,
+          location: depLocation,
           bookingRef: tr.booking_ref || null,
           transportType: tr.transport_type,
+          flightPhase: isFlight ? 'departure' : null,
           depName,
           arrName,
           operatorName: tr.airline || null,
@@ -926,6 +923,33 @@ export const CalendarSection: React.FC<CalendarSectionProps> = ({ trip, onSelect
           airline: resolvedAirline,
           trainOp: resolvedTrainOp,
           ferryOp: resolvedFerryOp,
+          raw: tr,
+        });
+      }
+
+      // 2b. Landing / Arrival event (specifically requested for flights)
+      if (isFlight && tr.arrival_datetime) {
+        const { date: arrDate, time: arrTime } = localDateTimeParts(tr.arrival_datetime);
+        const arrTitle = `${t('calendar.flightArrival', 'Atterraggio')}: ${tr.departure_airport || ''} ➔ ${tr.arrival_airport || ''}`;
+
+        list.push({
+          id: `tr-arr-${tr.id}`,
+          type: 'transport',
+          title: arrTitle,
+          subtitle: 'FLIGHT',
+          date: arrDate,
+          time: arrTime,
+          location: arrLocation,
+          bookingRef: tr.booking_ref || null,
+          transportType: 'flight',
+          flightPhase: 'arrival',
+          depName,
+          arrName,
+          operatorName: tr.airline || null,
+          vehicleNumber: tr.flight_number || null,
+          airline: resolvedAirline,
+          trainOp: null,
+          ferryOp: null,
           raw: tr,
         });
       }

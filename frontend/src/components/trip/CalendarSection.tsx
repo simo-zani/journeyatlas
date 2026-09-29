@@ -52,6 +52,12 @@ import { buildCategoryColorMap, CATEGORY_OTHER_VAR, getCategoryColor } from '@/l
 import { loadAirports, airportByIata, type Airport } from '@/lib/airports';
 import { loadTrainStations, stationByNameOrCode, type TrainStation } from '@/lib/trainStations';
 import { loadFerryPorts, portByNameOrCode, type FerryPort } from '@/lib/ferryPorts';
+import { loadAirlines, airlineByName, type Airline } from '@/lib/airlines';
+import { loadTrainOperators, trainOperatorByName, type TrainOperator } from '@/lib/trainOperators';
+import { loadFerryOperators, ferryOperatorByName, type FerryOperator } from '@/lib/ferryOperators';
+import { AirlineLogo } from '@/components/trip/AirlinePicker';
+import { TrainOperatorLogo } from '@/components/trip/TrainOperatorPicker';
+import { FerryOperatorLogo } from '@/components/trip/FerryOperatorPicker';
 import type {
   AccommodationRow,
   ActivityCategoryRow,
@@ -97,6 +103,14 @@ export interface UnifiedEvent {
   operatorName?: string | null;
   /** Flight/train/ferry number */
   vehicleNumber?: string | null;
+  /** Resolved airline object (for AirlineLogo) */
+  airline?: Airline | null;
+  /** Resolved train operator object (for TrainOperatorLogo) */
+  trainOp?: TrainOperator | null;
+  /** Resolved ferry operator object (for FerryOperatorLogo) */
+  ferryOp?: FerryOperator | null;
+  /** Booking platform name (for accommodations, e.g. 'Booking.com') */
+  bookingPlatform?: string | null;
   raw: ActivityRow | TransportRow | AccommodationRow;
 }
 
@@ -240,24 +254,125 @@ const BookingRefButton: React.FC<{ bookingRef: string; copiedRef: string | null;
   );
 };
 
+// ─── BOOKING_PLATFORMS (mirrors AccommodationSection) ─────────────────────────
+const BOOKING_PLATFORMS_CAL = [
+  { match: 'booking', domain: 'booking.com' },
+  { match: 'airbnb', domain: 'airbnb.com' },
+  { match: 'expedia', domain: 'expedia.com' },
+  { match: 'hotels', domain: 'hotels.com' },
+  { match: 'agoda', domain: 'agoda.com' },
+  { match: 'vrbo', domain: 'vrbo.com' },
+  { match: 'tripadvisor', domain: 'tripadvisor.com' },
+  { match: 'trivago', domain: 'trivago.com' },
+  { match: 'google', domain: 'google.com' },
+] as const;
+
+const platformDomainCal = (name: string | null): string | null => {
+  if (!name) return null;
+  const n = name.trim().toLowerCase();
+  return BOOKING_PLATFORMS_CAL.find((p) => n.includes(p.match))?.domain ?? null;
+};
+
+/** Favicon-based logo for the booking platform. */
+const PlatformLogoCal: React.FC<{ platform: string; className?: string }> = ({ platform, className = 'w-8 h-8' }) => {
+  const domain = platformDomainCal(platform);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => setFailed(false), [domain]);
+  if (!domain || failed) {
+    return (
+      <span className={`${className} shrink-0 inline-flex items-center justify-center rounded-lg bg-slate-200 dark:bg-white/10 text-[11px] font-bold uppercase text-slate-500 dark:text-slate-300`}>
+        {platform.trim().charAt(0) || '?'}
+      </span>
+    );
+  }
+  return (
+    <img
+      src={`https://www.google.com/s2/favicons?sz=64&domain=${domain}`}
+      alt=""
+      loading="lazy"
+      className={`${className} shrink-0 object-contain rounded-lg`}
+      onError={() => setFailed(true)}
+    />
+  );
+};
+
+/**
+ * Right-side badge for transport events: company logo + vehicle number.
+ * For flights: logo only (name as fallback if no logo).
+ * For trains/ferries: logo + name always.
+ */
+const TransportTicketBadge: React.FC<{ ev: UnifiedEvent }> = ({ ev }) => {
+  const isFlight = ev.transportType === 'flight';
+  const isTrain = ev.transportType === 'train';
+  const isFerry = ev.transportType === 'ferry';
+
+  const hasLogo = Boolean(ev.airline?.logo || ev.trainOp || ev.ferryOp);
+  const showName = !isFlight || !hasLogo; // flights: name only as fallback
+  const alwaysName = isTrain || isFerry; // trains/ferries: always name
+
+  if (!ev.operatorName && !ev.vehicleNumber && !ev.airline && !ev.trainOp && !ev.ferryOp) return null;
+
+  return (
+    <div className="shrink-0 flex flex-col items-center justify-center gap-1 min-w-[72px] max-w-[100px] px-3 py-2 rounded-xl bg-slate-900/[0.04] dark:bg-white/[0.04] border border-slate-200/40 dark:border-white/[0.06]">
+      {/* Logo */}
+      {ev.airline && (
+        <AirlineLogo airline={ev.airline} className="w-8 h-8" />
+      )}
+      {ev.trainOp && (
+        <TrainOperatorLogo operator={ev.trainOp} className="w-8 h-8" />
+      )}
+      {ev.ferryOp && (
+        <FerryOperatorLogo operator={ev.ferryOp} className="w-8 h-8" />
+      )}
+      {/* Name: always for train/ferry, fallback for flight */}
+      {(alwaysName || (showName && ev.operatorName)) && ev.operatorName && (
+        <span className="text-[10px] font-semibold text-slate-600 dark:text-slate-400 text-center leading-tight truncate max-w-full">
+          {ev.operatorName}
+        </span>
+      )}
+      {/* Vehicle number */}
+      {ev.vehicleNumber && (
+        <span className="text-[10px] font-bold text-slate-500 dark:text-slate-500 font-mono">
+          {ev.vehicleNumber}
+        </span>
+      )}
+    </div>
+  );
+};
+
+/** Right-side badge for accommodation events: booking platform logo. */
+const AccommodationPlatformBadge: React.FC<{ platform: string | null | undefined }> = ({ platform }) => {
+  if (!platform) return null;
+  return (
+    <div className="shrink-0 flex flex-col items-center justify-center gap-1 min-w-[64px] max-w-[90px] px-3 py-2 rounded-xl bg-slate-900/[0.04] dark:bg-white/[0.04] border border-slate-200/40 dark:border-white/[0.06]">
+      <PlatformLogoCal platform={platform} className="w-8 h-8" />
+      <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-500 text-center leading-tight truncate max-w-full">
+        {platform}
+      </span>
+    </div>
+  );
+};
+
 /**
  * Unified agenda row — used for ALL event types.
- * Layout: [left color stripe] [time] [icon bubble] [content] [booking ref]
- *
- * Transport events get an enhanced inner layout (dep→arr route + depName + operator/number on right).
- * Activities and accommodations show title + subtitle + location.
+ * Layout: [left color stripe] [time] [icon bubble] [content] [right badge]
  */
 const EventRow: React.FC<EventRowProps> = ({ ev, color, copiedRef, onCopyRef, onClick }) => {
   const { t } = useTranslation();
   const Icon = getEventIcon(ev);
   const isTransport = ev.type === 'transport';
+  const isAccommodation = ev.type === 'accommodation_checkin' || ev.type === 'accommodation_checkout';
 
-  // --- Transport-specific data ---
+  // Transport-specific parsed data
   const locationParts = (ev.location ?? '').split(' ➔ ');
   const depCode = isTransport ? (locationParts[0]?.trim() || null) : null;
   const arrCode = isTransport ? (locationParts[1]?.trim() || null) : null;
   const depName = isTransport ? (ev.depName ?? null) : null;
-  const operatorLabel = [ev.operatorName, ev.vehicleNumber].filter(Boolean).join(' · ') || null;
+
+  // Accommodation platform (from raw row)
+  const accPlatform = isAccommodation
+    ? ((ev.raw as AccommodationRow).booking_platform ?? ev.bookingPlatform ?? null)
+    : null;
 
   return (
     <div
@@ -289,76 +404,67 @@ const EventRow: React.FC<EventRowProps> = ({ ev, color, copiedRef, onCopyRef, on
 
         {/* Content — transport vs other */}
         {isTransport ? (
-          // Transport: route codes + dep location name + operator/number on right
-          <>
-            <div className="flex-1 min-w-0">
-              {/* dep code ➔ arr code */}
-              <div className="flex items-center gap-1.5 min-w-0">
-                {depCode && <span className="font-bold text-sm text-slate-900 dark:text-slate-100 truncate">{depCode}</span>}
-                <svg width="22" height="8" viewBox="0 0 22 8" fill="none" className="shrink-0 text-slate-300 dark:text-slate-600">
-                  <path d="M1 4 H14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeDasharray="2.5 2.2" />
-                  <path d="M11 1 L18 4 L11 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-                {arrCode && <span className="font-bold text-sm text-slate-900 dark:text-slate-100 truncate">{arrCode}</span>}
-              </div>
-              {/* Departure location full name */}
-              {depName && (
-                <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5 truncate">
-                  <MapPin className="w-3 h-3 inline-block mr-0.5 -mt-px shrink-0" />
-                  {depName}
-                </p>
-              )}
+          // Transport: route codes + dep location name
+          <div className="flex-1 min-w-0">
+            {/* dep code ➔ arr code */}
+            <div className="flex items-center gap-1.5 min-w-0">
+              {depCode && <span className="font-bold text-sm text-slate-900 dark:text-slate-100 truncate">{depCode}</span>}
+              <svg width="22" height="8" viewBox="0 0 22 8" fill="none" className="shrink-0 text-slate-300 dark:text-slate-600">
+                <path d="M1 4 H14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeDasharray="2.5 2.2" />
+                <path d="M11 1 L18 4 L11 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              {arrCode && <span className="font-bold text-sm text-slate-900 dark:text-slate-100 truncate">{arrCode}</span>}
             </div>
-            {/* Operator + vehicle number on the right */}
-            <div className="shrink-0 text-right hidden sm:block">
-              {operatorLabel && (
-                <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 whitespace-nowrap">{operatorLabel}</p>
-              )}
-              {ev.bookingRef && (
-                <div className="mt-1">
-                  <BookingRefButton bookingRef={ev.bookingRef} copiedRef={copiedRef} onCopyRef={onCopyRef} small />
-                </div>
-              )}
-            </div>
-            {/* On mobile, booking ref inline */}
-            {ev.bookingRef && (
-              <div className="shrink-0 sm:hidden">
-                <BookingRefButton bookingRef={ev.bookingRef} copiedRef={copiedRef} onCopyRef={onCopyRef} small />
-              </div>
+            {/* Departure location full name */}
+            {depName && (
+              <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5 truncate">
+                <MapPin className="w-3 h-3 inline-block mr-0.5 -mt-px shrink-0" />
+                {depName}
+              </p>
             )}
-          </>
+          </div>
         ) : (
           // Activity / Accommodation: title + subtitle + location
-          <>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <h4 className="font-semibold text-sm text-slate-900 dark:text-slate-100 truncate">{ev.title}</h4>
-                {ev.spanInfo && (
-                  <span
-                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-gold/15 text-gold-dark dark:text-gold-light shrink-0"
-                    title={t('calendar.spanDay', { current: ev.spanInfo.dayIndex, total: ev.spanInfo.totalDays })}
-                  >
-                    <CalendarRange className="w-3 h-3" />
-                    {ev.spanInfo.dayIndex}/{ev.spanInfo.totalDays}
-                  </span>
-                )}
-                {ev.subtitle && (
-                  <span className="text-[11px] font-medium text-slate-400 dark:text-slate-500 truncate">
-                    · {ev.subtitle}
-                  </span>
-                )}
-              </div>
-              {ev.location && (
-                <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1 mt-0.5 truncate">
-                  <MapPin className="w-3 h-3 shrink-0 text-slate-400" />
-                  <span className="truncate">{ev.location}</span>
-                </p>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h4 className="font-semibold text-sm text-slate-900 dark:text-slate-100 truncate">{ev.title}</h4>
+              {ev.spanInfo && (
+                <span
+                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-gold/15 text-gold-dark dark:text-gold-light shrink-0"
+                  title={t('calendar.spanDay', { current: ev.spanInfo.dayIndex, total: ev.spanInfo.totalDays })}
+                >
+                  <CalendarRange className="w-3 h-3" />
+                  {ev.spanInfo.dayIndex}/{ev.spanInfo.totalDays}
+                </span>
+              )}
+              {ev.subtitle && (
+                <span className="text-[11px] font-medium text-slate-400 dark:text-slate-500 truncate">
+                  · {ev.subtitle}
+                </span>
               )}
             </div>
-            {ev.bookingRef && (
-              <BookingRefButton bookingRef={ev.bookingRef} copiedRef={copiedRef} onCopyRef={onCopyRef} />
+            {ev.location && (
+              <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1 mt-0.5 truncate">
+                <MapPin className="w-3 h-3 shrink-0 text-slate-400" />
+                <span className="truncate">{ev.location}</span>
+              </p>
             )}
-          </>
+          </div>
+        )}
+
+        {/* Right-side badges — hidden on small screens to avoid overflow */}
+        <div className="shrink-0 hidden sm:flex flex-col items-end gap-1.5">
+          {isTransport && <TransportTicketBadge ev={ev} />}
+          {isAccommodation && <AccommodationPlatformBadge platform={accPlatform} />}
+          {ev.bookingRef && (
+            <BookingRefButton bookingRef={ev.bookingRef} copiedRef={copiedRef} onCopyRef={onCopyRef} small />
+          )}
+        </div>
+        {/* Mobile: booking ref only */}
+        {ev.bookingRef && (
+          <div className="shrink-0 sm:hidden">
+            <BookingRefButton bookingRef={ev.bookingRef} copiedRef={copiedRef} onCopyRef={onCopyRef} small />
+          </div>
         )}
       </div>
     </div>
@@ -560,15 +666,21 @@ export const CalendarSection: React.FC<CalendarSectionProps> = ({ trip, onSelect
   const [editingEvent, setEditingEvent] = useState<UnifiedEvent | null>(null);
   const [creatingForDate, setCreatingForDate] = useState<string | null>(null);
 
-  // Location lookup data — loaded lazily (each lib caches internally)
+  // Location + operator lookup data — loaded lazily (each lib caches internally)
   const [airports, setAirports] = useState<Airport[]>([]);
   const [stations, setStations] = useState<TrainStation[]>([]);
   const [ferryPorts, setFerryPorts] = useState<FerryPort[]>([]);
+  const [airlines, setAirlines] = useState<Airline[]>([]);
+  const [trainOperators, setTrainOperators] = useState<TrainOperator[]>([]);
+  const [ferryOperators, setFerryOperators] = useState<FerryOperator[]>([]);
 
   useEffect(() => {
     void loadAirports().then(setAirports);
     void loadTrainStations().then(setStations);
     void loadFerryPorts().then(setFerryPorts);
+    void loadAirlines().then(setAirlines);
+    void loadTrainOperators().then(setTrainOperators);
+    void loadFerryOperators().then(setFerryOperators);
   }, []);
 
   // Week view: the day-header row and all-day strip sit above the
@@ -756,6 +868,14 @@ export const CalendarSection: React.FC<CalendarSectionProps> = ({ trip, onSelect
           arrName = tr.arrival_airport || null;
         }
 
+        // Resolve operator objects for logos
+        const resolvedAirline = (isFlight && airlines.length > 0 && tr.airline)
+          ? airlineByName(airlines, tr.airline) : null;
+        const resolvedTrainOp = (isTrain && trainOperators.length > 0 && tr.airline)
+          ? trainOperatorByName(trainOperators, tr.airline) : null;
+        const resolvedFerryOp = (isFerry && ferryOperators.length > 0 && tr.airline)
+          ? ferryOperatorByName(ferryOperators, tr.airline) : null;
+
         list.push({
           id: `tr-dep-${tr.id}`,
           type: 'transport',
@@ -770,6 +890,9 @@ export const CalendarSection: React.FC<CalendarSectionProps> = ({ trip, onSelect
           arrName,
           operatorName: tr.airline || null,
           vehicleNumber: tr.flight_number || null,
+          airline: resolvedAirline,
+          trainOp: resolvedTrainOp,
+          ferryOp: resolvedFerryOp,
           raw: tr,
         });
       }
@@ -781,6 +904,7 @@ export const CalendarSection: React.FC<CalendarSectionProps> = ({ trip, onSelect
       // non mostrati grezzi.
       const subtitle = t(`accommodation.type.${acc.type}`, acc.type);
       const location = [acc.city, acc.address].filter(Boolean).join(', ') || null;
+      const platform = acc.booking_platform || null;
       if (acc.check_in_date) {
         list.push({
           id: `acc-in-${acc.id}`,
@@ -791,6 +915,7 @@ export const CalendarSection: React.FC<CalendarSectionProps> = ({ trip, onSelect
           time: acc.check_in_time ? acc.check_in_time.slice(0, 5) : '15:00',
           location,
           bookingRef: acc.booking_ref || null,
+          bookingPlatform: platform,
           raw: acc,
         });
       }
@@ -804,13 +929,14 @@ export const CalendarSection: React.FC<CalendarSectionProps> = ({ trip, onSelect
           time: acc.check_out_time ? acc.check_out_time.slice(0, 5) : '11:00',
           location,
           bookingRef: acc.booking_ref || null,
+          bookingPlatform: platform,
           raw: acc,
         });
       }
     }
 
     return list;
-  }, [activities, transports, accommodations, airports, stations, ferryPorts, t]);
+  }, [activities, transports, accommodations, airports, stations, ferryPorts, airlines, trainOperators, ferryOperators, t]);
 
   // Filter events
   const filteredEvents = useMemo(() => {

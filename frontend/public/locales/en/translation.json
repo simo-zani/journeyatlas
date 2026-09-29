@@ -154,6 +154,8 @@
     "checkOut": "Check-out",
     "departure": "Departure",
     "arrival": "Arrival",
+    "flightDeparture": "Departure",
+    "flightArrival": "Landing",
     "bookingRef": "Booking Ref",
     "openBooking": "Booking Ref: {{ref}}",
     "summaryCount": "{{count}} scheduled events",

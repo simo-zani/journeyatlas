@@ -98,6 +98,8 @@ export interface UnifiedEvent {
   transportType?: TransportType;
   /** Flight phase for distinct departure and landing calendar events */
   flightPhase?: 'departure' | 'arrival' | null;
+  /** Terminal string (e.g. 'T1') displayed in yellow next to airport code */
+  terminal?: string | null;
   /** Full display name of departure location (airport/station/port name) */
   depName?: string | null;
   /** Full display name of arrival location */
@@ -322,7 +324,7 @@ const TransportOperatorLogo: React.FC<{ ev: UnifiedEvent }> = ({ ev }) => {
           alt={ev.airline.name}
           title={ev.airline.name}
           referrerPolicy="no-referrer"
-          className="h-5 max-w-[85px] w-auto object-contain shrink-0 drop-shadow-[0_0_1px_rgba(0,0,0,0.6)] dark:drop-shadow-[0_0_1.2px_rgba(255,255,255,0.9)]"
+          className="h-5 max-w-[85px] w-auto object-contain shrink-0 logo-contour"
           onError={() => setImgError(true)}
         />
       );
@@ -406,8 +408,8 @@ const EventRow: React.FC<EventRowProps> = ({ ev, color, copiedRef, onCopyRef, on
       {/* Main content area */}
       <div className="flex-1 min-w-0 flex items-center gap-3 px-3.5 py-2.5 bg-slate-900/[0.02] dark:bg-white/[0.02] hover:bg-slate-900/[0.04] dark:hover:bg-white/[0.04] transition-colors">
 
-        {/* Time */}
-        <div className="text-xs font-bold text-slate-500 dark:text-slate-400 whitespace-nowrap w-[4rem] shrink-0 text-center">
+        {/* Time — heavier and slightly larger font */}
+        <div className="text-sm font-extrabold text-slate-700 dark:text-slate-200 whitespace-nowrap w-[4.25rem] shrink-0 text-center tracking-tight">
           {formatEventTime(ev, t)}
         </div>
 
@@ -423,10 +425,15 @@ const EventRow: React.FC<EventRowProps> = ({ ev, color, copiedRef, onCopyRef, on
           )}
         </div>
 
-        {/* Content — title + subtitle + address (same style and weight for all events) */}
+        {/* Content — title + terminal badge + subtitle + address */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap min-w-0">
             <h4 className="font-semibold text-sm text-slate-900 dark:text-slate-100 truncate">{ev.title}</h4>
+            {ev.terminal && (
+              <span className="px-1.5 py-0.5 rounded text-[11px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 ring-1 ring-amber-500/30 shrink-0">
+                {ev.terminal.toLowerCase().startsWith('terminal') ? ev.terminal : `Terminal ${ev.terminal}`}
+              </span>
+            )}
             {ev.spanInfo && (
               <span
                 className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-gold/15 text-gold-dark dark:text-gold-light shrink-0"
@@ -872,22 +879,13 @@ export const CalendarSection: React.FC<CalendarSectionProps> = ({ trip, onSelect
         arrName = tr.arrival_airport || null;
       }
 
-      // Location address strings with airport/station, terminal, and address
-      const formatAirportLocation = (ap: Airport | null, iata: string, rawTerminal: string | null) => {
-        const name = ap ? ap.name : (iata || '');
-        const terminal = rawTerminal
-          ? (rawTerminal.toLowerCase().startsWith('terminal') ? rawTerminal : `Terminal ${rawTerminal}`)
-          : null;
-        const address = ap ? [ap.city, ap.country].filter(Boolean).join(', ') : null;
-        return [name, terminal, address].filter(Boolean).join(' · ');
-      };
-
+      // Location address strings with airport/station and address (terminal is shown next to title)
       const depLocation = isFlight
-        ? formatAirportLocation(depAp, tr.departure_airport, tr.departure_terminal)
+        ? ([depAp ? depAp.name : tr.departure_airport, depAp ? [depAp.city, depAp.country].filter(Boolean).join(', ') : null].filter(Boolean).join(' · ') || null)
         : ([depName, tr.departure_terminal ? `Binario/Terminal ${tr.departure_terminal}` : null].filter(Boolean).join(' · ') || null);
 
       const arrLocation = isFlight
-        ? formatAirportLocation(arrAp, tr.arrival_airport, tr.arrival_terminal)
+        ? ([arrAp ? arrAp.name : tr.arrival_airport, arrAp ? [arrAp.city, arrAp.country].filter(Boolean).join(', ') : null].filter(Boolean).join(' · ') || null)
         : ([arrName, tr.arrival_terminal ? `Binario/Terminal ${tr.arrival_terminal}` : null].filter(Boolean).join(' · ') || null);
 
       // Resolve operator objects for logos
@@ -898,18 +896,19 @@ export const CalendarSection: React.FC<CalendarSectionProps> = ({ trip, onSelect
       const resolvedFerryOp = (isFerry && ferryOperators.length > 0 && tr.airline)
         ? ferryOperatorByName(ferryOperators, tr.airline) : null;
 
-      // 2a. Departure event
+      // 2a. Departure event — shows only the departure airport
       if (tr.departure_datetime) {
         const { date: depDate, time: depTime } = localDateTimeParts(tr.departure_datetime);
         const depTitle = isFlight
-          ? `${t('calendar.flightDeparture', 'Partenza')}: ${tr.departure_airport || ''} ➔ ${tr.arrival_airport || ''}`
+          ? `${t('calendar.flightDeparture', 'Partenza')}: ${tr.departure_airport || ''}`
           : `${tr.departure_airport || ''} ➔ ${tr.arrival_airport || ''}`;
 
         list.push({
           id: `tr-dep-${tr.id}`,
           type: 'transport',
           title: depTitle || t('transport.title', 'Trasporto'),
-          subtitle: tr.transport_type ? tr.transport_type.toUpperCase() : null,
+          subtitle: null,
+          terminal: tr.departure_terminal || null,
           date: depDate,
           time: depTime,
           location: depLocation,
@@ -927,16 +926,17 @@ export const CalendarSection: React.FC<CalendarSectionProps> = ({ trip, onSelect
         });
       }
 
-      // 2b. Landing / Arrival event (specifically requested for flights)
+      // 2b. Landing / Arrival event — shows only the arrival airport
       if (isFlight && tr.arrival_datetime) {
         const { date: arrDate, time: arrTime } = localDateTimeParts(tr.arrival_datetime);
-        const arrTitle = `${t('calendar.flightArrival', 'Atterraggio')}: ${tr.departure_airport || ''} ➔ ${tr.arrival_airport || ''}`;
+        const arrTitle = `${t('calendar.flightArrival', 'Atterraggio')}: ${tr.arrival_airport || ''}`;
 
         list.push({
           id: `tr-arr-${tr.id}`,
           type: 'transport',
           title: arrTitle,
-          subtitle: 'FLIGHT',
+          subtitle: null,
+          terminal: tr.arrival_terminal || null,
           date: arrDate,
           time: arrTime,
           location: arrLocation,
@@ -957,9 +957,6 @@ export const CalendarSection: React.FC<CalendarSectionProps> = ({ trip, onSelect
 
     // 3. Accommodations (Check-in and Check-out)
     for (const acc of accommodations) {
-      // Il tipo e la città sono dati localizzati: vanno tradotti/risolti qui,
-      // non mostrati grezzi.
-      const subtitle = t(`accommodation.type.${acc.type}`, acc.type);
       const location = [acc.city, acc.address].filter(Boolean).join(', ') || null;
       const platform = acc.booking_platform || null;
       if (acc.check_in_date) {
@@ -967,7 +964,7 @@ export const CalendarSection: React.FC<CalendarSectionProps> = ({ trip, onSelect
           id: `acc-in-${acc.id}`,
           type: 'accommodation_checkin',
           title: `${t('calendar.checkIn', 'Check-in')}: ${acc.name}`,
-          subtitle,
+          subtitle: null,
           date: acc.check_in_date,
           time: acc.check_in_time ? acc.check_in_time.slice(0, 5) : '15:00',
           location,
@@ -981,7 +978,7 @@ export const CalendarSection: React.FC<CalendarSectionProps> = ({ trip, onSelect
           id: `acc-out-${acc.id}`,
           type: 'accommodation_checkout',
           title: `${t('calendar.checkOut', 'Check-out')}: ${acc.name}`,
-          subtitle,
+          subtitle: null,
           date: acc.check_out_date,
           time: acc.check_out_time ? acc.check_out_time.slice(0, 5) : '11:00',
           location,

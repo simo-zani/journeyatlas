@@ -154,6 +154,8 @@
     "checkOut": "Check-out",
     "departure": "Partenza",
     "arrival": "Arrivo",
+    "flightDeparture": "Partenza",
+    "flightArrival": "Atterraggio",
     "bookingRef": "Codice Prenotazione",
     "openBooking": "Rif. Prenotazione: {{ref}}",
     "summaryCount": "{{count}} eventi programmati",

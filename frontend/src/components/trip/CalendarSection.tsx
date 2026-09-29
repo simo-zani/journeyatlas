@@ -305,50 +305,158 @@ const TransportTicketBadge: React.FC<{ ev: UnifiedEvent }> = ({ ev }) => {
   const isFlight = ev.transportType === 'flight';
   const isTrain = ev.transportType === 'train';
   const isFerry = ev.transportType === 'ferry';
+  const isBus = ev.transportType === 'bus';
 
   const hasLogo = Boolean(ev.airline?.logo || ev.trainOp || ev.ferryOp);
-  const showName = !isFlight || !hasLogo; // flights: name only as fallback
-  const alwaysName = isTrain || isFerry; // trains/ferries: always name
+  // Trains and ferries always show operator name alongside logo.
+  // Flights show logo only; if no logo is available, show name text as fallback.
+  const showName = isTrain || isFerry || isBus || !isFlight || !hasLogo;
 
   if (!ev.operatorName && !ev.vehicleNumber && !ev.airline && !ev.trainOp && !ev.ferryOp) return null;
 
+  const ticketLabel = isFlight ? 'VOLO' : isTrain ? 'TRENO' : isFerry ? 'NAVE' : isBus ? 'BUS' : 'TICKET';
+
+  // Theme styling — Pullman / bus is always yellow/amber
+  const theme = isBus
+    ? {
+        card: 'bg-amber-400/10 dark:bg-amber-500/15 border-amber-400/60 dark:border-amber-400/50 text-amber-950 dark:text-amber-100',
+        divider: 'border-amber-400/60 dark:border-amber-400/50',
+        notchBorder: 'border-amber-400/60 dark:border-amber-400/50',
+        label: 'text-amber-700 dark:text-amber-400',
+        num: 'text-amber-950 dark:text-amber-100',
+        barcode: 'text-amber-600/70 dark:text-amber-400/70',
+      }
+    : isFlight
+    ? {
+        card: 'bg-sky-500/[0.06] dark:bg-sky-500/10 border-sky-400/40 dark:border-sky-500/30 text-slate-800 dark:text-slate-100',
+        divider: 'border-sky-300/60 dark:border-sky-500/30',
+        notchBorder: 'border-sky-400/40 dark:border-sky-500/30',
+        label: 'text-sky-600 dark:text-sky-400',
+        num: 'text-slate-900 dark:text-slate-100',
+        barcode: 'text-sky-600/50 dark:text-sky-400/50',
+      }
+    : isTrain
+    ? {
+        card: 'bg-emerald-500/[0.06] dark:bg-emerald-500/10 border-emerald-400/40 dark:border-emerald-500/30 text-slate-800 dark:text-slate-100',
+        divider: 'border-emerald-300/60 dark:border-emerald-500/30',
+        notchBorder: 'border-emerald-400/40 dark:border-emerald-500/30',
+        label: 'text-emerald-600 dark:text-emerald-400',
+        num: 'text-slate-900 dark:text-slate-100',
+        barcode: 'text-emerald-600/50 dark:text-emerald-400/50',
+      }
+    : isFerry
+    ? {
+        card: 'bg-cyan-500/[0.06] dark:bg-cyan-500/10 border-cyan-400/40 dark:border-cyan-500/30 text-slate-800 dark:text-slate-100',
+        divider: 'border-cyan-300/60 dark:border-cyan-500/30',
+        notchBorder: 'border-cyan-400/40 dark:border-cyan-500/30',
+        label: 'text-cyan-600 dark:text-cyan-400',
+        num: 'text-slate-900 dark:text-slate-100',
+        barcode: 'text-cyan-600/50 dark:text-cyan-400/50',
+      }
+    : {
+        card: 'bg-slate-500/[0.06] dark:bg-slate-500/10 border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-100',
+        divider: 'border-slate-300 dark:border-slate-700',
+        notchBorder: 'border-slate-300 dark:border-slate-700',
+        label: 'text-slate-500 dark:text-slate-400',
+        num: 'text-slate-900 dark:text-slate-100',
+        barcode: 'text-slate-500/50 dark:text-slate-400/50',
+      };
+
+  const hasVehicle = Boolean(ev.vehicleNumber);
+
   return (
-    <div className="shrink-0 flex flex-col items-center justify-center gap-1 min-w-[72px] max-w-[100px] px-3 py-2 rounded-xl bg-slate-900/[0.04] dark:bg-white/[0.04] border border-slate-200/40 dark:border-white/[0.06]">
-      {/* Logo */}
-      {ev.airline && (
-        <AirlineLogo airline={ev.airline} className="w-8 h-8" />
-      )}
-      {ev.trainOp && (
-        <TrainOperatorLogo operator={ev.trainOp} className="w-8 h-8" />
-      )}
-      {ev.ferryOp && (
-        <FerryOperatorLogo operator={ev.ferryOp} className="w-8 h-8" />
-      )}
-      {/* Name: always for train/ferry, fallback for flight */}
-      {(alwaysName || (showName && ev.operatorName)) && ev.operatorName && (
-        <span className="text-[10px] font-semibold text-slate-600 dark:text-slate-400 text-center leading-tight truncate max-w-full">
-          {ev.operatorName}
+    <div
+      className={`shrink-0 relative flex items-stretch h-[50px] rounded-xl border ${theme.card} shadow-xs select-none`}
+    >
+      {/* Left stub: Operator Logo & Name */}
+      <div className="flex items-center gap-2 px-2.5 py-1.5 min-w-0 max-w-[150px]">
+        {ev.airline && (
+          <div className="w-8 h-8 rounded-lg bg-white p-0.5 flex items-center justify-center shrink-0 shadow-xs ring-1 ring-black/5">
+            <AirlineLogo airline={ev.airline} className="w-7 h-7" />
+          </div>
+        )}
+        {ev.trainOp && (
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 overflow-hidden shadow-xs">
+            <TrainOperatorLogo operator={ev.trainOp} className="w-8 h-8" />
+          </div>
+        )}
+        {ev.ferryOp && (
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 overflow-hidden shadow-xs">
+            <FerryOperatorLogo operator={ev.ferryOp} className="w-8 h-8" />
+          </div>
+        )}
+        {isBus && !ev.airline && !ev.trainOp && !ev.ferryOp && (
+          <div className="w-8 h-8 rounded-lg bg-amber-500/20 text-amber-700 dark:text-amber-300 flex items-center justify-center shrink-0">
+            <Bus className="w-4 h-4" />
+          </div>
+        )}
+        {!ev.airline && !ev.trainOp && !ev.ferryOp && !isBus && !ev.operatorName && (
+          <div className="w-8 h-8 rounded-lg bg-slate-200/60 dark:bg-white/10 flex items-center justify-center shrink-0 text-slate-500 dark:text-slate-400">
+            {isFlight ? <Plane className="w-4 h-4" /> : isTrain ? <TrainFront className="w-4 h-4" /> : isFerry ? <Ship className="w-4 h-4" /> : <Ticket className="w-4 h-4" />}
+          </div>
+        )}
+        {showName && ev.operatorName && (
+          <span className="text-[11px] font-semibold text-slate-700 dark:text-slate-200 leading-tight truncate">
+            {ev.operatorName}
+          </span>
+        )}
+      </div>
+
+      {/* Perforation divider with top and bottom cutout punch notches */}
+      <div className="relative flex flex-col justify-between items-center w-0 self-stretch my-[-1px]">
+        <span
+          className={`absolute -top-[7px] -left-[6px] w-3 h-3 rounded-full border bg-[var(--surface-1)] ${theme.notchBorder}`}
+          aria-hidden="true"
+        />
+        <span
+          className={`h-full border-l border-dashed ${theme.divider}`}
+          aria-hidden="true"
+        />
+        <span
+          className={`absolute -bottom-[7px] -left-[6px] w-3 h-3 rounded-full border bg-[var(--surface-1)] ${theme.notchBorder}`}
+          aria-hidden="true"
+        />
+      </div>
+
+      {/* Right stub: Vehicle number / ticket details */}
+      <div className="flex flex-col items-center justify-center px-3 py-1 min-w-[76px] bg-black/[0.02] dark:bg-white/[0.02]">
+        <span className={`text-[8.5px] font-black uppercase tracking-widest leading-none ${theme.label}`}>
+          {ticketLabel}
         </span>
-      )}
-      {/* Vehicle number */}
-      {ev.vehicleNumber && (
-        <span className="text-[10px] font-bold text-slate-500 dark:text-slate-500 font-mono">
-          {ev.vehicleNumber}
-        </span>
-      )}
+        {hasVehicle ? (
+          <span className={`text-xs font-mono font-bold tracking-wide mt-1 leading-none ${theme.num}`}>
+            {ev.vehicleNumber}
+          </span>
+        ) : (
+          <span className="text-[10px] font-mono font-semibold opacity-60 mt-1 leading-none">
+            PASS
+          </span>
+        )}
+        {/* Decorative barcode */}
+        <div className={`flex items-center gap-[2px] mt-1 ${theme.barcode}`} aria-hidden="true">
+          <span className="w-[1px] h-2 bg-current" />
+          <span className="w-[2px] h-2 bg-current" />
+          <span className="w-[1px] h-2 bg-current" />
+          <span className="w-[2.5px] h-2 bg-current" />
+          <span className="w-[1px] h-2 bg-current" />
+          <span className="w-[1.5px] h-2 bg-current" />
+          <span className="w-[2px] h-2 bg-current" />
+          <span className="w-[1px] h-2 bg-current" />
+        </div>
+      </div>
     </div>
   );
 };
 
-/** Right-side badge for accommodation events: booking platform logo. */
+/** Right-side badge for accommodation events: booking platform logo only. */
 const AccommodationPlatformBadge: React.FC<{ platform: string | null | undefined }> = ({ platform }) => {
   if (!platform) return null;
   return (
-    <div className="shrink-0 flex flex-col items-center justify-center gap-1 min-w-[64px] max-w-[90px] px-3 py-2 rounded-xl bg-slate-900/[0.04] dark:bg-white/[0.04] border border-slate-200/40 dark:border-white/[0.06]">
-      <PlatformLogoCal platform={platform} className="w-8 h-8" />
-      <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-500 text-center leading-tight truncate max-w-full">
-        {platform}
-      </span>
+    <div
+      title={platform}
+      className="shrink-0 flex items-center justify-center w-11 h-11 rounded-xl bg-white dark:bg-white/[0.06] border border-slate-200/70 dark:border-white/10 shadow-xs"
+    >
+      <PlatformLogoCal platform={platform} className="w-7 h-7" />
     </div>
   );
 };

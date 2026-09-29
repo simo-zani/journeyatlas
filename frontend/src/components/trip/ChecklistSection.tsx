@@ -614,41 +614,6 @@ const ChecklistForm: React.FC<ChecklistFormProps> = ({
               <option value={NEW_CATEGORY}>{t('checklist.newCategory')}</option>
             </select>
           </div>
-          {category === NEW_CATEGORY && (
-            <div className="mt-2 space-y-2">
-              <Input
-                value={customCategoryName}
-                onChange={(e) => setCustomCategoryName(e.target.value)}
-                placeholder={t('checklist.newCategoryPlaceholder')}
-                autoFocus
-              />
-              <div>
-                <label className="label">{t('checklist.icon')}</label>
-                <div className="flex flex-wrap gap-2">
-                  {ICON_CHOICES.map((key) => {
-                    const Icon = ICON_MAP[key];
-                    const selected = customIcon === key;
-                    return (
-                      <button
-                        key={key}
-                        type="button"
-                        onClick={() => setCustomIcon(key)}
-                        aria-pressed={selected}
-                        aria-label={key}
-                        className={`w-12 h-12 rounded-lg border flex items-center justify-center transition-all ${
-                          selected
-                            ? 'border-gold bg-gold/15 text-gold'
-                            : 'border-slate-300 dark:border-slate-600 text-slate-500 dark:text-slate-400 hover:border-gold hover:text-gold'
-                        }`}
-                      >
-                        <Icon className="w-7 h-7" />
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          )}
         </div>
         <Input
           label={t('checklist.quantity')}
@@ -658,6 +623,44 @@ const ChecklistForm: React.FC<ChecklistFormProps> = ({
           onChange={(e) => setQuantity(Number(e.target.value))}
         />
       </div>
+
+      {category === NEW_CATEGORY && (
+        <div className="space-y-3 p-3.5 rounded-xl border border-gold/30 bg-gold/[0.04]">
+          <Input
+            label={t('checklist.newCategory')}
+            value={customCategoryName}
+            onChange={(e) => setCustomCategoryName(e.target.value)}
+            placeholder={t('checklist.newCategoryPlaceholder')}
+            autoFocus
+          />
+          <div>
+            <label className="label mb-2 block">{t('checklist.icon')}</label>
+            <div className="grid grid-cols-5 sm:grid-cols-7 md:grid-cols-9 gap-2 p-2 rounded-xl border border-slate-200 dark:border-slate-700/60 bg-white/60 dark:bg-slate-900/60 max-h-44 overflow-y-auto">
+              {ICON_CHOICES.map((key) => {
+                const Icon = ICON_MAP[key];
+                const selected = customIcon === key;
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => setCustomIcon(key)}
+                    aria-pressed={selected}
+                    aria-label={key}
+                    title={key}
+                    className={`h-11 rounded-xl border flex items-center justify-center transition-all cursor-pointer ${
+                      selected
+                        ? 'border-gold bg-gold/20 text-gold ring-2 ring-gold/40 shadow-sm'
+                        : 'border-slate-200 dark:border-slate-700/80 bg-white dark:bg-slate-800/80 text-slate-500 dark:text-slate-400 hover:border-gold hover:text-gold hover:bg-gold/5'
+                    }`}
+                  >
+                    <Icon className="w-5 h-5 shrink-0" />
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
 
       <Input label={t('checklist.notes')} value={notes} onChange={(e) => setNotes(e.target.value)} />
 

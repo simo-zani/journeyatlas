@@ -156,6 +156,7 @@
     "arrival": "Arrival",
     "flightDeparture": "Departure",
     "flightArrival": "Landing",
+    "outsideTrip": "Outside dates",
     "bookingRef": "Booking Ref",
     "openBooking": "Booking Ref: {{ref}}",
     "summaryCount": "{{count}} scheduled events",

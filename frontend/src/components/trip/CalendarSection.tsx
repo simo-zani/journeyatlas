@@ -431,7 +431,11 @@ const EventRow: React.FC<EventRowProps> = ({ ev, color, copiedRef, onCopyRef, on
             <h4 className="font-semibold text-sm text-slate-900 dark:text-slate-100 truncate">{ev.title}</h4>
             {ev.terminal && (
               <span className="px-1.5 py-0.5 rounded text-[11px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 ring-1 ring-amber-500/30 shrink-0">
-                {ev.terminal.toLowerCase().startsWith('terminal') ? ev.terminal : `Terminal ${ev.terminal}`}
+                {ev.terminal.toLowerCase().startsWith('terminal') || ev.terminal.toLowerCase().startsWith('binario')
+                  ? ev.terminal
+                  : ev.transportType === 'train'
+                  ? `Binario ${ev.terminal}`
+                  : `Terminal ${ev.terminal}`}
               </span>
             )}
             {ev.spanInfo && (
@@ -859,34 +863,52 @@ export const CalendarSection: React.FC<CalendarSectionProps> = ({ trip, onSelect
         arrAp = airportByIata(airports, tr.arrival_airport);
       }
 
+      let depSt: TrainStation | null = null;
+      let arrSt: TrainStation | null = null;
+      if (isTrain && stations.length > 0) {
+        depSt = stationByNameOrCode(stations, tr.departure_airport);
+        arrSt = stationByNameOrCode(stations, tr.arrival_airport);
+      }
+
+      let depPt: FerryPort | null = null;
+      let arrPt: FerryPort | null = null;
+      if (isFerry && ferryPorts.length > 0) {
+        depPt = portByNameOrCode(ferryPorts, tr.departure_airport);
+        arrPt = portByNameOrCode(ferryPorts, tr.arrival_airport);
+      }
+
       let depName: string | null = null;
       let arrName: string | null = null;
       if (isFlight) {
         depName = depAp ? depAp.name : (tr.departure_airport || null);
         arrName = arrAp ? arrAp.name : (tr.arrival_airport || null);
-      } else if (isTrain && stations.length > 0) {
-        const depSt = stationByNameOrCode(stations, tr.departure_airport);
-        const arrSt = stationByNameOrCode(stations, tr.arrival_airport);
+      } else if (isTrain) {
         depName = depSt ? (depSt.city !== depSt.name ? depSt.name : depSt.city) : (tr.departure_airport || null);
         arrName = arrSt ? (arrSt.city !== arrSt.name ? arrSt.name : arrSt.city) : (tr.arrival_airport || null);
-      } else if (isFerry && ferryPorts.length > 0) {
-        const depPt = portByNameOrCode(ferryPorts, tr.departure_airport);
-        const arrPt = portByNameOrCode(ferryPorts, tr.arrival_airport);
+      } else if (isFerry) {
         depName = depPt ? (depPt.city !== depPt.name ? depPt.name : depPt.city) : (tr.departure_airport || null);
         arrName = arrPt ? (arrPt.city !== arrPt.name ? arrPt.name : arrPt.city) : (tr.arrival_airport || null);
-      } else if (!isFlight) {
+      } else {
         depName = tr.departure_airport || null;
         arrName = tr.arrival_airport || null;
       }
 
-      // Location address strings with airport/station and address (terminal is shown next to title)
+      // Location address strings with airport/station/port and address
       const depLocation = isFlight
         ? ([depAp ? depAp.name : tr.departure_airport, depAp ? [depAp.city, depAp.country].filter(Boolean).join(', ') : null].filter(Boolean).join(' · ') || null)
-        : ([depName, tr.departure_terminal ? `Binario/Terminal ${tr.departure_terminal}` : null].filter(Boolean).join(' · ') || null);
+        : isTrain
+        ? ([depSt ? depSt.name : depName, depSt ? [depSt.city, depSt.country].filter(Boolean).join(', ') : null].filter(Boolean).join(' · ') || null)
+        : isFerry
+        ? ([depPt ? depPt.name : depName, depPt ? [depPt.city, depPt.country].filter(Boolean).join(', ') : null].filter(Boolean).join(' · ') || null)
+        : (depName || null);
 
       const arrLocation = isFlight
         ? ([arrAp ? arrAp.name : tr.arrival_airport, arrAp ? [arrAp.city, arrAp.country].filter(Boolean).join(', ') : null].filter(Boolean).join(' · ') || null)
-        : ([arrName, tr.arrival_terminal ? `Binario/Terminal ${tr.arrival_terminal}` : null].filter(Boolean).join(' · ') || null);
+        : isTrain
+        ? ([arrSt ? arrSt.name : arrName, arrSt ? [arrSt.city, arrSt.country].filter(Boolean).join(', ') : null].filter(Boolean).join(' · ') || null)
+        : isFerry
+        ? ([arrPt ? arrPt.name : arrName, arrPt ? [arrPt.city, arrPt.country].filter(Boolean).join(', ') : null].filter(Boolean).join(' · ') || null)
+        : (arrName || null);
 
       // Resolve operator objects for logos
       const resolvedAirline = (isFlight && airlines.length > 0 && tr.airline)
@@ -896,12 +918,12 @@ export const CalendarSection: React.FC<CalendarSectionProps> = ({ trip, onSelect
       const resolvedFerryOp = (isFerry && ferryOperators.length > 0 && tr.airline)
         ? ferryOperatorByName(ferryOperators, tr.airline) : null;
 
-      // 2a. Departure event — shows only the departure airport
+      // 2a. Departure event — shows only departure location and terminal
       if (tr.departure_datetime) {
         const { date: depDate, time: depTime } = localDateTimeParts(tr.departure_datetime);
         const depTitle = isFlight
           ? `${t('calendar.flightDeparture', 'Partenza')}: ${tr.departure_airport || ''}`
-          : `${tr.departure_airport || ''} ➔ ${tr.arrival_airport || ''}`;
+          : `${t('calendar.departure', 'Partenza')}: ${tr.departure_airport || depName || ''}`;
 
         list.push({
           id: `tr-dep-${tr.id}`,
@@ -914,7 +936,7 @@ export const CalendarSection: React.FC<CalendarSectionProps> = ({ trip, onSelect
           location: depLocation,
           bookingRef: tr.booking_ref || null,
           transportType: tr.transport_type,
-          flightPhase: isFlight ? 'departure' : null,
+          flightPhase: 'departure',
           depName,
           arrName,
           operatorName: tr.airline || null,
@@ -926,10 +948,12 @@ export const CalendarSection: React.FC<CalendarSectionProps> = ({ trip, onSelect
         });
       }
 
-      // 2b. Landing / Arrival event — shows only the arrival airport
-      if (isFlight && tr.arrival_datetime) {
+      // 2b. Arrival event — shows arrival location and terminal for ALL transports
+      if (tr.arrival_datetime) {
         const { date: arrDate, time: arrTime } = localDateTimeParts(tr.arrival_datetime);
-        const arrTitle = `${t('calendar.flightArrival', 'Atterraggio')}: ${tr.arrival_airport || ''}`;
+        const arrTitle = isFlight
+          ? `${t('calendar.flightArrival', 'Atterraggio')}: ${tr.arrival_airport || ''}`
+          : `${t('calendar.arrival', 'Arrivo')}: ${tr.arrival_airport || arrName || ''}`;
 
         list.push({
           id: `tr-arr-${tr.id}`,
@@ -941,15 +965,15 @@ export const CalendarSection: React.FC<CalendarSectionProps> = ({ trip, onSelect
           time: arrTime,
           location: arrLocation,
           bookingRef: tr.booking_ref || null,
-          transportType: 'flight',
+          transportType: tr.transport_type,
           flightPhase: 'arrival',
           depName,
           arrName,
           operatorName: tr.airline || null,
           vehicleNumber: tr.flight_number || null,
           airline: resolvedAirline,
-          trainOp: null,
-          ferryOp: null,
+          trainOp: resolvedTrainOp,
+          ferryOp: resolvedFerryOp,
           raw: tr,
         });
       }
@@ -1047,13 +1071,16 @@ export const CalendarSection: React.FC<CalendarSectionProps> = ({ trip, onSelect
     return map;
   }, [filteredEvents]);
 
-  // Agenda view hides days with nothing on them — `dayNumber` in that list
-  // still comes from this array's original index, so "Giorno 3" always means
-  // the trip's 3rd day even when days 1-2 are hidden for being empty.
-  const agendaDays = useMemo(
-    () => tripDays.filter((d) => (eventsByDate.get(d) || []).length > 0),
-    [tripDays, eventsByDate]
-  );
+  // Agenda view shows all days that have scheduled events, including days outside the official trip range
+  const agendaDays = useMemo(() => {
+    const datesWithEvents = new Set<string>();
+    for (const [d, evs] of eventsByDate.entries()) {
+      if (evs && evs.length > 0) {
+        datesWithEvents.add(d);
+      }
+    }
+    return Array.from(datesWithEvents).sort();
+  }, [eventsByDate]);
 
   // Total counts for filter badges
   const counts = useMemo(() => {
@@ -1124,7 +1151,11 @@ export const CalendarSection: React.FC<CalendarSectionProps> = ({ trip, onSelect
         });
       } else if (ev.type === 'transport') {
         const tr = ev.raw as TransportRow;
-        await updateTransport(tr.id, { departure_datetime: new Date(`${newDate}T${newTime}:00`).toISOString() });
+        if (ev.flightPhase === 'arrival' || ev.id.startsWith('tr-arr-')) {
+          await updateTransport(tr.id, { arrival_datetime: new Date(`${newDate}T${newTime}:00`).toISOString() });
+        } else {
+          await updateTransport(tr.id, { departure_datetime: new Date(`${newDate}T${newTime}:00`).toISOString() });
+        }
       } else if (ev.type === 'accommodation_checkin') {
         const acc = ev.raw as AccommodationRow;
         await updateAccommodation(acc.id, { check_in_date: newDate, check_in_time: newTime });
@@ -1402,17 +1433,51 @@ export const CalendarSection: React.FC<CalendarSectionProps> = ({ trip, onSelect
           ) : (
             agendaDays.map((dateStr) => {
               const dayEvents = eventsByDate.get(dateStr) || [];
+              const isTripDay = trip.start_date && trip.end_date
+                ? dateStr >= trip.start_date && dateStr <= trip.end_date
+                : true;
+              const isOutside = !isTripDay;
+
+              // Calculate day difference relative to trip.start_date if present
+              let dayDiff: number | null = null;
+              if (trip.start_date) {
+                const startMs = new Date(`${trip.start_date}T00:00:00`).getTime();
+                const currMs = new Date(`${dateStr}T00:00:00`).getTime();
+                dayDiff = Math.floor((currMs - startMs) / 86400000) + 1;
+              }
               const dayNumber = tripDays.indexOf(dateStr) + 1;
+              const displayDayNum = dayNumber > 0 ? dayNumber : dayDiff;
 
               return (
-                <Card key={dateStr} className="overflow-hidden transition-all duration-200 border-slate-200/80 dark:border-white/10 shadow-sm">
+                <Card
+                  key={dateStr}
+                  className={`overflow-hidden transition-all duration-200 shadow-sm ${
+                    isOutside
+                      ? 'opacity-60 hover:opacity-100 border-slate-200/50 dark:border-white/5 bg-slate-50/50 dark:bg-white/[0.015]'
+                      : 'border-slate-200/80 dark:border-white/10'
+                  }`}
+                >
                   {/* Day Header — no bottom separator */}
                   <div className="flex items-center justify-between pb-3 mb-4">
                     <div className="flex items-center gap-3">
-                      <span className="px-3 py-1 rounded-xl text-xs font-extrabold uppercase tracking-wider bg-gold/20 text-deep-blue dark:text-gold-light ring-1 ring-gold/40">
-                        {t('calendar.day', { number: dayNumber })}
+                      <span
+                        className={`px-3 py-1 rounded-xl text-xs font-extrabold uppercase tracking-wider ring-1 ${
+                          isOutside
+                            ? 'bg-slate-200/70 dark:bg-slate-800/80 text-slate-500 dark:text-slate-400 ring-slate-300 dark:ring-slate-700'
+                            : 'bg-gold/20 text-deep-blue dark:text-gold-light ring-gold/40'
+                        }`}
+                      >
+                        {isOutside
+                          ? (displayDayNum && displayDayNum > 0
+                              ? `${t('calendar.day', { number: displayDayNum })} (${t('calendar.outsideTrip', 'Fuori date')})`
+                              : t('calendar.outsideTrip', 'Fuori date'))
+                          : t('calendar.day', { number: displayDayNum ?? 1 })}
                       </span>
-                      <span className="text-base font-bold text-deep-blue dark:text-gold-light capitalize">
+                      <span
+                        className={`text-base font-bold capitalize ${
+                          isOutside ? 'text-slate-600 dark:text-slate-400' : 'text-deep-blue dark:text-gold-light'
+                        }`}
+                      >
                         {formatDateHeader(dateStr)}
                       </span>
                     </div>
@@ -1496,14 +1561,17 @@ export const CalendarSection: React.FC<CalendarSectionProps> = ({ trip, onSelect
               const dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
               const dayEvents = eventsByDate.get(dateStr) || [];
               const isTripDay = tripDays.includes(dateStr);
+              const hasEvents = dayEvents.length > 0;
 
               return (
                 <div
                   key={dateStr}
-                  onClick={isTripDay ? () => setSelectedDay(dateStr) : undefined}
+                  onClick={isTripDay || hasEvents ? () => setSelectedDay(dateStr) : undefined}
                   className={`min-h-[72px] sm:min-h-[88px] p-2 rounded-xl border flex flex-col justify-between transition-all ${
                     isTripDay
                       ? 'cursor-pointer border-gold/30 bg-gold/5 dark:bg-gold/[0.04] hover:border-gold/60'
+                      : hasEvents
+                      ? 'cursor-pointer opacity-60 border-slate-300 dark:border-white/10 bg-slate-100/40 dark:bg-white/[0.02] hover:opacity-100'
                       : 'cursor-default opacity-40 border-slate-200/40 dark:border-white/5 bg-slate-50/40 dark:bg-white/[0.02]'
                   }`}
                 >

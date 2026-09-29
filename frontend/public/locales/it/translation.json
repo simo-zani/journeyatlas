@@ -156,6 +156,7 @@
     "arrival": "Arrivo",
     "flightDeparture": "Partenza",
     "flightArrival": "Atterraggio",
+    "outsideTrip": "Fuori date",
     "bookingRef": "Codice Prenotazione",
     "openBooking": "Rif. Prenotazione: {{ref}}",
     "summaryCount": "{{count}} eventi programmati",

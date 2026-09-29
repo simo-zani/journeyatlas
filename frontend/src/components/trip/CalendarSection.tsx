@@ -221,6 +221,94 @@ interface EventRowProps {
   onClick?: () => void;
 }
 
+/** Mini boarding-pass style card for transport events in the agenda view. */
+const TransportEventRow: React.FC<EventRowProps> = ({ ev, color, copiedRef, onCopyRef, onClick }) => {
+  const { t } = useTranslation();
+  const Icon = getEventIcon(ev);
+  const tr = ev.raw as TransportRow;
+
+  // Parse subtitle: "TYPE · Operator · FlightNumber" or subsets
+  const subtitleParts = (ev.subtitle ?? '').split(' · ').filter(Boolean);
+  // Operator is typically part [1] (after the type), flight number [2]
+  const operatorName = subtitleParts.length >= 2 ? subtitleParts[1] : null;
+  const flightNumber = subtitleParts.length >= 3 ? subtitleParts[2] : tr.flight_number || null;
+
+  // Departure / Arrival display names from location string "X ➔ Y"
+  const locationParts = (ev.location ?? '').split(' ➔ ');
+  const depLabel = locationParts[0]?.trim() || null;
+  const arrLabel = locationParts[1]?.trim() || null;
+
+  return (
+    <div
+      onClick={onClick}
+      className={`relative flex rounded-xl overflow-hidden border border-slate-200/50 dark:border-white/[0.07] shadow-sm hover:shadow-md transition-all ${onClick ? 'cursor-pointer' : ''}`}
+    >
+      {/* Left color stripe */}
+      <div
+        className="w-[6px] shrink-0 self-stretch"
+        style={{ background: color }}
+      />
+
+      {/* Main content */}
+      <div className="flex-1 min-w-0 flex items-center gap-3 px-3.5 py-3 bg-slate-900/[0.02] dark:bg-white/[0.02] hover:bg-slate-900/[0.05] dark:hover:bg-white/[0.05] transition-colors">
+        {/* Time */}
+        <div className="text-xs font-bold text-slate-500 dark:text-slate-400 whitespace-nowrap w-[4.5rem] shrink-0">
+          {formatEventTime(ev, t)}
+        </div>
+
+        {/* Icon badge */}
+        <div
+          className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+          style={{ backgroundColor: `color-mix(in srgb, ${color} 15%, transparent)`, color }}
+        >
+          <Icon className="w-5 h-5" />
+        </div>
+
+        {/* Route info */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-1.5 min-w-0">
+            {depLabel && (
+              <span className="font-bold text-sm text-slate-900 dark:text-slate-100 truncate max-w-[6rem]">{depLabel}</span>
+            )}
+            <svg width="24" height="8" viewBox="0 0 24 8" fill="none" className="shrink-0 text-slate-300 dark:text-slate-600">
+              <path d="M1 4 H16" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeDasharray="2.5 2.2" />
+              <path d="M13 1 L20 4 L13 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            {arrLabel && (
+              <span className="font-bold text-sm text-slate-900 dark:text-slate-100 truncate max-w-[6rem]">{arrLabel}</span>
+            )}
+          </div>
+          {(operatorName || flightNumber) && (
+            <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5 truncate">
+              {[operatorName, flightNumber].filter(Boolean).join(' · ')}
+            </p>
+          )}
+        </div>
+
+        {/* Booking ref */}
+        {ev.bookingRef && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onCopyRef(ev.bookingRef!);
+            }}
+            className="group flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-mono font-bold bg-amber-500/15 text-amber-700 dark:text-amber-300 ring-1 ring-amber-500/30 hover:bg-amber-500/25 transition-all cursor-pointer shrink-0"
+            title={t('common.copy', 'Copia codice')}
+          >
+            <Ticket className="w-3 h-3 text-amber-600 dark:text-amber-400" />
+            <span>{ev.bookingRef}</span>
+            {copiedRef === ev.bookingRef ? (
+              <Check className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+            ) : (
+              <Copy className="w-2.5 h-2.5 opacity-60 group-hover:opacity-100" />
+            )}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+};
+
 /** One agenda-style row — icon bubble, time, title, location, booking ref.
  * Shared by the Agenda list and the month view's day-detail modal. Clicking
  * anywhere on the row (but not the booking-ref button) opens the edit form. */
@@ -229,31 +317,36 @@ const EventRow: React.FC<EventRowProps> = ({ ev, color, copiedRef, onCopyRef, on
   const Icon = getEventIcon(ev);
   const badgeColor = getEventBadgeColor(ev.type);
 
+  // Transport events get the specialized mini-ticket layout
+  if (ev.type === 'transport') {
+    return <TransportEventRow ev={ev} color={color} copiedRef={copiedRef} onCopyRef={onCopyRef} onClick={onClick} />;
+  }
+
   return (
     <div
       onClick={onClick}
       className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-xl bg-slate-900/[0.03] dark:bg-white/[0.03] hover:bg-slate-900/[0.06] dark:hover:bg-white/[0.06] transition-colors border border-slate-200/40 dark:border-white/5 ${onClick ? 'cursor-pointer' : ''}`}
     >
-      <div className="flex items-start sm:items-center gap-5 min-w-0">
+      <div className="flex items-start sm:items-center gap-3 min-w-0">
         {/* Time badge */}
-        <div className="w-[9.5rem] shrink-0 text-sm font-bold text-slate-600 dark:text-slate-400">
+        <div className="w-[7.5rem] shrink-0 text-sm font-bold text-slate-600 dark:text-slate-400">
           <span className="whitespace-nowrap">{formatEventTime(ev, t)}</span>
         </div>
 
-        {/* Event Icon badge */}
+        {/* Event Icon badge — enlarged */}
         <div
-          className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-sm ${ev.type === 'activity' ? '' : badgeColor}`}
+          className={`w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 shadow-sm ${ev.type === 'activity' ? '' : badgeColor}`}
           style={ev.type === 'activity' ? { backgroundColor: `color-mix(in srgb, ${color} 18%, transparent)`, color } : undefined}
         >
           {ev.type === 'activity' ? (
-            <ActivityIcon icon={(ev.raw as ActivityRow).icon} size={22} />
+            <ActivityIcon icon={(ev.raw as ActivityRow).icon} size={26} />
           ) : (
-            <Icon className="w-6 h-6" />
+            <Icon className="w-7 h-7" />
           )}
         </div>
 
         {/* Title, Subtitle, Location */}
-        <div className="min-w-0 pl-0.5">
+        <div className="min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <h4 className="font-semibold text-sm text-slate-900 dark:text-slate-100 truncate">{ev.title}</h4>
             {ev.spanInfo && (
@@ -1080,7 +1173,7 @@ export const CalendarSection: React.FC<CalendarSectionProps> = ({ trip, onSelect
             <button
               key={mode}
               onClick={() => setViewMode(mode)}
-              className={`flex items-center gap-2 px-3.5 sm:px-4 py-2.5 rounded-full text-xs sm:text-sm font-bold tracking-wide whitespace-nowrap transition-all duration-200 cursor-pointer ${
+              className={`flex items-center gap-2 px-5 sm:px-6 py-2.5 rounded-full text-xs sm:text-sm font-bold tracking-wide whitespace-nowrap transition-all duration-200 cursor-pointer ${
                 viewMode === mode
                   ? 'bg-deep-blue text-white dark:bg-gold dark:text-slate-950 shadow-md'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-900/5 dark:hover:bg-white/5'
@@ -1129,8 +1222,8 @@ export const CalendarSection: React.FC<CalendarSectionProps> = ({ trip, onSelect
 
               return (
                 <Card key={dateStr} className="overflow-hidden transition-all duration-200 border-slate-200/80 dark:border-white/10 shadow-sm">
-                  {/* Day Header */}
-                  <div className="flex items-center justify-between pb-3 mb-4 border-b border-slate-200/60 dark:border-white/5">
+                  {/* Day Header — no bottom separator */}
+                  <div className="flex items-center justify-between pb-3 mb-4">
                     <div className="flex items-center gap-3">
                       <span className="px-3 py-1 rounded-xl text-xs font-extrabold uppercase tracking-wider bg-gold/20 text-deep-blue dark:text-gold-light ring-1 ring-gold/40">
                         {t('calendar.day', { number: dayNumber })}

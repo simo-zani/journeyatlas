@@ -59,10 +59,13 @@ import { loadTrainOperators, trainOperatorByName, type TrainOperator } from '@/l
 import { loadFerryOperators, ferryOperatorByName, type FerryOperator } from '@/lib/ferryOperators';
 import { TrainOperatorLogo } from '@/components/trip/TrainOperatorPicker';
 import { FerryOperatorLogo } from '@/components/trip/FerryOperatorPicker';
+import { CountryFlag } from '@/components/CountryFlag';
+import { foldText } from '@/lib/countries';
 import type {
   AccommodationRow,
   ActivityCategoryRow,
   ActivityRow,
+  Destination,
   TransportRow,
   TransportType,
   Trip,
@@ -95,6 +98,8 @@ export interface UnifiedEvent {
   bookingRef?: string | null;
   category?: string | null;
   status?: string | null;
+  /** ISO-2 country code for the flag */
+  countryCode?: string | null;
   transportType?: TransportType;
   /** Flight phase for distinct departure and landing calendar events */
   flightPhase?: 'departure' | 'arrival' | null;
@@ -232,6 +237,31 @@ const layoutTimedEvents = (events: UnifiedEvent[]): LanedEvent[] => {
   }
   const laneCount = Math.max(1, laneEnds.length);
   return placed.map((p) => ({ ...p, laneCount }));
+};
+
+/** Helper to match country code from destinations, text, or fallback */
+const resolveEventCountry = (
+  specificCountry: string | null | undefined,
+  locationText: string | null | undefined,
+  tripDestinations: Destination[] | null | undefined
+): string | null => {
+  if (specificCountry && specificCountry.trim().length === 2) {
+    return specificCountry.trim().toLowerCase();
+  }
+  const dests = tripDestinations || [];
+  if (locationText) {
+    const folded = foldText(locationText);
+    for (const d of dests) {
+      if (d.countryCode) {
+        if (d.city && folded.includes(foldText(d.city))) return d.countryCode.toLowerCase();
+        if (d.country && folded.includes(foldText(d.country))) return d.countryCode.toLowerCase();
+      }
+    }
+  }
+  if (dests.length > 0 && dests[0]?.countryCode) {
+    return dests[0].countryCode.toLowerCase();
+  }
+  return null;
 };
 
 interface EventRowProps {
@@ -408,9 +438,19 @@ const EventRow: React.FC<EventRowProps> = ({ ev, color, copiedRef, onCopyRef, on
       {/* Main content area */}
       <div className="flex-1 min-w-0 flex items-center gap-3 px-3.5 py-2.5 bg-slate-900/[0.02] dark:bg-white/[0.02] hover:bg-slate-900/[0.04] dark:hover:bg-white/[0.04] transition-colors">
 
-        {/* Time — heavier and slightly larger font */}
-        <div className="text-sm font-extrabold text-slate-700 dark:text-slate-200 whitespace-nowrap w-[4.25rem] shrink-0 text-center tracking-tight">
-          {formatEventTime(ev, t)}
+        {/* Time + Country Flag */}
+        <div className="flex items-center gap-1.5 shrink-0 justify-center min-w-[4.25rem]">
+          {ev.countryCode && (
+            <CountryFlag
+              code={ev.countryCode}
+              size="xs"
+              fit="cover"
+              className="rounded-full shadow-sm ring-1 ring-slate-900/10 dark:ring-white/20 shrink-0"
+            />
+          )}
+          <span className="text-sm font-extrabold text-slate-700 dark:text-slate-200 whitespace-nowrap tracking-tight text-center">
+            {formatEventTime(ev, t)}
+          </span>
         </div>
 
         {/* Icon bubble — same size and style for all types */}
@@ -843,6 +883,7 @@ export const CalendarSection: React.FC<CalendarSectionProps> = ({ trip, onSelect
           location: [act.location_city, act.location_address].filter(Boolean).join(', ') || null,
           bookingRef: act.booking_ref || null,
           category: act.category || null,
+          countryCode: resolveEventCountry(null, [act.location_city, act.location_address].filter(Boolean).join(' '), trip.destinations),
           status: act.status,
           raw: act,
         });
@@ -935,6 +976,7 @@ export const CalendarSection: React.FC<CalendarSectionProps> = ({ trip, onSelect
           time: depTime,
           location: depLocation,
           bookingRef: tr.booking_ref || null,
+          countryCode: depAp?.country?.toLowerCase() || depSt?.country?.toLowerCase() || depPt?.country?.toLowerCase() || resolveEventCountry(null, [tr.departure_airport, depLocation].filter(Boolean).join(' '), trip.destinations),
           transportType: tr.transport_type,
           flightPhase: 'departure',
           depName,
@@ -965,6 +1007,7 @@ export const CalendarSection: React.FC<CalendarSectionProps> = ({ trip, onSelect
           time: arrTime,
           location: arrLocation,
           bookingRef: tr.booking_ref || null,
+          countryCode: arrAp?.country?.toLowerCase() || arrSt?.country?.toLowerCase() || arrPt?.country?.toLowerCase() || resolveEventCountry(null, [tr.arrival_airport, arrLocation].filter(Boolean).join(' '), trip.destinations),
           transportType: tr.transport_type,
           flightPhase: 'arrival',
           depName,
@@ -992,6 +1035,7 @@ export const CalendarSection: React.FC<CalendarSectionProps> = ({ trip, onSelect
           date: acc.check_in_date,
           time: acc.check_in_time ? acc.check_in_time.slice(0, 5) : '15:00',
           location,
+          countryCode: resolveEventCountry(null, [acc.city, acc.address].filter(Boolean).join(' '), trip.destinations),
           bookingRef: acc.booking_ref || null,
           bookingPlatform: platform,
           raw: acc,
@@ -1006,6 +1050,7 @@ export const CalendarSection: React.FC<CalendarSectionProps> = ({ trip, onSelect
           date: acc.check_out_date,
           time: acc.check_out_time ? acc.check_out_time.slice(0, 5) : '11:00',
           location,
+          countryCode: resolveEventCountry(null, [acc.city, acc.address].filter(Boolean).join(' '), trip.destinations),
           bookingRef: acc.booking_ref || null,
           bookingPlatform: platform,
           raw: acc,
@@ -1344,7 +1389,7 @@ export const CalendarSection: React.FC<CalendarSectionProps> = ({ trip, onSelect
             }`}
           >
             <Route className="w-5 h-5" />
-            {t('calendar.filterTransports', 'Mezzi')} ({counts.transports})
+            {t('calendar.filterTransports', 'Spostamenti')} ({counts.transports})
           </button>
 
           <button
@@ -1467,11 +1512,7 @@ export const CalendarSection: React.FC<CalendarSectionProps> = ({ trip, onSelect
                             : 'bg-gold/20 text-deep-blue dark:text-gold-light ring-gold/40'
                         }`}
                       >
-                        {isOutside
-                          ? (displayDayNum && displayDayNum > 0
-                              ? `${t('calendar.day', { number: displayDayNum })} (${t('calendar.outsideTrip', 'Fuori date')})`
-                              : t('calendar.outsideTrip', 'Fuori date'))
-                          : t('calendar.day', { number: displayDayNum ?? 1 })}
+                        {t('calendar.day', { number: displayDayNum ?? 1 })}
                       </span>
                       <span
                         className={`text-base font-bold capitalize ${

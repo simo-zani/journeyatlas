@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -74,8 +74,6 @@ export const TripDetailPage: React.FC = () => {
   const [editOpen, setEditOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [participants, setParticipants] = useState<TripParticipantDetail[]>([]);
-  const [tabsScrolled, setTabsScrolled] = useState(false);
-  const sentinelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!tripId) return;
@@ -108,17 +106,7 @@ export const TripDetailPage: React.FC = () => {
     void loadParticipants();
   }, [loadParticipants]);
 
-  // IntersectionObserver to detect when header scrolls away (sticky tabs blur effect)
-  useEffect(() => {
-    const el = sentinelRef.current;
-    if (!el) return;
-    const obs = new IntersectionObserver(
-      ([entry]) => setTabsScrolled(!entry.isIntersecting),
-      { threshold: 0 }
-    );
-    obs.observe(el);
-    return () => obs.disconnect();
-  }, []);
+
 
   const formatDate = (date: string | null) =>
     date ? new Date(`${date}T00:00:00`).toLocaleDateString() : '';
@@ -313,12 +301,10 @@ export const TripDetailPage: React.FC = () => {
             />
           )}
 
-          {/* Sentinel element to detect when header is out of view */}
-          <div ref={sentinelRef} className="h-px w-full" aria-hidden="true" />
 
           {/* ── Section Tabs ── */}
           <nav
-            className={`sticky top-0 z-20 flex gap-1 sm:gap-1.5 mb-6 w-full items-center overflow-x-auto overflow-y-hidden p-1.5 rounded-full backdrop-blur-xl backdrop-saturate-150 bg-[var(--surface-0)]/65 border border-slate-200/50 dark:border-white/10 transition-all ${tabsScrolled ? 'shadow-lg shadow-black/15 border-slate-300/60 dark:border-white/20' : 'shadow-sm'}`}
+            className="sticky top-0 z-30 flex gap-1 sm:gap-1.5 mb-6 w-full items-center overflow-x-auto overflow-y-hidden p-1.5 rounded-full backdrop-blur-xl backdrop-saturate-150 bg-[var(--surface-0)]/65 border border-slate-200/50 dark:border-white/10 shadow-lg shadow-black/15 dark:border-white/20 transition-all"
             aria-label="Trip sections"
           >
             {[...ACTIVE_SECTIONS, ...INACTIVE_SECTIONS].map((section) => {

@@ -73,18 +73,19 @@ const wallClockAt = (instantMs: number, timeZone: string): WallClock => {
   return { year: get('year'), month: get('month'), day: get('day'), hour: get('hour') % 24, minute: get('minute') };
 };
 
-/** Le componenti a muro di un `timestamptz` salvato, lette dal dispositivo:
- *  `new Date(iso)` + i getter locali restituiscono lo stesso numero digitato
- *  alla creazione, perché scrittura e lettura passano dallo stesso fuso
- *  (quello del dispositivo). Mirror di `TransportSection.toLocalInput`. */
+/** Le componenti a muro di un timestamp salvato, lette direttamente dalla
+ *  stringa ISO senza conversione di fuso. I datetime dei trasporti sono
+ *  ora salvati come stringhe wall-clock ("YYYY-MM-DDTHH:mm:ss" senza offset),
+ *  quindi sliceare e' l'unico approccio corretto: new Date() applicherebbe il
+ *  fuso del dispositivo corrente, che puo' differire da quello di pianificazione. */
 export const wallClockFromIso = (iso: string): WallClock => {
-  const d = new Date(iso);
+  // I primi 16 caratteri sono sempre "YYYY-MM-DDTHH:mm" — corretti in ogni caso.
   return {
-    year: d.getFullYear(),
-    month: d.getMonth() + 1,
-    day: d.getDate(),
-    hour: d.getHours(),
-    minute: d.getMinutes(),
+    year:   parseInt(iso.slice(0, 4),  10),
+    month:  parseInt(iso.slice(5, 7),  10),
+    day:    parseInt(iso.slice(8, 10), 10),
+    hour:   parseInt(iso.slice(11, 13), 10),
+    minute: parseInt(iso.slice(14, 16), 10),
   };
 };
 

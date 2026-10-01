@@ -12,14 +12,17 @@ import {
   Car,
   Check,
   ChevronDown,
+  ChevronsDown,
+  ChevronsUp,
   CreditCard,
   Droplets,
   FileText,
   Footprints,
   HeartPulse,
+  Layers,
   Loader2,
   Luggage,
-  Map,
+  Map as MapIcon,
   MapPin,
   Music,
   Package,
@@ -38,8 +41,6 @@ import {
   Wallet,
   type LucideIcon,
 } from 'lucide-react';
-import { Card } from '@/components/Card';
-import { Badge } from '@/components/Badge';
 import { Input } from '@/components/Input';
 import { Button } from '@/components/Button';
 import { Alert } from '@/components/Alert';
@@ -67,11 +68,6 @@ interface FormState {
   open: boolean;
   editing: ChecklistItemRow | null;
 }
-
-const PACKED_BADGE: Record<string, 'success' | 'warning'> = {
-  true: 'success',
-  false: 'warning',
-};
 
 const NEW_CATEGORY = '__new__';
 
@@ -115,7 +111,7 @@ const ICON_CHOICES = [
 const ICON_MAP: Record<string, LucideIcon> = {
   luggage: Luggage,
   briefcase: Briefcase,
-  map: Map,
+  map: MapIcon,
   'map-pin': MapPin,
   utensils: Utensils,
   car: Car,
@@ -160,6 +156,8 @@ interface CategorySelectProps {
   placeholder: string;
   labelFor: (option: string) => string;
   iconFor: (option: string) => LucideIcon | null;
+  countFor?: (option: string) => number;
+  totalCount: number;
   onChange: (value: string) => void;
   ariaLabel: string;
 }
@@ -170,6 +168,8 @@ const CategorySelect: React.FC<CategorySelectProps> = ({
   placeholder,
   labelFor,
   iconFor,
+  countFor,
+  totalCount,
   onChange,
   ariaLabel,
 }) => {
@@ -193,29 +193,40 @@ const CategorySelect: React.FC<CategorySelectProps> = ({
     };
   }, [open]);
 
-  const CurrentIcon = value === 'all' ? null : iconFor(value);
+  const CurrentIcon = value === 'all' ? Layers : iconFor(value);
   const currentLabel = value === 'all' ? placeholder : labelFor(value);
+  const currentCount = value === 'all' ? totalCount : countFor?.(value);
 
   return (
     <div ref={ref} className="relative">
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="input-field input-field-inline inline-flex items-center justify-between gap-2 pr-2.5 text-left"
+        className="flex items-center justify-between gap-2.5 px-4 py-2.5 rounded-xl bg-slate-900/60 dark:bg-slate-800/60 border border-slate-700/70 hover:border-gold/50 backdrop-blur-md text-sm font-medium text-slate-200 transition-all shadow-sm cursor-pointer select-none"
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-label={ariaLabel}
       >
-        <span className="inline-flex items-center gap-2 min-w-0">
-          {CurrentIcon && <CurrentIcon className="w-6 h-6 text-gold shrink-0" />}
-          <span className="truncate">{currentLabel}</span>
+        <span className="inline-flex items-center gap-2.5 min-w-0">
+          {CurrentIcon && <CurrentIcon className="w-5 h-5 text-gold shrink-0" strokeWidth={2.2} />}
+          <span className="truncate max-w-[140px] sm:max-w-[180px]">{currentLabel}</span>
+          {currentCount !== undefined && (
+            <span className="text-xs px-2 py-0.5 rounded-full bg-slate-800 border border-slate-700 text-slate-400 font-mono">
+              {currentCount}
+            </span>
+          )}
         </span>
-        <ChevronDown className={`w-5 h-5 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
+        <ChevronDown
+          className={`w-5 h-5 text-slate-400 shrink-0 transition-transform duration-200 ${
+            open ? 'rotate-180 text-gold' : ''
+          }`}
+        />
       </button>
+
       {open && (
         <ul
           role="listbox"
-          className="absolute z-20 mt-1 min-w-[240px] max-h-72 overflow-auto rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-xl ring-1 ring-slate-900/10 dark:ring-white/10 py-1"
+          className="absolute left-0 z-50 mt-2 min-w-[260px] max-h-80 overflow-y-auto rounded-2xl border border-slate-700/80 bg-slate-900/95 dark:bg-slate-900/95 backdrop-blur-xl shadow-2xl p-1.5 ring-1 ring-white/10 space-y-0.5"
         >
           <li>
             <button
@@ -226,18 +237,29 @@ const CategorySelect: React.FC<CategorySelectProps> = ({
                 onChange('all');
                 setOpen(false);
               }}
-              className={`w-full flex items-center gap-2 px-3 py-2 text-sm text-left transition-colors hover:bg-slate-100 dark:hover:bg-slate-800 ${
+              className={`w-full flex items-center justify-between gap-2.5 px-3.5 py-2.5 rounded-xl text-sm text-left transition-all ${
                 value === 'all'
-                  ? 'text-gold font-semibold'
-                  : 'text-slate-700 dark:text-slate-300'
+                  ? 'bg-gold/15 text-gold font-semibold border border-gold/30'
+                  : 'text-slate-300 hover:bg-slate-800/80 hover:text-white'
               }`}
             >
-              {placeholder}
+              <span className="flex items-center gap-2.5 min-w-0">
+                <Layers className="w-5 h-5 shrink-0 text-gold" strokeWidth={2.2} />
+                <span className="truncate">{placeholder}</span>
+              </span>
+              <span
+                className={`text-xs px-2 py-0.5 rounded-full font-mono font-medium ${
+                  value === 'all' ? 'bg-gold/20 text-gold' : 'bg-slate-800 text-slate-400'
+                }`}
+              >
+                {totalCount}
+              </span>
             </button>
           </li>
           {options.map((c) => {
             const Icon = iconFor(c);
             const selected = value === c;
+            const count = countFor?.(c);
             return (
               <li key={c}>
                 <button
@@ -248,14 +270,25 @@ const CategorySelect: React.FC<CategorySelectProps> = ({
                     onChange(c);
                     setOpen(false);
                   }}
-                  className={`w-full flex items-center gap-2 px-3 py-2 text-sm text-left transition-colors hover:bg-slate-100 dark:hover:bg-slate-800 ${
+                  className={`w-full flex items-center justify-between gap-2.5 px-3.5 py-2.5 rounded-xl text-sm text-left transition-all ${
                     selected
-                      ? 'text-gold font-semibold'
-                      : 'text-slate-700 dark:text-slate-300'
+                      ? 'bg-gold/15 text-gold font-semibold border border-gold/30'
+                      : 'text-slate-300 hover:bg-slate-800/80 hover:text-white'
                   }`}
                 >
-                  {Icon && <Icon className="w-6 h-6 shrink-0 text-gold" />}
-                  <span className="truncate">{labelFor(c)}</span>
+                  <span className="flex items-center gap-2.5 min-w-0">
+                    {Icon && <Icon className="w-5 h-5 shrink-0 text-gold" strokeWidth={2.2} />}
+                    <span className="truncate">{labelFor(c)}</span>
+                  </span>
+                  {count !== undefined && (
+                    <span
+                      className={`text-xs px-2 py-0.5 rounded-full font-mono font-medium ${
+                        selected ? 'bg-gold/20 text-gold' : 'bg-slate-800 text-slate-400'
+                      }`}
+                    >
+                      {count}
+                    </span>
+                  )}
                 </button>
               </li>
             );
@@ -274,12 +307,10 @@ export const ChecklistSection: React.FC<ChecklistSectionProps> = ({ tripId, user
   const [error, setError] = useState<string | null>(null);
   const [filterCategory, setFilterCategory] = useState<'all' | string>('all');
   const [showPacked, setShowPacked] = useState<'all' | 'todo' | 'done'>('all');
+  const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({});
   const [form, setForm] = useState<FormState>({ open: false, editing: null });
-  const [toggling, setToggling] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
     try {
       const [itemsData, categoriesData] = await Promise.all([
         fetchChecklistItems(tripId),
@@ -312,14 +343,109 @@ export const ChecklistSection: React.FC<ChecklistSectionProps> = ({ tripId, user
       items.filter(
         (i) =>
           (filterCategory === 'all' || i.category === filterCategory) &&
-          (showPacked === 'all' ||
-            (showPacked === 'done' ? i.packed : !i.packed))
+          (showPacked === 'all' || (showPacked === 'done' ? i.packed : !i.packed))
       ),
     [items, filterCategory, showPacked]
   );
 
-  const packedCount = items.filter((i) => i.packed).length;
-  const progress = items.length === 0 ? 0 : Math.round((packedCount / items.length) * 100);
+  // Group filtered items by category with alphabetical sorting inside each category
+  const groupedCategories = useMemo(() => {
+    const categoryMap = new Map<string, ChecklistItemRow[]>();
+
+    filtered.forEach((item) => {
+      const cat = item.category || 'altro';
+      if (!categoryMap.has(cat)) {
+        categoryMap.set(cat, []);
+      }
+      categoryMap.get(cat)!.push(item);
+    });
+
+    // Strictly sort items alphabetically by name — keeps items in place when packed/unpacked
+    categoryMap.forEach((catItems) => {
+      catItems.sort((a, b) => a.name.localeCompare(b.name, 'it', { sensitivity: 'base' }));
+    });
+
+    // Sort categories: built-in order first, then custom categories alphabetically
+    const standardOrder = CHECKLIST_CATEGORIES as readonly string[];
+    const sortedKeys = Array.from(categoryMap.keys()).sort((a, b) => {
+      const idxA = standardOrder.indexOf(a as ChecklistItemCategory);
+      const idxB = standardOrder.indexOf(b as ChecklistItemCategory);
+      if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+      if (idxA !== -1) return -1;
+      if (idxB !== -1) return 1;
+      return a.localeCompare(b, 'it', { sensitivity: 'base' });
+    });
+
+    return sortedKeys.map((catKey) => {
+      const catItems = categoryMap.get(catKey)!;
+      return {
+        key: catKey,
+        items: catItems,
+        packedCount: catItems.filter((i) => i.packed).length,
+        totalCount: catItems.length,
+      };
+    });
+  }, [filtered]);
+
+  const toggleCollapse = (catKey: string) => {
+    setCollapsedCategories((prev) => ({
+      ...prev,
+      [catKey]: !prev[catKey],
+    }));
+  };
+
+  const allCollapsed =
+    groupedCategories.length > 0 &&
+    groupedCategories.every((c) => collapsedCategories[c.key]);
+
+  const toggleAllCollapse = () => {
+    if (allCollapsed) {
+      setCollapsedCategories({});
+    } else {
+      const next: Record<string, boolean> = {};
+      groupedCategories.forEach((c) => {
+        next[c.key] = true;
+      });
+      setCollapsedCategories(next);
+    }
+  };
+
+  const handleToggle = async (item: ChecklistItemRow) => {
+    // 1. Optimistic update: instant visual toggle, stays in exact alphabetical position
+    const nextPacked = !item.packed;
+    setItems((prev) =>
+      prev.map((i) =>
+        i.id === item.id
+          ? {
+              ...i,
+              packed: nextPacked,
+              packed_by_user_id: nextPacked ? userId : null,
+              packed_at: nextPacked ? new Date().toISOString() : null,
+            }
+          : i
+      )
+    );
+
+    // 2. Background sync without full page reload or layout shift
+    try {
+      await toggleChecklistItem(item, userId);
+    } catch (err) {
+      // Revert if error
+      setItems((prev) => prev.map((i) => (i.id === item.id ? item : i)));
+      setError(err instanceof Error ? err.message : t('common.error'));
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    const backup = items;
+    setItems((prev) => prev.filter((i) => i.id !== id));
+    try {
+      await deleteChecklistItem(id);
+    } catch (err) {
+      setItems(backup);
+      setError(err instanceof Error ? err.message : t('common.error'));
+    }
+  };
 
   const handleSubmit = async (input: ChecklistItemInput, icon?: string) => {
     const category = input.category ?? null;
@@ -328,62 +454,96 @@ export const ChecklistSection: React.FC<ChecklistSectionProps> = ({ tripId, user
       !(CHECKLIST_CATEGORIES as readonly string[]).includes(category) &&
       !categories.some((c) => c.name === category)
     ) {
-      await createChecklistCategory(tripId, category, icon ?? 'tag');
+      const newCat = await createChecklistCategory(tripId, category, icon ?? 'tag');
+      setCategories((prev) => [...prev, newCat]);
     }
     if (form.editing) {
-      await updateChecklistItem(form.editing.id, input);
+      const updated = await updateChecklistItem(form.editing.id, input);
+      setItems((prev) => prev.map((i) => (i.id === updated.id ? updated : i)));
     } else {
-      await createChecklistItem(tripId, userId, input);
+      const created = await createChecklistItem(tripId, userId, input);
+      setItems((prev) => [...prev, created]);
     }
     setForm({ open: false, editing: null });
-    await load();
-  };
-
-  const handleToggle = async (item: ChecklistItemRow) => {
-    setToggling(item.id);
-    setError(null);
-    try {
-      await toggleChecklistItem(item, userId);
-      await load();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t('common.error'));
-    } finally {
-      setToggling(null);
-    }
-  };
-
-  const handleDelete = async (id: string) => {
-    await deleteChecklistItem(id);
-    await load();
   };
 
   return (
     <div>
-      <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-4">
-        <div className="flex flex-wrap gap-3">
+      {/* Top Filter and Action Bar — Sticky at top-14 right below tabs */}
+      <div className="sticky top-14 z-20 py-2 mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-2.5">
+          {/* Category Dropdown */}
           <CategorySelect
             value={filterCategory}
             options={filterCategories}
             placeholder={t('checklist.filterAllCategory')}
             labelFor={(c) => t(`checklist.category.${c}`, { defaultValue: c })}
             iconFor={(c) => ICON_MAP[resolveIconKey(c, categories) ?? 'tag'] ?? null}
+            countFor={(c) => items.filter((i) => i.category === c).length}
+            totalCount={items.length}
             onChange={setFilterCategory}
             ariaLabel="Filter category"
           />
-          <select
-            className="input-field input-field-inline"
-            value={showPacked}
-            onChange={(e) => setShowPacked(e.target.value as typeof showPacked)}
-            aria-label="Filter packed status"
-          >
-            <option value="all">{t('checklist.filterAllStatus')}</option>
-            <option value="todo">{t('checklist.filterTodo')}</option>
-            <option value="done">{t('checklist.filterDone')}</option>
-          </select>
+
+          {/* Status Segmented Control */}
+          <div className="flex items-center p-1 rounded-xl bg-slate-900/60 dark:bg-slate-800/60 border border-slate-700/70 backdrop-blur-md">
+            {(['all', 'todo', 'done'] as const).map((status) => {
+              const isSelected = showPacked === status;
+              const label =
+                status === 'all'
+                  ? t('checklist.filterAllStatus', 'Tutti')
+                  : status === 'todo'
+                  ? t('checklist.filterTodo', 'Da preparare')
+                  : t('checklist.filterDone', 'Pronti');
+              const count =
+                status === 'all'
+                  ? items.length
+                  : status === 'todo'
+                  ? items.filter((i) => !i.packed).length
+                  : items.filter((i) => i.packed).length;
+
+              return (
+                <button
+                  key={status}
+                  type="button"
+                  onClick={() => setShowPacked(status)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all cursor-pointer ${
+                    isSelected
+                      ? 'bg-gold text-slate-950 font-semibold shadow-sm'
+                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+                  }`}
+                >
+                  <span>{label}</span>
+                  <span
+                    className={`text-xs px-1.5 py-0.2 rounded-full font-mono ${
+                      isSelected
+                        ? 'bg-slate-950/20 text-slate-950 font-bold'
+                        : 'bg-slate-800 text-slate-400'
+                    }`}
+                  >
+                    {count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
         </div>
-        <div className="sm:ml-auto">
+
+        {/* Right Actions */}
+        <div className="flex items-center gap-2 sm:ml-auto">
+          {groupedCategories.length > 1 && (
+            <button
+              type="button"
+              onClick={toggleAllCollapse}
+              className="p-2.5 rounded-xl border border-slate-700/70 bg-slate-900/60 dark:bg-slate-800/60 text-slate-400 hover:text-slate-200 hover:border-slate-600 transition-colors cursor-pointer"
+              title={allCollapsed ? 'Espandi tutte le sezioni' : 'Comprimi tutte le sezioni'}
+              aria-label={allCollapsed ? 'Espandi tutte le sezioni' : 'Comprimi tutte le sezioni'}
+            >
+              {allCollapsed ? <ChevronsDown size={20} /> : <ChevronsUp size={20} />}
+            </button>
+          )}
           <Button onClick={() => setForm({ open: true, editing: null })}>
-            <Plus className="w-6 h-6" />
+            <Plus size={20} strokeWidth={2.5} />
             {t('checklist.add')}
           </Button>
         </div>
@@ -391,26 +551,10 @@ export const ChecklistSection: React.FC<ChecklistSectionProps> = ({ tripId, user
 
       {error && <Alert type="error" message={error} onClose={() => setError(null)} />}
 
-      {items.length > 0 && (
-        <Card compact className="mb-4">
-          <div className="flex items-center justify-between gap-4">
-            <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-              {t('checklist.progress', { packed: packedCount, total: items.length, percent: progress })}
-            </p>
-            <span className="font-poppins font-bold text-lg text-gold">{progress}%</span>
-          </div>
-          <div className="mt-2 h-2 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
-            <div
-              className="h-full bg-gradient-to-r from-light-blue to-gold rounded-full transition-all duration-500"
-              style={{ width: `${progress}%` }}
-            />
-          </div>
-        </Card>
-      )}
-
+      {/* Main Content */}
       {loading ? (
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="w-16 h-16 text-gold animate-spin" />
+        <div className="flex items-center justify-center py-16">
+          <Loader2 size={48} className="text-gold animate-spin" />
         </div>
       ) : filtered.length === 0 ? (
         <div className="empty-state">
@@ -423,77 +567,149 @@ export const ChecklistSection: React.FC<ChecklistSectionProps> = ({ tripId, user
           </p>
         </div>
       ) : (
-        <ul className="space-y-2">
-          {filtered.map((item) => {
-            const CatIcon = ICON_MAP[resolveIconKey(item.category, categories) ?? 'tag'];
-            const categoryLabel = t(`checklist.category.${item.category ?? ''}`, {
-              defaultValue: item.category ?? '',
-            });
+        <div className="space-y-4">
+          {groupedCategories.map((cat) => {
+            const CatIcon = ICON_MAP[resolveIconKey(cat.key, categories) ?? 'tag'] ?? Tag;
+            const catLabel = t(`checklist.category.${cat.key}`, { defaultValue: cat.key });
+            const isCollapsed = !!collapsedCategories[cat.key];
+            const isCompleted = cat.packedCount === cat.totalCount;
+            const catPercent = Math.round((cat.packedCount / cat.totalCount) * 100);
+
             return (
-              <Card key={item.id} compact className={item.packed ? 'opacity-70' : ''}>
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={() => handleToggle(item)}
-                    disabled={toggling === item.id}
-                    tabIndex={0}
-                    aria-label={t(item.packed ? 'checklist.markTodo' : 'checklist.markPacked')}
-                    className={`flex items-center justify-center w-9 h-9 rounded-lg border-2 shrink-0 transition-all ${
-                      item.packed
-                        ? 'bg-gold border-gold text-deep-blue'
-                        : 'border-slate-300 dark:border-slate-600 text-transparent hover:border-gold hover:text-gold/50'
-                    }`}
-                  >
-                    {toggling === item.id ? (
-                      <Loader2 className="w-6 h-6 animate-spin text-current" />
-                    ) : (
-                      <Check className="w-6 h-6" strokeWidth={3} />
-                    )}
-                  </button>
-
-                  <div className="min-w-0 flex-1">
-                    <p
-                      className={`font-medium ${
-                        item.packed
-                          ? 'line-through text-slate-400 dark:text-slate-500'
-                          : 'text-slate-800 dark:text-slate-200'
-                      }`}
-                    >
-                      {item.name}
-                      {item.quantity > 1 && (
-                        <span className="ml-1 text-xs text-slate-400 dark:text-slate-500">
-                          ×{item.quantity}
+              <div
+                key={cat.key}
+                className="rounded-2xl border border-slate-700/60 bg-slate-900/50 backdrop-blur-md overflow-hidden transition-all shadow-lg shadow-black/20"
+              >
+                {/* Category Header */}
+                <button
+                  type="button"
+                  onClick={() => toggleCollapse(cat.key)}
+                  className="w-full flex items-center justify-between px-4 sm:px-5 py-3.5 bg-slate-800/40 hover:bg-slate-800/70 transition-colors text-left select-none cursor-pointer border-b border-slate-700/40"
+                  aria-expanded={!isCollapsed}
+                >
+                  <div className="flex items-center gap-3.5 min-w-0">
+                    <div className="w-[46px] h-[46px] rounded-xl bg-gold/15 border border-gold/40 flex items-center justify-center text-gold shrink-0 shadow-sm shadow-gold/10">
+                      <CatIcon size={24} strokeWidth={2.2} />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2.5 flex-wrap">
+                        <h3 className="font-poppins font-semibold text-base text-slate-100 capitalize">
+                          {catLabel}
+                        </h3>
+                        <span
+                          className={`text-xs px-2.5 py-0.5 rounded-full font-medium border ${
+                            isCompleted
+                              ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+                              : 'bg-slate-800 text-slate-300 border-slate-700'
+                          }`}
+                        >
+                          {cat.packedCount} / {cat.totalCount}
                         </span>
-                      )}
-                    </p>
-                    {item.notes && (
-                      <p className="text-xs text-slate-500 dark:text-slate-400">{item.notes}</p>
-                    )}
+                      </div>
+                    </div>
                   </div>
 
-                  <div className="flex items-center gap-2 shrink-0">
-                    {item.category && (
-                      <Badge variant={PACKED_BADGE[String(item.packed)]} className="inline-flex items-center gap-1.5">
-                        <CatIcon className="w-5 h-5" />
-                        {categoryLabel}
-                      </Badge>
-                    )}
-                    <button
-                      onClick={() => setForm({ open: true, editing: item })}
-                      className="p-2 rounded-xl text-slate-400 hover:text-light-blue hover:bg-light-blue/10 transition-colors"
-                      aria-label={t('common.edit')}
-                      title={t('common.edit')}
-                    >
-                      <Pencil className="w-6 h-6" />
-                    </button>
-                    <DeleteButton onDelete={() => handleDelete(item.id)} />
+                  <div className="flex items-center gap-4 sm:gap-5 shrink-0">
+                    {/* Progress bar on side */}
+                    <div className="hidden sm:flex items-center gap-3 w-[150px] md:w-[180px]">
+                      <div className="flex-1 h-[8px] rounded-full bg-slate-800 border border-slate-700/60 overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all duration-300 ${
+                            isCompleted ? 'bg-emerald-400' : 'bg-gold'
+                          }`}
+                          style={{ width: `${catPercent}%` }}
+                        />
+                      </div>
+                      <span className="text-xs font-semibold text-slate-300 min-w-[36px] text-right tabular-nums font-mono">
+                        {catPercent}%
+                      </span>
+                    </div>
+                    <ChevronDown
+                      size={22}
+                      className={`text-slate-400 shrink-0 transition-transform duration-200 ${
+                        isCollapsed ? '-rotate-90' : ''
+                      }`}
+                    />
                   </div>
-                </div>
-              </Card>
+                </button>
+
+                {/* Items in category */}
+                {!isCollapsed && (
+                  <ul className="divide-y divide-slate-800/70 p-1.5 sm:p-2 space-y-1">
+                    {cat.items.map((item) => (
+                      <li
+                        key={item.id}
+                        className={`flex items-center gap-3.5 px-3.5 py-2.5 rounded-xl transition-all ${
+                          item.packed
+                            ? 'bg-slate-800/20 opacity-70'
+                            : 'bg-slate-800/40 hover:bg-slate-800/70'
+                        } group`}
+                      >
+                        {/* Custom Checkbox */}
+                        <button
+                          type="button"
+                          onClick={() => handleToggle(item)}
+                          tabIndex={0}
+                          aria-label={t(item.packed ? 'checklist.markTodo' : 'checklist.markPacked')}
+                          className={`w-[34px] h-[34px] rounded-xl border-2 flex items-center justify-center shrink-0 transition-all cursor-pointer ${
+                            item.packed
+                              ? 'bg-gold border-gold text-slate-950 shadow-sm shadow-gold/30'
+                              : 'border-slate-600 bg-slate-800/60 text-transparent hover:border-gold hover:text-gold/40'
+                          }`}
+                        >
+                          <Check size={20} strokeWidth={3} />
+                        </button>
+
+                        {/* Title and notes (clicking also toggles) */}
+                        <div
+                          className="min-w-0 flex-1 cursor-pointer select-none"
+                          onClick={() => handleToggle(item)}
+                        >
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span
+                              className={`font-medium text-sm sm:text-base transition-all ${
+                                item.packed
+                                  ? 'line-through text-slate-400 dark:text-slate-500'
+                                  : 'text-slate-200'
+                              }`}
+                            >
+                              {item.name}
+                            </span>
+                            {item.quantity > 1 && (
+                              <span className="text-xs px-1.5 py-0.2 rounded bg-slate-800/90 text-slate-400 border border-slate-700/60 font-medium font-mono">
+                                ×{item.quantity}
+                              </span>
+                            )}
+                          </div>
+                          {item.notes && (
+                            <p className="text-xs text-slate-400 mt-0.5 truncate">{item.notes}</p>
+                          )}
+                        </div>
+
+                        {/* Actions */}
+                        <div className="flex items-center gap-1 shrink-0 opacity-80 group-hover:opacity-100 transition-opacity">
+                          <button
+                            type="button"
+                            onClick={() => setForm({ open: true, editing: item })}
+                            className="p-2.5 rounded-xl text-slate-400 hover:text-light-blue hover:bg-light-blue/10 transition-colors cursor-pointer"
+                            aria-label={t('common.edit')}
+                            title={t('common.edit')}
+                          >
+                            <Pencil className="w-5 h-5" />
+                          </button>
+                          <DeleteButton onDelete={() => handleDelete(item.id)} />
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
             );
           })}
-        </ul>
+        </div>
       )}
 
+      {/* Add / Edit Modal */}
       <Modal
         open={form.open}
         onClose={() => setForm({ open: false, editing: null })}
@@ -591,12 +807,15 @@ const ChecklistForm: React.FC<ChecklistFormProps> = ({
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className="label">{t('checklist.categoryLabel')}</label>
-          <div className="flex items-center gap-2">
-            <span className="w-12 h-12 rounded-md border border-slate-300 dark:border-slate-600 flex items-center justify-center text-gold shrink-0">
-              {category && <SelectedIcon className="w-7 h-7" />}
-            </span>
+          <div className="relative">
+            {category && (
+              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gold z-10">
+                <SelectedIcon size={20} />
+              </span>
+            )}
             <select
-              className="input-field flex-1"
+              className="input-field w-full"
+              style={{ paddingLeft: category ? '2.5rem' : undefined }}
               value={category}
               onChange={(e) => setCategory(e.target.value)}
             >
@@ -669,7 +888,7 @@ const ChecklistForm: React.FC<ChecklistFormProps> = ({
           {t('common.cancel')}
         </Button>
         <Button type="submit" disabled={!canSubmit || submitting}>
-          {submitting && <Loader2 className="w-6 h-6 animate-spin" />}
+          {submitting && <Loader2 className="w-5 h-5 animate-spin" />}
           {t('common.save')}
         </Button>
       </div>

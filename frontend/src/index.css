@@ -313,7 +313,7 @@ h3 {
 
 /* Labels */
 .label {
-  @apply block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2;
+  @apply block text-sm font-semibold text-slate-700 dark:text-slate-300 mt-2 mb-1.5;
 }
 
 .label-required::after {

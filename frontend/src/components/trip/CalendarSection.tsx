@@ -182,19 +182,18 @@ const errorMessage = (err: unknown, fallback: string): string => {
   return fallback;
 };
 
-const pad2 = (n: number) => String(n).padStart(2, '0');
-
-/** Local (viewer's device) date/time parts for a `timestamptz` value —
- * mirrors TransportSection's own `toLocalInput`, so a flight shows the same
- * time here as it does in the Mezzi tab. Slicing the raw ISO string instead
- * (as this used to) reads the UTC wall-clock, which is wrong for anyone not
- * in UTC+0. See the Calendar reply about transport's timezone-aware storage
- * for why this can still shift if the viewer's device timezone changes. */
+/** Legge la data e l'ora "a muro" direttamente dalla stringa ISO salvata,
+ * senza conversione di fuso. I datetime dei trasporti vengono salvati come
+ * `new Date(localInput).toISOString()` nel fuso del dispositivo al momento
+ * dell'inserimento — la simmetria inversa (new Date + getHours) funzionerebbe
+ * solo se il fuso non cambia mai. Slicando la stringa grezza otteniamo sempre
+ * l'orario che l'utente ha digitato, indipendentemente da dove si trova ora. */
 const localDateTimeParts = (iso: string): { date: string; time: string } => {
-  const d = new Date(iso);
+  // iso è tipicamente "2024-06-15T10:30:00+00:00" o "2024-06-15T10:30:00"
+  // I primi 10 caratteri sono sempre la data, i caratteri 11-15 l'orario.
   return {
-    date: `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`,
-    time: `${pad2(d.getHours())}:${pad2(d.getMinutes())}`,
+    date: iso.slice(0, 10),
+    time: iso.slice(11, 16),
   };
 };
 
@@ -1196,10 +1195,14 @@ export const CalendarSection: React.FC<CalendarSectionProps> = ({ trip, onSelect
         });
       } else if (ev.type === 'transport') {
         const tr = ev.raw as TransportRow;
+        // Manteniamo il formato wall-clock senza conversione UTC: salvare con
+        // toISOString() converte nel fuso del dispositivo corrente, che potrebbe
+        // essere diverso da quello in cui il viaggio è stato pianificato.
+        const wallClockIso = `${newDate}T${newTime}:00`;
         if (ev.flightPhase === 'arrival' || ev.id.startsWith('tr-arr-')) {
-          await updateTransport(tr.id, { arrival_datetime: new Date(`${newDate}T${newTime}:00`).toISOString() });
+          await updateTransport(tr.id, { arrival_datetime: wallClockIso });
         } else {
-          await updateTransport(tr.id, { departure_datetime: new Date(`${newDate}T${newTime}:00`).toISOString() });
+          await updateTransport(tr.id, { departure_datetime: wallClockIso });
         }
       } else if (ev.type === 'accommodation_checkin') {
         const acc = ev.raw as AccommodationRow;
@@ -1354,15 +1357,15 @@ export const CalendarSection: React.FC<CalendarSectionProps> = ({ trip, onSelect
       {/* Top Controls Bar with Filters & View Mode Toggle — sticky right below
           the trip's section navbar (top-14 = that navbar's own height, 56px,
           so the two sit flush with no gap or overlap). */}
-      <div ref={filterBarRef} className="sticky top-14 z-10 p-1.5 rounded-2xl bg-[var(--surface-0)]/90 backdrop-blur-md backdrop-saturate-150 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        {/* Filter Pills */}
-        <div className="flex items-center gap-2 overflow-x-auto -mx-1 px-1 flex-1">
+      <div ref={filterBarRef} className="sticky top-14 z-20 py-1.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        {/* Filter Pills with Glass Effect */}
+        <div className="flex items-center gap-2 overflow-x-auto -mx-1 px-1 flex-1 py-1">
           <button
             onClick={() => setFilterType('all')}
-            className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all duration-150 cursor-pointer ${
+            className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all duration-150 cursor-pointer backdrop-blur-xl shadow-md ${
               filterType === 'all'
-                ? 'bg-deep-blue text-white dark:bg-gold dark:text-slate-950 shadow-sm'
-                : 'bg-slate-900/5 dark:bg-white/5 text-slate-600 dark:text-slate-400 hover:bg-slate-900/10 dark:hover:bg-white/10'
+                ? 'bg-gold text-slate-950 border border-gold/60'
+                : 'bg-slate-900/80 dark:bg-slate-900/85 text-slate-300 border border-slate-700/60 dark:border-white/10 hover:bg-slate-850 hover:border-gold/40'
             }`}
           >
             {t('calendar.filterAll', 'Tutti')} ({counts.all})
@@ -1370,58 +1373,55 @@ export const CalendarSection: React.FC<CalendarSectionProps> = ({ trip, onSelect
 
           <button
             onClick={() => setFilterType('activities')}
-            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all duration-150 cursor-pointer ${
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all duration-150 cursor-pointer backdrop-blur-xl shadow-md ${
               filterType === 'activities'
-                ? 'bg-purple-600 text-white shadow-sm'
-                : 'bg-purple-500/10 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20'
+                ? 'bg-purple-600 text-white border border-purple-400'
+                : 'bg-slate-900/80 dark:bg-slate-900/85 text-purple-300 border border-purple-500/30 hover:bg-purple-950/60 hover:border-purple-400/50'
             }`}
           >
-            <Mountain className="w-5 h-5" />
+            <Mountain className="w-5 h-5 text-purple-400" />
             {t('calendar.filterActivities', 'Attività')} ({counts.activities})
           </button>
 
           <button
             onClick={() => setFilterType('transports')}
-            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all duration-150 cursor-pointer ${
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all duration-150 cursor-pointer backdrop-blur-xl shadow-md ${
               filterType === 'transports'
-                ? 'bg-blue-600 text-white shadow-sm'
-                : 'bg-blue-500/10 text-blue-700 dark:text-blue-300 hover:bg-blue-500/20'
+                ? 'bg-blue-600 text-white border border-blue-400'
+                : 'bg-slate-900/80 dark:bg-slate-900/85 text-blue-300 border border-blue-500/30 hover:bg-blue-950/60 hover:border-blue-400/50'
             }`}
           >
-            <Route className="w-5 h-5" />
+            <Route className="w-5 h-5 text-blue-400" />
             {t('calendar.filterTransports', 'Spostamenti')} ({counts.transports})
           </button>
 
           <button
             onClick={() => setFilterType('accommodations')}
-            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all duration-150 cursor-pointer ${
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all duration-150 cursor-pointer backdrop-blur-xl shadow-md ${
               filterType === 'accommodations'
-                ? 'bg-emerald-600 text-white shadow-sm'
-                : 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20'
+                ? 'bg-emerald-600 text-white border border-emerald-400'
+                : 'bg-slate-900/80 dark:bg-slate-900/85 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-950/60 hover:border-emerald-400/50'
             }`}
           >
-            <BedDouble className="w-5 h-5" />
+            <BedDouble className="w-5 h-5 text-emerald-400" />
             {t('calendar.filterAccommodations', 'Alloggi')} ({counts.accommodations})
           </button>
 
           <button
             onClick={() => setFilterType('bookings')}
-            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all duration-150 cursor-pointer ${
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all duration-150 cursor-pointer backdrop-blur-xl shadow-md ${
               filterType === 'bookings'
-                ? 'bg-amber-600 text-white shadow-sm'
-                : 'bg-amber-500/10 text-amber-700 dark:text-amber-400 hover:bg-amber-500/20'
+                ? 'bg-amber-600 text-white border border-amber-400'
+                : 'bg-slate-900/80 dark:bg-slate-900/85 text-amber-300 border border-amber-500/30 hover:bg-amber-950/60 hover:border-amber-400/50'
             }`}
           >
-            <Ticket className="w-5 h-5" />
+            <Ticket className="w-5 h-5 text-amber-400" />
             {t('calendar.filterBookings', 'Con Prenotazione')} ({counts.bookings})
           </button>
         </div>
 
-        {/* View Mode Toggle: Agenda / Day / Week / Month
-            Same rounded-full-in-rounded-full pattern as the section tab bar:
-            uniform padding on every side around a fully-rounded wrapper
-            keeps the inner buttons' corners concentric with it. */}
-        <div className="flex items-center gap-1 bg-slate-900/5 dark:bg-white/5 p-1.5 rounded-full shrink-0 self-start sm:self-auto overflow-x-auto">
+        {/* View Mode Toggle with Glass Effect */}
+        <div className="flex items-center gap-1 bg-slate-900/80 dark:bg-slate-900/85 backdrop-blur-xl border border-slate-700/60 dark:border-white/10 p-1.5 rounded-full shrink-0 self-start sm:self-auto overflow-x-auto shadow-md">
           {(
             [
               ['agenda', ListFilter, t('calendar.viewAgenda', 'Agenda')],
@@ -1435,8 +1435,8 @@ export const CalendarSection: React.FC<CalendarSectionProps> = ({ trip, onSelect
               onClick={() => setViewMode(mode)}
               className={`flex items-center gap-2 px-5 sm:px-6 py-2.5 rounded-full text-xs sm:text-sm font-bold tracking-wide whitespace-nowrap transition-all duration-200 cursor-pointer ${
                 viewMode === mode
-                  ? 'bg-deep-blue text-white dark:bg-gold dark:text-slate-950 shadow-md'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-900/5 dark:hover:bg-white/5'
+                  ? 'bg-gold text-slate-950 shadow-sm'
+                  : 'text-slate-400 hover:text-slate-100 hover:bg-white/10'
               }`}
             >
               <Icon className="w-5 h-5 shrink-0" />

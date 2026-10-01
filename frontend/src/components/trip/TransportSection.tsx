@@ -60,12 +60,14 @@ const TRAIN_PLACEHOLDERS: Record<'departure' | 'arrival' | 'number', string> = {
   number: 'FR 9540',
 };
 
-const pad = (n: number) => String(n).padStart(2, '0');
-
+/** Legge il valore "a muro" da una stringa ISO salvata, senza conversione di
+ * fuso: si troncano i primi 16 caratteri ("YYYY-MM-DDTHH:mm") per ottenere
+ * esattamente ciò che l'utente ha digitato, indipendentemente dal fuso corrente. */
 const toLocalInput = (iso: string | null): string => {
   if (!iso) return '';
-  const d = new Date(iso);
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  // iso è "2024-06-15T10:30:00" o "2024-06-15T10:30:00+00:00" — sliceare
+  // è sempre corretto, new Date() dipende dal fuso del dispositivo.
+  return iso.slice(0, 16);
 };
 
 export const TransportSection: React.FC<TransportSectionProps> = ({
@@ -379,9 +381,11 @@ export const TransportForm: React.FC<TransportFormProps> = ({
         departure_airport: departure,
         arrival_airport: arrival,
         departure_datetime: departureAt
-          ? new Date(departureAt).toISOString()
+          ? departureAt.length === 16 ? `${departureAt}:00` : departureAt
           : null,
-        arrival_datetime: arrivalAt ? new Date(arrivalAt).toISOString() : null,
+        arrival_datetime: arrivalAt
+          ? arrivalAt.length === 16 ? `${arrivalAt}:00` : arrivalAt
+          : null,
         departure_terminal: departureTerminal || null,
         arrival_terminal: arrivalTerminal || null,
         airline: airline || null,

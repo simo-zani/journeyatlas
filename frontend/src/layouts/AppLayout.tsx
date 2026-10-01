@@ -251,7 +251,7 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
 
       {/* ── Desktop sidebar: 100% viewport height ── */}
       <div
-        className="hidden md:block relative shrink-0 h-screen z-30"
+        className="hidden md:block relative shrink-0 h-screen z-40"
         style={{
           width: sidebarCollapsed ? SIDEBAR_COLLAPSED_WIDTH : SIDEBAR_WIDTH,
           transition: 'width 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
@@ -269,10 +269,10 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
         }}
       >
         <motion.aside
-          className={`border-r overflow-hidden h-screen z-30 ${
+          className={`border-r overflow-hidden h-screen ${
             sidebarCollapsed && isHovered
-              ? 'absolute top-0 bottom-0 left-0 shadow-2xl ring-1 ring-slate-900/10 dark:ring-white/10'
-              : 'relative'
+              ? 'absolute top-0 bottom-0 left-0 z-40 shadow-2xl ring-1 ring-slate-900/10 dark:ring-white/10'
+              : 'relative z-30'
           }`}
           style={{
             backgroundColor: 'var(--surface-0)',

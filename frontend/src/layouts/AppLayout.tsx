@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   Globe,
@@ -88,7 +88,7 @@ const NavList: React.FC<{
   );
 };
 
-export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const AppLayout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { t, i18n } = useTranslation();
@@ -105,6 +105,11 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
   const [homeCity, setHomeCity] = useState<CityValue | null>(null);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
+
+  // Il layout ora persiste tra le pagine: riparte dall'alto a ogni cambio rotta.
+  useEffect(() => {
+    mainRef.current?.scrollTo({ top: 0 });
+  }, [location.pathname]);
 
   const isItalian = i18n.language?.startsWith('it');
 
@@ -718,17 +723,16 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
           className="h-full overflow-y-auto overflow-x-hidden scroll-overlay-host"
           style={{ padding: 'clamp(16px, 2.5vw, 40px) clamp(16px, 2.5vw, 48px)' }}
         >
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={location.pathname}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-            >
-              {children}
-            </motion.div>
-          </AnimatePresence>
+          {/* Solo fade-in all'ingresso, senza AnimatePresence/exit: un'uscita
+              che non termina lascerebbe la pagina vuota. */}
+          <motion.div
+            key={location.pathname}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+          >
+            <Outlet />
+          </motion.div>
         </main>
         <OverlayScrollbar targetRef={mainRef} />
       </div>

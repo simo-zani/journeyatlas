@@ -31,45 +31,17 @@ export default function App() {
         />
 
         <Route
-          path="/"
           element={
             <ProtectedRoute>
-              <AppLayout>
-                <DashboardPage />
-              </AppLayout>
+              <AppLayout />
             </ProtectedRoute>
           }
-        />
-        <Route
-          path="/trips/:tripId"
-          element={
-            <ProtectedRoute>
-              <AppLayout>
-                <TripDetailPage />
-              </AppLayout>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/travelers"
-          element={
-            <ProtectedRoute>
-              <AppLayout>
-                <TravelersPage />
-              </AppLayout>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/travelers/:userId"
-          element={
-            <ProtectedRoute>
-              <AppLayout>
-                <TravelerProfilePage />
-              </AppLayout>
-            </ProtectedRoute>
-          }
-        />
+        >
+          <Route path="/" element={<DashboardPage />} />
+          <Route path="/trips/:tripId" element={<TripDetailPage />} />
+          <Route path="/travelers" element={<TravelersPage />} />
+          <Route path="/travelers/:userId" element={<TravelerProfilePage />} />
+        </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

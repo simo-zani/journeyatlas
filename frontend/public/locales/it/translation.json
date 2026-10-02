@@ -634,5 +634,62 @@
       "continents": "Continenti visitati",
       "trips": "Viaggi"
     }
+  },
+  "countryInfo": {
+    "safetyTitle": "Sicurezza in viaggio",
+    "farnesina": "Viaggiare Sicuri",
+    "capital": "Capitale",
+    "languages": "Lingue",
+    "currency": "Valuta",
+    "timezone": "Fuso orario",
+    "fromYou": "{{diff}} rispetto a te",
+    "moreTimezones": "+{{count}} altri fusi",
+    "callingCode": "Prefisso telefonico",
+    "driving": "Guida",
+    "side": {
+      "left": "A sinistra",
+      "right": "A destra"
+    },
+    "emptyTitle": "Nessun paese da mostrare",
+    "emptyMessage": "Aggiungi una meta al viaggio per vedere le informazioni pratiche del paese.",
+    "partialError": "Alcune informazioni non sono disponibili al momento.",
+    "sources": "Dati: world-countries, Open-Meteo e ExchangeRate-API. Tassi e prese sono indicativi: verifica prima di partire.",
+    "tabs": {
+      "overview": "Panoramica",
+      "weather": "Meteo",
+      "currency": "Cambio",
+      "phrasebook": "Frasario"
+    },
+    "plugs": "Prese elettriche",
+    "plugFits": "Le tue spine europee (tipo C) dovrebbero andare bene.",
+    "plugAdapter": "Porta un adattatore: le tue spine italiane potrebbero non entrare.",
+    "voltageWarning": "Tensione {{voltage}} V (in Italia 230 V): controlla che i tuoi dispositivi la supportino.",
+    "weather": {
+      "emptyTitle": "Nessuna meta con coordinate",
+      "emptyMessage": "Scegli le mete dall'elenco città per vedere il meteo.",
+      "skipped": "{{count}} meta senza coordinate non è mostrata.",
+      "next7": "Prossimi 7 giorni",
+      "unavailable": "Previsioni non disponibili al momento."
+    },
+    "currencyPanel": {
+      "title": "Convertitore di valuta",
+      "amount": "Importo",
+      "from": "Da valuta",
+      "unavailable": "Tassi di cambio non disponibili al momento."
+    },
+    "phrasebook": {
+      "search": "Cerca una frase",
+      "noResults": "Nessuna frase trovata.",
+      "fallbackTitle": "Serve un'altra lingua?",
+      "fallbackMessage": "Per questo paese non c'è ancora un frasario: usa Google Translate.",
+      "fallbackLanguages": "Non ancora nel frasario: {{languages}}. Usa Google Translate.",
+      "categories": {
+        "allergies": "Allergie e intolleranze",
+        "needs": "Bisogni base",
+        "emergency": "Emergenze",
+        "transport": "Orientamento e trasporti",
+        "courtesy": "Cortesia"
+      }
+    }
   }
 }

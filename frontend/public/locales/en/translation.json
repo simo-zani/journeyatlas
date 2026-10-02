@@ -634,5 +634,62 @@
       "continents": "Continents visited",
       "trips": "Trips"
     }
+  },
+  "countryInfo": {
+    "safetyTitle": "Travel safety",
+    "farnesina": "Viaggiare Sicuri",
+    "capital": "Capital",
+    "languages": "Languages",
+    "currency": "Currency",
+    "timezone": "Time zone",
+    "fromYou": "{{diff}} from you",
+    "moreTimezones": "+{{count}} more time zones",
+    "callingCode": "Calling code",
+    "driving": "Driving",
+    "side": {
+      "left": "On the left",
+      "right": "On the right"
+    },
+    "emptyTitle": "No country to show",
+    "emptyMessage": "Add a destination to the trip to see practical country info.",
+    "partialError": "Some information is currently unavailable.",
+    "sources": "Data: world-countries, Open-Meteo and ExchangeRate-API. Exchange rates and outlets are indicative: check before you travel.",
+    "tabs": {
+      "overview": "Overview",
+      "weather": "Weather",
+      "currency": "Exchange",
+      "phrasebook": "Phrasebook"
+    },
+    "plugs": "Power outlets",
+    "plugFits": "Your European plugs (type C) should work.",
+    "plugAdapter": "Bring an adapter: your Italian plugs may not fit.",
+    "voltageWarning": "Voltage is {{voltage}} V (230 V in Italy): check that your devices support it.",
+    "weather": {
+      "emptyTitle": "No destination with coordinates",
+      "emptyMessage": "Pick destinations from the city list to see the weather.",
+      "skipped": "{{count}} destination without coordinates is not shown.",
+      "next7": "Next 7 days",
+      "unavailable": "Forecast currently unavailable."
+    },
+    "currencyPanel": {
+      "title": "Currency converter",
+      "amount": "Amount",
+      "from": "From currency",
+      "unavailable": "Exchange rates currently unavailable."
+    },
+    "phrasebook": {
+      "search": "Search a phrase",
+      "noResults": "No phrases found.",
+      "fallbackTitle": "Need another language?",
+      "fallbackMessage": "There is no phrasebook for this country yet: use Google Translate.",
+      "fallbackLanguages": "Not in the phrasebook yet: {{languages}}. Use Google Translate.",
+      "categories": {
+        "allergies": "Allergies and intolerances",
+        "needs": "Basic needs",
+        "emergency": "Emergencies",
+        "transport": "Directions and transport",
+        "courtesy": "Courtesy"
+      }
+    }
   }
 }

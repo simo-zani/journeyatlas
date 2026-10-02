@@ -26,6 +26,7 @@ import { ActivitySection } from '@/components/trip/ActivitySection';
 import { AccommodationSection } from '@/components/trip/AccommodationSection';
 import { TransportSection } from '@/components/trip/TransportSection';
 import { ChecklistSection } from '@/components/trip/ChecklistSection';
+import { CountryInfoSection } from '@/components/trip/CountryInfoSection';
 import { ShareTripModal } from '@/components/trip/ShareTripModal';
 import { TripParticipantAvatars } from '@/components/trip/TripParticipantAvatars';
 import { useAuth } from '@/auth/AuthContext';
@@ -46,8 +47,8 @@ type TripSection =
   | 'chat'
   | 'report';
 
-const ACTIVE_SECTIONS: TripSection[] = ['calendar', 'activities', 'accommodations', 'transport', 'packing'];
-const INACTIVE_SECTIONS: TripSection[] = ['expenses', 'info', 'documents'];
+const ACTIVE_SECTIONS: TripSection[] = ['calendar', 'activities', 'accommodations', 'transport', 'packing', 'info'];
+const INACTIVE_SECTIONS: TripSection[] = ['expenses', 'documents'];
 
 const SECTION_ICONS: Record<TripSection, LucideIcon> = {
   calendar: CalendarDays,
@@ -361,6 +362,9 @@ export const TripDetailPage: React.FC = () => {
           )}
           {activeSection === 'packing' && user && (
             <ChecklistSection tripId={trip.id} userId={user.id} />
+          )}
+          {activeSection === 'info' && (
+            <CountryInfoSection tripDestinations={trip.destinations ?? []} />
           )}
         </>
       )}

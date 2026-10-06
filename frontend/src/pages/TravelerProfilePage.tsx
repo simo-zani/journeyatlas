@@ -80,7 +80,7 @@ export const TravelerProfilePage: React.FC = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-16">
-        <Loader2 className="w-16 h-16 text-gold animate-spin" />
+        <Loader2 className="w-10 h-10 text-gold animate-spin" />
       </div>
     );
   }

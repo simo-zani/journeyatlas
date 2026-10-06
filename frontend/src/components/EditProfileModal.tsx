@@ -257,7 +257,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
               {t('common.cancel')}
             </Button>
             <Button type="button" size="sm" className="flex-1" onClick={handleChangePassword} disabled={changingPassword}>
-              {changingPassword && <Loader2 className="w-4 h-4 animate-spin" />}
+              {changingPassword && <Loader2 className="w-5 h-5 animate-spin" />}
               {t('profile.updatePassword')}
             </Button>
           </div>
@@ -361,7 +361,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
             {profileError && <Alert type="error" message={profileError} onClose={() => setProfileError(null)} />}
 
             <Button type="button" className="w-full" onClick={handleSaveProfile} disabled={savingProfile || !hasProfileChanges}>
-              {savingProfile && <Loader2 className="w-4 h-4 animate-spin" />}
+              {savingProfile && <Loader2 className="w-5 h-5 animate-spin" />}
               {t('common.save')}
             </Button>
           </div>

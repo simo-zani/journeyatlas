@@ -123,7 +123,7 @@ export const DestinationPicker: React.FC<DestinationPickerProps> = ({ value, onC
             className="w-full bg-transparent outline-none placeholder:text-slate-400"
             placeholder={t('trip.destinationsPlaceholder')}
           />
-          {loadingQuery && <Loader2 className="w-4 h-4 text-gold animate-spin shrink-0" />}
+          {loadingQuery && <Loader2 className="w-5 h-5 text-gold animate-spin shrink-0" />}
         </div>
 
         {showSuggestions && (

@@ -1,4 +1,5 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { X } from 'lucide-react';
 
@@ -13,6 +14,14 @@ interface ModalProps {
 }
 
 export const Modal: React.FC<ModalProps> = ({ open, onClose, title, maxWidth = 'max-w-3xl', tall = false, children }) => {
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  // All'apertura il focus va al pannello, non al primo campo: così nessun campo
+  // (es. la città, che apre subito l'elenco delle mete) si attiva da solo.
+  useEffect(() => {
+    if (open) panelRef.current?.focus({ preventScroll: true });
+  }, [open]);
+
   useEffect(() => {
     if (!open) return;
     const handleKey = (e: KeyboardEvent) => {
@@ -26,7 +35,9 @@ export const Modal: React.FC<ModalProps> = ({ open, onClose, title, maxWidth = '
     };
   }, [open, onClose]);
 
-  return (
+  // Portale su <body>: dentro il contenuto della pagina (che ha una transform di
+  // animazione) `fixed` non è relativo alla finestra e l'overlay si fermava a metà.
+  return createPortal(
     <AnimatePresence>
       {open && (
         <motion.div
@@ -41,7 +52,9 @@ export const Modal: React.FC<ModalProps> = ({ open, onClose, title, maxWidth = '
           aria-modal="true"
         >
           <motion.div
-            className={`surface-panel w-full ${maxWidth} ${tall ? 'max-h-[95vh] overflow-hidden' : 'max-h-[90vh] overflow-y-auto'}`}
+            ref={panelRef}
+            tabIndex={-1}
+            className={`outline-none surface-panel w-full ${maxWidth} ${tall ? 'max-h-[95vh] overflow-hidden' : 'max-h-[90vh] overflow-y-auto'}`}
             initial={{ opacity: 0, y: 16, scale: 0.97 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 10, scale: 0.98 }}
@@ -62,6 +75,7 @@ export const Modal: React.FC<ModalProps> = ({ open, onClose, title, maxWidth = '
           </motion.div>
         </motion.div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   );
 };

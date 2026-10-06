@@ -86,7 +86,7 @@ export const ConfirmIconButton: React.FC<ConfirmIconButtonProps> = ({
             stacked ? ' w-full' : ''
           }`}
         >
-          {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : t('common.confirm')}
+          {busy ? <Loader2 className="w-5 h-5 animate-spin" /> : t('common.confirm')}
         </button>
         <button
           onClick={() => changeConfirming(false)}

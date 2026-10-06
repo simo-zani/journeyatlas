@@ -18,7 +18,6 @@ import {
   CircleParking,
   Coffee,
   CookingPot,
-  Disc3,
   DoorOpen,
   Dumbbell,
   ExternalLink,
@@ -64,6 +63,10 @@ import {
 
 import { supabase } from '@/lib/supabase';
 import type { AccommodationRow, Destination } from '@/lib/types';
+import { TennisRacketIcon } from '@/components/TennisRacketIcon';
+import { fileToLogoDataUrl } from '@/lib/logoImage';
+import { TimeField } from '@/components/TimeField';
+import { useIsStuck } from '@/lib/useIsStuck';
 import { MODAL_ICON_SIZE } from '@/lib/ui';
 import { useAuth } from '@/auth/AuthContext';
 
@@ -101,7 +104,7 @@ const ALL_AMENITIES = [
   { key: 'ac', Icon: AirVent },
   { key: 'gym', Icon: Dumbbell },
   { key: 'beach', Icon: Umbrella },
-  { key: 'tennis', Icon: Disc3 },
+  { key: 'tennis', Icon: TennisRacketIcon },
   { key: 'wifi', Icon: Wifi },
   { key: 'breakfast', Icon: Coffee },
   { key: 'spa', Icon: Bath },
@@ -319,14 +322,20 @@ const SectionHeader: React.FC<{
  * richieste esterne) e cade su una badge con l'iniziale se l'immagine non
  * carica.
  */
-const PlatformLogo: React.FC<{ platform: string; className?: string }> = ({
+const PlatformLogo: React.FC<{ platform: string; logo?: string | null; className?: string }> = ({
   platform,
+  logo,
   className = MODAL_ICON_SIZE,
 }) => {
   const domain = platformDomain(platform);
   const [failed, setFailed] = useState(false);
 
   useEffect(() => setFailed(false), [domain]);
+
+  // Logo caricato a mano: ha la precedenza sul favicon
+  if (logo) {
+    return <img src={logo} alt="" className={`${className} shrink-0 object-contain rounded`} />;
+  }
 
   if (!domain || failed) {
     return (
@@ -423,13 +432,18 @@ const StarRating: React.FC<{
 interface PlatformPickerProps {
   value: string;
   onChange: (v: string) => void;
+  /** Logo personalizzato, per le piattaforme non presenti in elenco. */
+  logo: string | null;
+  onLogoChange: (logo: string | null) => void;
   placeholder?: string;
 }
 
-const PlatformPicker: React.FC<PlatformPickerProps> = ({ value, onChange, placeholder }) => {
+const PlatformPicker: React.FC<PlatformPickerProps> = ({ value, onChange, logo, onLogoChange, placeholder }) => {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
+  const [uploadError, setUploadError] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const handleOutside = (e: MouseEvent) => {
@@ -465,13 +479,15 @@ const PlatformPicker: React.FC<PlatformPickerProps> = ({ value, onChange, placeh
         value={value}
         onChange={(v) => {
           onChange(v);
+          // passando a una piattaforma nota il logo personalizzato non serve più
+          if (platformDomain(v)) onLogoChange(null);
           setOpen(true);
         }}
         onFocus={() => setOpen(true)}
         placeholder={placeholder}
         leading={
           value.trim() ? (
-            <PlatformLogo platform={value} />
+            <PlatformLogo platform={value} logo={logo} />
           ) : (
             <Search className={`${MODAL_ICON_SIZE} text-slate-400 shrink-0`} />
           )
@@ -528,7 +544,7 @@ const PlatformPicker: React.FC<PlatformPickerProps> = ({ value, onChange, placeh
                 onClick={() => setOpen(false)}
                 className="w-full text-left px-3 py-2 flex items-center gap-2.5 hover:bg-gold/10 text-sm"
               >
-                <PlatformLogo platform={value} />
+                <PlatformLogo platform={value} logo={logo} />
                 <span className="flex-1 truncate">
                   {t('accommodation.bookingPlatformCustom', { value: value.trim() })}
                 </span>
@@ -537,6 +553,57 @@ const PlatformPicker: React.FC<PlatformPickerProps> = ({ value, onChange, placeh
             </li>
           )}
         </ul>
+      )}
+
+      {/* Piattaforma non in elenco: logo facoltativo, ritagliato e ridotto a pochi KB */}
+      {value.trim() && !platformDomain(value) && (
+        <div className="mt-2 flex items-center gap-3">
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={async (e) => {
+              const file = e.target.files?.[0];
+              e.target.value = '';
+              if (!file) return;
+              setUploadError(false);
+              try {
+                onLogoChange(await fileToLogoDataUrl(file));
+              } catch {
+                setUploadError(true);
+              }
+            }}
+          />
+          {logo ? (
+            <img
+              src={logo}
+              alt=""
+              className="w-10 h-10 rounded-xl object-contain border border-slate-200 dark:border-white/10"
+            />
+          ) : (
+            <span className="w-10 h-10 rounded-xl border border-dashed border-slate-300 dark:border-white/20 flex items-center justify-center text-slate-400">
+              <ImagePlus className={MODAL_ICON_SIZE} />
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={() => fileRef.current?.click()}
+            className="text-sm font-semibold text-gold hover:underline cursor-pointer"
+          >
+            {logo ? t('accommodation.platformLogoChange') : t('accommodation.platformLogoUpload')}
+          </button>
+          {logo && (
+            <button
+              type="button"
+              onClick={() => onLogoChange(null)}
+              className="text-sm text-slate-500 hover:text-error cursor-pointer"
+            >
+              {t('accommodation.platformLogoRemove')}
+            </button>
+          )}
+          {uploadError && <span className="text-sm text-error">{t('accommodation.platformLogoError')}</span>}
+        </div>
       )}
     </div>
   );
@@ -702,20 +769,28 @@ export const AccommodationSection: React.FC<AccommodationSectionProps> = ({
     await load();
   };
 
+  const [addBarSentinelRef, addBarStuck] = useIsStuck(56);
+
   return (
-    <div>
-      <div className="flex justify-end mb-6">
-        <Button onClick={() => setForm({ open: true, editing: null })}>
-          <Plus className="w-5 h-5" />
-          {t('accommodation.add')}
-        </Button>
+    <div className="space-y-6">
+      {/* Barra con il pulsante: stessa posizione, altezza e comportamento sticky del tab Attività */}
+      <div ref={addBarSentinelRef} className="h-0 !mt-0" aria-hidden="true" />
+      <div
+        className={`!mt-0 sticky top-14 z-20 py-1.5 before:content-[''] before:absolute before:-z-10 before:inset-x-[-50vw] before:top-[-120px] before:bottom-[-12px] before:backdrop-blur-md before:bg-[var(--surface-0)]/60 before:pointer-events-none before:[mask-image:linear-gradient(to_bottom,black_80%,transparent)] before:transition-opacity before:duration-500 before:ease-out ${addBarStuck ? 'before:opacity-100' : 'before:opacity-0'} flex items-center justify-end`}
+      >
+        <div className="py-1">
+          <Button className="!h-[38px] !min-h-0 !py-0 !px-5 !text-xs" onClick={() => setForm({ open: true, editing: null })}>
+            <Plus className="w-5 h-5" />
+            {t('accommodation.add')}
+          </Button>
+        </div>
       </div>
 
       {error && <Alert type="error" message={error} onClose={() => setError(null)} />}
 
       {loading ? (
         <div className="flex items-center justify-center py-12">
-          <Loader2 className="w-16 h-16 text-gold animate-spin" />
+          <Loader2 className="w-10 h-10 text-gold animate-spin" />
         </div>
       ) : items.length === 0 ? (
         <div className="empty-state">
@@ -732,10 +807,15 @@ export const AccommodationSection: React.FC<AccommodationSectionProps> = ({
       const nights = countNights(acc.check_in_date, acc.check_out_date);
       // Le camere si contano solo negli hotel: un appartamento è per
       // definizione l'intero, quindi il numero non ha senso lì.
-      const rooms =
-        acc.type === 'hotel' && acc.rooms_count != null && acc.rooms_count > 0
-          ? acc.rooms_count
+      const rooms = acc.rooms_count != null && acc.rooms_count > 0 ? acc.rooms_count : null;
+      const bathrooms =
+        acc.type === 'apartment' && acc.bathrooms_count != null && acc.bathrooms_count > 0
+          ? acc.bathrooms_count
           : null;
+      const roomsLabel =
+        rooms == null
+          ? ''
+          : t(acc.type === 'hotel' ? 'accommodation.roomsValue' : 'accommodation.apartmentRoomsValue', { count: rooms });
       const maps = mapsUrl(acc);
       return (
             <Card key={acc.id} noPadding>
@@ -935,7 +1015,7 @@ export const AccommodationSection: React.FC<AccommodationSectionProps> = ({
                               title={acc.booking_platform}
                               className="inline-flex"
                             >
-                              <PlatformLogo platform={acc.booking_platform} className="w-6 h-6" />
+                              <PlatformLogo platform={acc.booking_platform} logo={acc.booking_platform_logo} className="w-6 h-6" />
                             </span>
                           )}
                           {acc.booking_url && (
@@ -968,10 +1048,19 @@ export const AccommodationSection: React.FC<AccommodationSectionProps> = ({
                       {rooms != null && (
                         <span
                           className="inline-flex items-center gap-1 text-xs font-semibold text-slate-500 dark:text-slate-400"
-                          title={t('accommodation.roomsValue', { count: rooms })}
+                          title={roomsLabel}
                         >
                           <DoorOpen className={`${CARD_ICON_SIZE} shrink-0`} />
-                          {t('accommodation.roomsValue', { count: rooms })}
+                          {roomsLabel}
+                        </span>
+                      )}
+                      {bathrooms != null && (
+                        <span
+                          className="inline-flex items-center gap-1 text-xs font-semibold text-slate-500 dark:text-slate-400"
+                          title={t('accommodation.bathroomsValue', { count: bathrooms })}
+                        >
+                          <Bath className={`${CARD_ICON_SIZE} shrink-0`} />
+                          {t('accommodation.bathroomsValue', { count: bathrooms })}
                         </span>
                       )}
                     </div>
@@ -1035,14 +1124,15 @@ export const AccommodationForm: React.FC<AccommodationFormProps> = ({
     coords: initial?.coordinates ?? null,
   });
   const [checkInDate, setCheckInDate] = useState(initial?.check_in_date ?? '');
-  const [checkInTime, setCheckInTime] = useState(initial?.check_in_time ?? '');
+  const [checkInTime, setCheckInTime] = useState(initial?.check_in_time?.slice(0, 5) ?? '');
   const [checkOutDate, setCheckOutDate] = useState(initial?.check_out_date ?? '');
-  const [checkOutTime, setCheckOutTime] = useState(initial?.check_out_time ?? '');
+  const [checkOutTime, setCheckOutTime] = useState(initial?.check_out_time?.slice(0, 5) ?? '');
   const [cost, setCost] = useState(initial?.cost_total != null ? String(initial.cost_total) : '');
   const [currency, setCurrency] = useState(initial?.currency ?? 'EUR');
   const [bookingRef, setBookingRef] = useState(initial?.booking_ref ?? '');
   const [bookingUrl, setBookingUrl] = useState(initial?.booking_url ?? '');
   const [bookingPlatform, setBookingPlatform] = useState(initial?.booking_platform ?? '');
+  const [bookingPlatformLogo, setBookingPlatformLogo] = useState<string | null>(initial?.booking_platform_logo ?? null);
   // 0 = non valutata. Fuori dal range 1-5 non può arrivare dal DB (CHECK),
   // ma un valore legacy strutturato non deve rompere il render.
   const [stars, setStars] = useState<number>(() => {
@@ -1051,6 +1141,9 @@ export const AccommodationForm: React.FC<AccommodationFormProps> = ({
   });
   // Stringa vuota = non specificato. Solo hotel: su un appartamento la camera
   // è l'appartamento stesso (vedi l'invio, che azzera il campo).
+  const [bathroomsCount, setBathroomsCount] = useState(
+    initial?.bathrooms_count != null && initial.bathrooms_count > 0 ? String(initial.bathrooms_count) : ''
+  );
   const [roomsCount, setRoomsCount] = useState(
     initial?.rooms_count != null && initial.rooms_count > 0 ? String(initial.rooms_count) : ''
   );
@@ -1195,7 +1288,10 @@ export const AccommodationForm: React.FC<AccommodationFormProps> = ({
         // Idem per le camere: l'appartamento è già l'intero, quindi il conteggio
         // (e il numero salvato in precedenza) si azzera. Il > 0 tiene fuori anche
         // lo 0 digitato a mano, che il CHECK del DB rifiuterebbe.
-        rooms_count: type === 'hotel' && Number(roomsCount) > 0 ? Number(roomsCount) : null,
+        // Camere (hotel) o stanze (appartamento): stessa colonna, etichetta diversa.
+        rooms_count: Number(roomsCount) > 0 ? Number(roomsCount) : null,
+        // I bagni valgono solo per gli appartamenti.
+        bathrooms_count: type === 'apartment' && Number(bathroomsCount) > 0 ? Number(bathroomsCount) : null,
         address: address.trim() || null,
         city: city.city.trim() || null,
         coordinates: city.city.trim() ? city.coords : null,
@@ -1208,6 +1304,7 @@ export const AccommodationForm: React.FC<AccommodationFormProps> = ({
         booking_ref: bookingRef.trim() || null,
         booking_url: normalizeUrl(bookingUrl),
         booking_platform: bookingPlatform.trim() || null,
+        booking_platform_logo: bookingPlatform.trim() ? bookingPlatformLogo : null,
         contact_phone: contactPhone.trim() || null,
         contact_email: contactEmail.trim() || null,
         amenities,
@@ -1286,8 +1383,8 @@ export const AccommodationForm: React.FC<AccommodationFormProps> = ({
         </div>
       )}
 
-      {/* Camere: solo per hotel, facoltativa come le stelle. */}
-      {type === 'hotel' && (
+      {/* Hotel: numero di camere. Appartamento: numero di stanze e di bagni. Facoltativi. */}
+      {type === 'hotel' ? (
         <Input
           label={t('accommodation.rooms')}
           type="number"
@@ -1298,6 +1395,29 @@ export const AccommodationForm: React.FC<AccommodationFormProps> = ({
           onChange={(e) => setRoomsCount(e.target.value)}
           placeholder="2"
         />
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Input
+            label={t('accommodation.apartmentRooms')}
+            type="number"
+            min="1"
+            step="1"
+            inputMode="numeric"
+            value={roomsCount}
+            onChange={(e) => setRoomsCount(e.target.value)}
+            placeholder="3"
+          />
+          <Input
+            label={t('accommodation.bathrooms')}
+            type="number"
+            min="1"
+            step="1"
+            inputMode="numeric"
+            value={bathroomsCount}
+            onChange={(e) => setBathroomsCount(e.target.value)}
+            placeholder="2"
+          />
+        </div>
       )}
 
       {/* City */}
@@ -1364,11 +1484,11 @@ export const AccommodationForm: React.FC<AccommodationFormProps> = ({
                 onChange={(e) => setCheckInDate(e.target.value)}
                 aria-label={t('accommodation.checkInDate')}
               />
-              <Input
-                type="time"
+              <TimeField
                 value={checkInTime}
-                onChange={(e) => setCheckInTime(e.target.value)}
-                aria-label={t('accommodation.checkInTime')}
+                onChange={setCheckInTime}
+                ariaLabel={t('accommodation.checkInTime')}
+                clearLabel={t('common.clear', { defaultValue: 'Cancella' })}
               />
             </div>
           </div>
@@ -1384,11 +1504,11 @@ export const AccommodationForm: React.FC<AccommodationFormProps> = ({
                 onChange={(e) => setCheckOutDate(e.target.value)}
                 aria-label={t('accommodation.checkOutDate')}
               />
-              <Input
-                type="time"
+              <TimeField
                 value={checkOutTime}
-                onChange={(e) => setCheckOutTime(e.target.value)}
-                aria-label={t('accommodation.checkOutTime')}
+                onChange={setCheckOutTime}
+                ariaLabel={t('accommodation.checkOutTime')}
+                clearLabel={t('common.clear', { defaultValue: 'Cancella' })}
               />
             </div>
           </div>
@@ -1423,6 +1543,8 @@ export const AccommodationForm: React.FC<AccommodationFormProps> = ({
             <label className="label">{t('accommodation.bookingPlatform')}</label>
             <PlatformPicker
               value={bookingPlatform}
+              logo={bookingPlatformLogo}
+              onLogoChange={setBookingPlatformLogo}
               onChange={setBookingPlatform}
               placeholder={t('accommodation.bookingPlatformPlaceholder')}
             />

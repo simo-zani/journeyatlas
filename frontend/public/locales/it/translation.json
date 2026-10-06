@@ -356,7 +356,18 @@
       "milestone": "Traguardo",
       "ticket": "Biglietto",
       "writing": "Scrittura"
-    }
+    },
+    "bookingOperator": "Operatore",
+    "bookingOperatorPlaceholder": "es. GetYourGuide, oppure scrivi il nome",
+    "bookingOperatorClear": "Rimuovi operatore",
+    "operatorLogoUpload": "Carica logo",
+    "operatorLogoChange": "Cambia logo",
+    "operatorLogoRemove": "Rimuovi",
+    "operatorLogoError": "Immagine non valida",
+    "viewListShort": "Elenco",
+    "viewChartShort": "Grafico",
+    "address": "Indirizzo",
+    "addressPlaceholder": "es. via, numero civico, punto di ritrovo"
   },
   "accommodation": {
     "add": "Aggiungi Alloggio",
@@ -450,7 +461,17 @@
       "selfCheckIn": "Self check-in",
       "accessibility": "Accessibile",
       "security": "Sicurezza 24h"
-    }
+    },
+    "apartmentRooms": "Numero stanze",
+    "bathrooms": "Numero bagni",
+    "apartmentRoomsValue_one": "{{count}} stanza",
+    "apartmentRoomsValue_other": "{{count}} stanze",
+    "bathroomsValue_one": "{{count}} bagno",
+    "bathroomsValue_other": "{{count}} bagni",
+    "platformLogoUpload": "Carica logo",
+    "platformLogoChange": "Cambia logo",
+    "platformLogoRemove": "Rimuovi",
+    "platformLogoError": "Immagine non valida"
   },
   "transport": {
     "add": "Aggiungi Mezzo",
@@ -644,7 +665,7 @@
     "timezone": "Fuso orario",
     "fromYou": "{{diff}} rispetto a te",
     "moreTimezones": "+{{count}} altri fusi",
-    "callingCode": "Prefisso telefonico",
+    "callingCode": "Prefisso",
     "driving": "Guida",
     "side": {
       "left": "A sinistra",
@@ -669,13 +690,31 @@
       "emptyMessage": "Scegli le mete dall'elenco città per vedere il meteo.",
       "skipped": "{{count}} meta senza coordinate non è mostrata.",
       "next7": "Prossimi 7 giorni",
-      "unavailable": "Previsioni non disponibili al momento."
+      "unavailable": "Previsioni non disponibili al momento.",
+      "mode": {
+        "forecast": "Previsioni",
+        "history": "Com'è andata",
+        "trip": "Giorni del viaggio",
+        "next7": "Prossimi 7 giorni"
+      },
+      "modeClimate": "Clima tipico · media degli ultimi {{years}} anni",
+      "hourlyTitle": "Ora per ora",
+      "hourlyHint": "Tocca un giorno per vedere il meteo ora per ora",
+      "hourlyError": "Andamento orario non disponibile per questo giorno.",
+      "tripDay": "G{{n}}"
     },
     "currencyPanel": {
       "title": "Convertitore di valuta",
       "amount": "Importo",
       "from": "Da valuta",
-      "unavailable": "Tassi di cambio non disponibili al momento."
+      "unavailable": "Tassi di cambio non disponibili al momento.",
+      "to": "A",
+      "swap": "Inverti le valute",
+      "search": "Cerca valuta…",
+      "tripCurrencies": "Valute del viaggio",
+      "otherCurrencies": "Altre valute",
+      "noResults": "Nessuna valuta trovata",
+      "updated": "Tassi aggiornati il {{date}}"
     },
     "phrasebook": {
       "search": "Cerca una frase",
@@ -690,6 +729,10 @@
         "transport": "Orientamento e trasporti",
         "courtesy": "Cortesia"
       }
-    }
+    },
+    "transitTitle": "Paesi di passaggio",
+    "transitSub": "Paesi attraversati da voli, treni o traghetti che non sono una meta del viaggio: le informazioni essenziali per uno scalo.",
+    "transitBadge": "Scalo",
+    "safetySub": "Avvisi e sicurezza del Ministero degli Esteri"
   }
 }

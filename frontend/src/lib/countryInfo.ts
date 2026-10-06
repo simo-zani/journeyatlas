@@ -17,7 +17,10 @@ export interface CountryInfo {
   capital: string[];
   region: string;
   subregion: string;
+  /** Nomi in inglese, dal dataset: fallback se il browser non conosce la lingua. */
   languages: string[];
+  /** Codici ISO 639-3 ("eng", "spa") nello stesso ordine di `languages`: servono a tradurre i nomi. */
+  languageCodes: string[];
   currencies: { code: string; name: string; symbol: string }[];
   callingCode: string;
   drivingSide: 'left' | 'right';
@@ -89,7 +92,7 @@ const loadAllCountries = (): Promise<WorldCountry[]> => {
 
 export const fetchCountryInfo = async (countryCode: string): Promise<CountryInfo> => {
   const code = countryCode.toUpperCase();
-  const cached = readCache<CountryInfo>(`c2:${code}`, COUNTRY_TTL_MS);
+  const cached = readCache<CountryInfo>(`c3:${code}`, COUNTRY_TTL_MS);
   if (cached) return cached;
 
   const c = (await loadAllCountries()).find((x) => x.cca2 === code);
@@ -104,6 +107,7 @@ export const fetchCountryInfo = async (countryCode: string): Promise<CountryInfo
     region: c.region ?? '',
     subregion: c.subregion ?? '',
     languages: Object.values(c.languages ?? {}),
+    languageCodes: Object.keys(c.languages ?? {}),
     currencies: Object.entries(c.currencies ?? {}).map(([cur, v]) => ({
       code: cur,
       name: v.name,
@@ -113,7 +117,7 @@ export const fetchCountryInfo = async (countryCode: string): Promise<CountryInfo
     drivingSide: LEFT_DRIVING.has(code) ? 'left' : 'right',
     latlng: c.latlng?.length === 2 ? [c.latlng[0], c.latlng[1]] : null,
   };
-  writeCache(`c2:${code}`, info);
+  writeCache(`c3:${code}`, info);
   return info;
 };
 
@@ -152,17 +156,62 @@ export const timezoneOffsetMinutes = (timeZone: string, at: Date = new Date()): 
 
 /** Tassi con base `base` (es. EUR). Cache di un'ora, come da specifica. */
 export const fetchExchangeRates = async (base: string): Promise<Record<string, number>> => {
-  const key = `r:${base}`;
+  const key = `r2:${base}`;
   const cached = readCache<Record<string, number>>(key, RATES_TTL_MS);
   if (cached) return cached;
 
   const res = await fetch(`https://open.er-api.com/v6/latest/${base}`);
   if (!res.ok) throw new Error(`ExchangeRate ${res.status}`);
-  const json = (await res.json()) as { result?: string; rates?: Record<string, number> };
+  const json = (await res.json()) as { result?: string; rates?: Record<string, number>; time_last_update_unix?: number };
   if (json.result !== 'success' || !json.rates) throw new Error('ExchangeRate invalid response');
   writeCache(key, json.rates);
+  if (json.time_last_update_unix) writeCache(`r2t:${base}`, json.time_last_update_unix);
   return json.rates;
+};
+
+/** Quando il servizio ha aggiornato i tassi (non quando li abbiamo scaricati), se noto. */
+export const ratesUpdatedAt = (base: string): Date | null => {
+  const unix = readCache<number>(`r2t:${base}`, COUNTRY_TTL_MS);
+  return unix ? new Date(unix * 1000) : null;
+};
+
+/** Valuta -> paese per la bandiera, per TUTTE le valute del dataset. Con più paesi per la stessa
+ *  valuta (USD, EUR, XOF...) vince quello il cui codice coincide con le prime due lettere della
+ *  valuta (AFN -> AF), altrimenti il primo. */
+export const loadCurrencyFlags = async (): Promise<Record<string, string>> => {
+  const all = await loadAllCountries();
+  const candidates = new Map<string, string[]>();
+  for (const c of all) {
+    for (const code of Object.keys(c.currencies ?? {})) {
+      candidates.set(code, [...(candidates.get(code) ?? []), c.cca2]);
+    }
+  }
+  const out: Record<string, string> = {};
+  for (const [code, list] of candidates) {
+    out[code] = list.find((cc) => cc === code.slice(0, 2)) ?? list[0];
+  }
+  return out;
 };
 
 export const farnesinaUrl = (cca3: string): string =>
   `https://www.viaggiaresicuri.it/find-country/country/${cca3.toUpperCase()}`;
+
+/** Lingue ufficiali del paese nella lingua dell'interfaccia (es. "inglese"); se il browser non
+ *  conosce il codice resta il nome inglese del dataset. */
+export const languageNames = (info: CountryInfo, locale: string): string[] => {
+  let display: Intl.DisplayNames | null = null;
+  try {
+    display = new Intl.DisplayNames([locale], { type: 'language' });
+  } catch {
+    display = null;
+  }
+  return info.languageCodes.map((code, i) => {
+    const fallback = info.languages[i] ?? code;
+    try {
+      const name = display?.of(code);
+      return name && name.toLowerCase() !== code.toLowerCase() ? name.charAt(0).toUpperCase() + name.slice(1) : fallback;
+    } catch {
+      return fallback;
+    }
+  });
+};

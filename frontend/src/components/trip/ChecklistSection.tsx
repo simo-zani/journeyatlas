@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { motion } from 'framer-motion';
+import { useIsStuck } from '@/lib/useIsStuck';
 import {
   Anchor,
   Bandage,
@@ -202,7 +204,7 @@ const CategorySelect: React.FC<CategorySelectProps> = ({
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="flex items-center justify-between gap-2.5 px-4 py-2.5 rounded-xl bg-slate-900/60 dark:bg-slate-800/60 border border-slate-700/70 hover:border-gold/50 backdrop-blur-md text-sm font-medium text-slate-200 transition-all shadow-sm cursor-pointer select-none"
+        className="flex items-center justify-between gap-2.5 h-[38px] px-3.5 rounded-xl bg-slate-900/80 dark:bg-slate-900/85 border border-slate-700/60 dark:border-white/10 hover:border-gold/50 backdrop-blur-xl text-xs font-bold text-slate-300 transition-all shadow-md cursor-pointer select-none"
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-label={ariaLabel}
@@ -467,11 +469,31 @@ export const ChecklistSection: React.FC<ChecklistSectionProps> = ({ tripId, user
     setForm({ open: false, editing: null });
   };
 
+  const [barSentinelRef, barStuck] = useIsStuck(56);
+  const barRef = useRef<HTMLDivElement>(null);
+  const [barHeight, setBarHeight] = useState(58);
+  useEffect(() => {
+    const el = barRef.current;
+    if (!el) return;
+    const measure = () => setBarHeight(el.offsetHeight);
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  // Le intestazioni delle categorie restano ferme subito sotto la barra dei filtri
+  const stickyTop = 56 + barHeight;
+
+
   return (
-    <div>
-      {/* Top Filter and Action Bar — Sticky at top-14 right below tabs */}
-      <div className="sticky top-14 z-20 py-2 mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-2.5">
+    <div className="space-y-6">
+      {/* Barra filtri: stessa posizione, altezza e comportamento sticky degli altri tab */}
+      <div ref={barSentinelRef} className="h-0 !mt-0" aria-hidden="true" />
+      <div
+        ref={barRef}
+        className={`!mt-0 sticky top-14 z-20 py-1.5 before:content-[''] before:absolute before:-z-10 before:inset-x-[-50vw] before:top-[-120px] before:bottom-0 before:backdrop-blur-md before:bg-[var(--surface-0)]/60 before:pointer-events-none before:[mask-image:linear-gradient(to_bottom,black_80%,transparent)] before:transition-opacity before:duration-500 before:ease-out ${barStuck ? 'before:opacity-100' : 'before:opacity-0'} flex flex-col sm:flex-row sm:items-center justify-between gap-3`}
+      >
+        <div className="flex flex-wrap items-center gap-2 py-1">
           {/* Category Dropdown */}
           <CategorySelect
             value={filterCategory}
@@ -486,7 +508,7 @@ export const ChecklistSection: React.FC<ChecklistSectionProps> = ({ tripId, user
           />
 
           {/* Status Segmented Control */}
-          <div className="flex items-center p-1 rounded-xl bg-slate-900/60 dark:bg-slate-800/60 border border-slate-700/70 backdrop-blur-md">
+          <div className="flex items-center gap-1 p-1 rounded-full bg-slate-900/80 dark:bg-slate-900/85 border border-slate-700/60 dark:border-white/10 backdrop-blur-xl shadow-md">
             {(['all', 'todo', 'done'] as const).map((status) => {
               const isSelected = showPacked === status;
               const label =
@@ -507,18 +529,21 @@ export const ChecklistSection: React.FC<ChecklistSectionProps> = ({ tripId, user
                   key={status}
                   type="button"
                   onClick={() => setShowPacked(status)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all cursor-pointer ${
-                    isSelected
-                      ? 'bg-gold text-slate-950 font-semibold shadow-sm'
-                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+                  className={`relative flex items-center gap-1.5 h-7 px-3.5 rounded-full text-xs font-bold whitespace-nowrap transition-colors duration-200 cursor-pointer ${
+                    isSelected ? 'text-slate-950' : 'text-slate-400 hover:text-slate-100 hover:bg-white/10'
                   }`}
                 >
-                  <span>{label}</span>
+                  {isSelected && (
+                    <motion.span
+                      layoutId="checklist-status-active"
+                      className="absolute inset-0 rounded-full bg-gold shadow-sm"
+                      transition={{ type: 'spring', stiffness: 380, damping: 32 }}
+                    />
+                  )}
+                  <span className="relative">{label}</span>
                   <span
-                    className={`text-xs px-1.5 py-0.2 rounded-full font-mono ${
-                      isSelected
-                        ? 'bg-slate-950/20 text-slate-950 font-bold'
-                        : 'bg-slate-800 text-slate-400'
+                    className={`relative text-[11px] px-1.5 rounded-full font-mono ${
+                      isSelected ? 'bg-slate-950/20 text-slate-950' : 'bg-slate-800 text-slate-400'
                     }`}
                   >
                     {count}
@@ -530,19 +555,19 @@ export const ChecklistSection: React.FC<ChecklistSectionProps> = ({ tripId, user
         </div>
 
         {/* Right Actions */}
-        <div className="flex items-center gap-2 sm:ml-auto">
+        <div className="flex items-center gap-2 sm:ml-auto py-1">
           {groupedCategories.length > 1 && (
             <button
               type="button"
               onClick={toggleAllCollapse}
-              className="p-2.5 rounded-xl border border-slate-700/70 bg-slate-900/60 dark:bg-slate-800/60 text-slate-400 hover:text-slate-200 hover:border-slate-600 transition-colors cursor-pointer"
+              className="flex items-center justify-center w-[38px] h-[38px] rounded-full border border-slate-700/60 dark:border-white/10 bg-slate-900/80 dark:bg-slate-900/85 backdrop-blur-xl shadow-md text-slate-400 hover:text-slate-100 hover:border-gold/50 transition-colors cursor-pointer"
               title={allCollapsed ? 'Espandi tutte le sezioni' : 'Comprimi tutte le sezioni'}
               aria-label={allCollapsed ? 'Espandi tutte le sezioni' : 'Comprimi tutte le sezioni'}
             >
               {allCollapsed ? <ChevronsDown size={20} /> : <ChevronsUp size={20} />}
             </button>
           )}
-          <Button onClick={() => setForm({ open: true, editing: null })}>
+          <Button className="!h-[38px] !min-h-0 !py-0 !px-5 !text-xs" onClick={() => setForm({ open: true, editing: null })}>
             <Plus size={20} strokeWidth={2.5} />
             {t('checklist.add')}
           </Button>
@@ -567,7 +592,7 @@ export const ChecklistSection: React.FC<ChecklistSectionProps> = ({ tripId, user
           </p>
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-6">
           {groupedCategories.map((cat) => {
             const CatIcon = ICON_MAP[resolveIconKey(cat.key, categories) ?? 'tag'] ?? Tag;
             const catLabel = t(`checklist.category.${cat.key}`, { defaultValue: cat.key });
@@ -578,13 +603,21 @@ export const ChecklistSection: React.FC<ChecklistSectionProps> = ({ tripId, user
             return (
               <div
                 key={cat.key}
-                className="rounded-2xl border border-slate-700/60 bg-slate-900/50 backdrop-blur-md overflow-hidden transition-all shadow-lg shadow-black/20"
+                className="relative rounded-2xl bg-slate-900/50 backdrop-blur-md transition-all [overflow:clip]"
               >
+                {/* Copertura sticky: ferma all'altezza dell'intestazione agganciata e copre, dentro questo
+                    riquadro, tutto ciò che sta sopra. È posizionata dal browser insieme all'intestazione,
+                    quindi segue lo scroll senza ritardi. */}
+                <div className="sticky z-[4] h-0 pointer-events-none" style={{ top: stickyTop }} aria-hidden="true">
+                  {/* scende di 32px (il raggio degli angoli) sotto il bordo alto dell'intestazione: negli angoli curvi dell'intestazione non deve intravedersi nulla */}
+                  <div className="absolute inset-x-0 bottom-[-32px] h-[3032px] bg-[var(--surface-0)]" />
+                </div>
                 {/* Category Header */}
                 <button
                   type="button"
                   onClick={() => toggleCollapse(cat.key)}
-                  className="w-full flex items-center justify-between px-4 sm:px-5 py-3.5 bg-slate-800/40 hover:bg-slate-800/70 transition-colors text-left select-none cursor-pointer border-b border-slate-700/40"
+                  style={{ top: stickyTop }}
+                  className={`sticky z-[5] w-full flex items-center justify-between px-4 sm:px-5 py-3.5 bg-[var(--surface-1)] hover:brightness-125 transition-[filter] text-left select-none cursor-pointer border border-slate-700/60 rounded-2xl`}
                   aria-expanded={!isCollapsed}
                 >
                   <div className="flex items-center gap-3.5 min-w-0">
@@ -635,7 +668,7 @@ export const ChecklistSection: React.FC<ChecklistSectionProps> = ({ tripId, user
 
                 {/* Items in category */}
                 {!isCollapsed && (
-                  <ul className="divide-y divide-slate-800/70 p-1.5 sm:p-2 space-y-1">
+                  <ul className="divide-y divide-slate-800/70 p-1.5 sm:p-2 pt-[38px] sm:pt-10 -mt-[32px] space-y-1 rounded-b-2xl border border-t-0 border-slate-700/60">
                     {cat.items.map((item) => (
                       <li
                         key={item.id}

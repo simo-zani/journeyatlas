@@ -139,7 +139,7 @@ export const Header: React.FC<HeaderProps> = ({ onNavigateHome }) => {
                         onClick={handleLogout}
                         disabled={loggingOut}
                       >
-                        {loggingOut && <Loader2 className="w-4 h-4 animate-spin" />}
+                        {loggingOut && <Loader2 className="w-5 h-5 animate-spin" />}
                         {t('nav.logout')}
                       </Button>
                     </div>

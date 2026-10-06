@@ -1,5 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { motion } from 'framer-motion';
+import { CollapsibleLabel } from '@/components/CollapsibleLabel';
+import { OperatorLogo } from '@/components/OperatorLogo';
+import { useIsStuck } from '@/lib/useIsStuck';
+import { useSidebarExpanded } from '@/lib/useSidebarExpanded';
 import type { TFunction } from 'i18next';
 import {
   BedDouble,
@@ -50,7 +55,6 @@ import {
   type ActivityInput,
   type TransportInput,
 } from '@/lib/api';
-import { buildCategoryColorMap, CATEGORY_OTHER_VAR, getCategoryColor } from '@/lib/categoryColors';
 import { loadAirports, airportByIata, type Airport } from '@/lib/airports';
 import { loadTrainStations, stationByNameOrCode, type TrainStation } from '@/lib/trainStations';
 import { loadFerryPorts, portByNameOrCode, type FerryPort } from '@/lib/ferryPorts';
@@ -121,6 +125,8 @@ export interface UnifiedEvent {
   ferryOp?: FerryOperator | null;
   /** Booking platform name (for accommodations, e.g. 'Booking.com') */
   bookingPlatform?: string | null;
+  bookingOperator?: string | null;
+  bookingOperatorLogo?: string | null;
   raw: ActivityRow | TransportRow | AccommodationRow;
 }
 
@@ -139,6 +145,8 @@ const TRANSPORT_ICONS: Record<TransportType, LucideIcon> = {
 // Fixed colors for the two non-activity event types, matched to the badge
 // classes already used elsewhere (bg-blue-500/... , bg-emerald-500/...) so
 // the day/week grid and month mini-badges read as the same system.
+// Stessi colori dei filtri in alto: attività viola, spostamenti blu, alloggi verdi.
+const ACTIVITY_COLOR = '#A855F7';
 const TRANSPORT_COLOR = '#3B82F6';
 const ACCOMMODATION_COLOR = '#10B981';
 
@@ -157,8 +165,17 @@ const getEventIcon = (event: UnifiedEvent) => {
 
 const formatEventTime = (ev: UnifiedEvent, t: TFunction): string => {
   if (ev.allDay) return t('calendar.allDay', 'Tutto il giorno');
-  if (ev.time && ev.endTime) return `${ev.time}–${ev.endTime}`;
   return ev.time || '--:--';
+};
+
+/** Durata tra orario di inizio e fine ("3 h", "1 h 30 min"); null se manca uno dei due o la fine non segue l'inizio. */
+const formatEventDuration = (ev: UnifiedEvent): string | null => {
+  if (ev.allDay || !ev.time || !ev.endTime) return null;
+  const diff = toMinutes(ev.endTime) - toMinutes(ev.time);
+  if (diff <= 0) return null;
+  const h = Math.floor(diff / 60);
+  const m = diff % 60;
+  return h ? `${h} h${m ? ` ${m} min` : ''}` : `${m} min`;
 };
 
 /** Local (not UTC) YYYY-MM-DD — never `.toISOString()` here: that round-trips
@@ -331,8 +348,12 @@ const PlatformLogoCal: React.FC<{ platform: string; className?: string }> = ({ p
 };
 
 /** Free booking platform logo (no box container, small size). */
-const AccommodationPlatformBadge: React.FC<{ platform: string | null | undefined }> = ({ platform }) => {
+const AccommodationPlatformBadge: React.FC<{ platform: string | null | undefined; logo?: string | null }> = ({
+  platform,
+  logo,
+}) => {
   if (!platform) return null;
+  if (logo) return <img src={logo} alt={platform} title={platform} className="w-5 h-5 shrink-0 object-contain rounded-sm" />;
   return <PlatformLogoCal platform={platform} className="w-5 h-5 shrink-0" />;
 };
 
@@ -426,6 +447,8 @@ const EventRow: React.FC<EventRowProps> = ({ ev, color, copiedRef, onCopyRef, on
     ? ((ev.raw as AccommodationRow).booking_platform ?? ev.bookingPlatform ?? null)
     : null;
 
+  const accPlatformLogo = isAccommodation ? ((ev.raw as AccommodationRow).booking_platform_logo ?? null) : null;
+
   return (
     <div
       onClick={onClick}
@@ -438,7 +461,7 @@ const EventRow: React.FC<EventRowProps> = ({ ev, color, copiedRef, onCopyRef, on
       <div className="flex-1 min-w-0 flex items-center gap-3 px-3.5 py-2.5 bg-slate-900/[0.02] dark:bg-white/[0.02] hover:bg-slate-900/[0.04] dark:hover:bg-white/[0.04] transition-colors">
 
         {/* Time + Country Flag */}
-        <div className="flex items-center gap-1.5 shrink-0 justify-center min-w-[4.25rem]">
+        <div className="flex flex-col items-center gap-1 shrink-0 justify-center min-w-[4.25rem]">
           {ev.countryCode && (
             <CountryFlag
               code={ev.countryCode}
@@ -447,8 +470,15 @@ const EventRow: React.FC<EventRowProps> = ({ ev, color, copiedRef, onCopyRef, on
               className="rounded-full shadow-sm ring-1 ring-slate-900/10 dark:ring-white/20 shrink-0"
             />
           )}
-          <span className="text-sm font-extrabold text-slate-700 dark:text-slate-200 whitespace-nowrap tracking-tight text-center">
-            {formatEventTime(ev, t)}
+          <span className="flex items-baseline justify-center gap-1 whitespace-nowrap">
+            <span className="text-sm font-extrabold text-slate-700 dark:text-slate-200 tracking-tight">
+              {formatEventTime(ev, t)}
+            </span>
+            {formatEventDuration(ev) && (
+              <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
+                ({formatEventDuration(ev)})
+              </span>
+            )}
           </span>
         </div>
 
@@ -469,7 +499,7 @@ const EventRow: React.FC<EventRowProps> = ({ ev, color, copiedRef, onCopyRef, on
           <div className="flex items-center gap-2 flex-wrap min-w-0">
             <h4 className="font-semibold text-sm text-slate-900 dark:text-slate-100 truncate">{ev.title}</h4>
             {ev.terminal && (
-              <span className="px-1.5 py-0.5 rounded text-[11px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 ring-1 ring-amber-500/30 shrink-0">
+              <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 ring-1 ring-amber-500/30 shrink-0">
                 {ev.terminal.toLowerCase().startsWith('terminal') || ev.terminal.toLowerCase().startsWith('binario')
                   ? ev.terminal
                   : ev.transportType === 'train'
@@ -486,11 +516,6 @@ const EventRow: React.FC<EventRowProps> = ({ ev, color, copiedRef, onCopyRef, on
                 {ev.spanInfo.dayIndex}/{ev.spanInfo.totalDays}
               </span>
             )}
-            {ev.subtitle && (
-              <span className="text-[11px] font-medium text-slate-400 dark:text-slate-500 truncate">
-                · {ev.subtitle}
-              </span>
-            )}
           </div>
           {ev.location && (
             <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1 mt-0.5 truncate">
@@ -503,7 +528,10 @@ const EventRow: React.FC<EventRowProps> = ({ ev, color, copiedRef, onCopyRef, on
         {/* Right-side badges — single horizontal line so all events have identical height */}
         <div className="shrink-0 hidden sm:flex items-center gap-2">
           {isTransport && <TransportOperatorLogo ev={ev} />}
-          {isAccommodation && accPlatform && <AccommodationPlatformBadge platform={accPlatform} />}
+          {isAccommodation && accPlatform && <AccommodationPlatformBadge platform={accPlatform} logo={accPlatformLogo} />}
+          {ev.type === 'activity' && ev.bookingOperator && (
+            <OperatorLogo name={ev.bookingOperator} logo={ev.bookingOperatorLogo} className="w-5 h-5" />
+          )}
           {isTransport && ev.vehicleNumber && (
             <BookingRefButton bookingRef={ev.vehicleNumber} copiedRef={copiedRef} onCopyRef={onCopyRef} small />
           )}
@@ -513,7 +541,10 @@ const EventRow: React.FC<EventRowProps> = ({ ev, color, copiedRef, onCopyRef, on
         </div>
         {/* Mobile: horizontal line */}
         <div className="shrink-0 sm:hidden flex items-center gap-1.5">
-          {isAccommodation && accPlatform && <AccommodationPlatformBadge platform={accPlatform} />}
+          {isAccommodation && accPlatform && <AccommodationPlatformBadge platform={accPlatform} logo={accPlatformLogo} />}
+          {ev.type === 'activity' && ev.bookingOperator && (
+            <OperatorLogo name={ev.bookingOperator} logo={ev.bookingOperatorLogo} className="w-5 h-5" />
+          )}
           {isTransport && ev.vehicleNumber && (
             <BookingRefButton bookingRef={ev.vehicleNumber} copiedRef={copiedRef} onCopyRef={onCopyRef} small />
           )}
@@ -758,6 +789,9 @@ export const CalendarSection: React.FC<CalendarSectionProps> = ({ trip, onSelect
   const filterBarRef = useRef<HTMLDivElement>(null);
   const [filterBarHeight, setFilterBarHeight] = useState(56);
   const weekDayStickyTop = FILTER_BAR_TOP + filterBarHeight;
+  const [filterBarSentinelRef, filterBarStuck] = useIsStuck(FILTER_BAR_TOP);
+  // Con la sidebar estesa lo spazio si riduce: filtri e viste mostrano solo l'icona.
+  const compact = useSidebarExpanded();
 
   // Grid cursor date, shared by Month/Week/Day — what it means depends on
   // viewMode (a day within the month / within the week / the day itself).
@@ -820,31 +854,13 @@ export const CalendarSection: React.FC<CalendarSectionProps> = ({ trip, onSelect
     return () => ro.disconnect();
   }, []);
 
-  const categoryLabel = useCallback(
-    (c: string) => t(`activity.category.${c}`, { defaultValue: c }),
-    [t]
-  );
-
-  // Same stably-sorted category list (predefined + custom) that ActivitySection
-  // builds, so a category gets the identical color in both places.
-  const allCategories = useMemo(() => {
-    const names = new Set<string>([
-      ...(ACTIVITY_CATEGORIES as readonly string[]),
-      ...customCategories.map((c) => c.name),
-    ]);
-    activities.forEach((a) => a.category && names.add(a.category));
-    return Array.from(names).sort((a, b) => categoryLabel(a).localeCompare(categoryLabel(b)));
-  }, [activities, customCategories, categoryLabel]);
-
-  const categoryColorMap = useMemo(() => buildCategoryColorMap(allCategories), [allCategories]);
-
   const resolveEventColor = useCallback(
     (ev: UnifiedEvent): string => {
-      if (ev.type === 'activity') return getCategoryColor(ev.category ?? null, categoryColorMap) || CATEGORY_OTHER_VAR;
+      if (ev.type === 'activity') return ACTIVITY_COLOR;
       if (ev.type === 'transport') return TRANSPORT_COLOR;
       return ACCOMMODATION_COLOR;
     },
-    [categoryColorMap]
+    []
   );
 
   // Convert raw rows into unified events
@@ -881,6 +897,8 @@ export const CalendarSection: React.FC<CalendarSectionProps> = ({ trip, onSelect
           spanInfo: totalDays > 1 ? { dayIndex: idx + 1, totalDays } : null,
           location: [act.location_city, act.location_address].filter(Boolean).join(', ') || null,
           bookingRef: act.booking_ref || null,
+          bookingOperator: act.booking_operator || null,
+          bookingOperatorLogo: act.booking_operator_logo || null,
           category: act.category || null,
           countryCode: resolveEventCountry(null, [act.location_city, act.location_address].filter(Boolean).join(' '), trip.destinations),
           status: act.status,
@@ -1341,7 +1359,7 @@ export const CalendarSection: React.FC<CalendarSectionProps> = ({ trip, onSelect
   if (loading) {
     return (
       <div className="flex items-center justify-center py-16">
-        <Loader2 className="w-12 h-12 text-gold animate-spin" />
+        <Loader2 className="w-10 h-10 text-gold animate-spin" />
       </div>
     );
   }
@@ -1357,7 +1375,8 @@ export const CalendarSection: React.FC<CalendarSectionProps> = ({ trip, onSelect
       {/* Top Controls Bar with Filters & View Mode Toggle — sticky right below
           the trip's section navbar (top-14 = that navbar's own height, 56px,
           so the two sit flush with no gap or overlap). */}
-      <div ref={filterBarRef} className="sticky top-14 z-20 py-1.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div ref={filterBarSentinelRef} className="h-0 !mt-0" aria-hidden="true" />
+      <div ref={filterBarRef} className={`!mt-0 sticky top-14 z-20 py-1.5 before:content-[''] before:absolute before:-z-10 before:inset-x-[-50vw] before:top-[-120px] before:bottom-[-12px] before:backdrop-blur-md before:bg-[var(--surface-0)]/60 before:pointer-events-none before:[mask-image:linear-gradient(to_bottom,black_80%,transparent)] before:transition-opacity before:duration-500 before:ease-out ${filterBarStuck ? 'before:opacity-100' : 'before:opacity-0'} flex flex-col sm:flex-row sm:items-center justify-between gap-3`}>
         {/* Filter Pills with Glass Effect */}
         <div className="flex items-center gap-2 overflow-x-auto -mx-1 px-1 flex-1 py-1">
           <button
@@ -1373,55 +1392,59 @@ export const CalendarSection: React.FC<CalendarSectionProps> = ({ trip, onSelect
 
           <button
             onClick={() => setFilterType('activities')}
-            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all duration-150 cursor-pointer backdrop-blur-xl shadow-md ${
+            title={compact ? t('calendar.filterActivities', 'Attività') : undefined}
+            className={`flex items-center px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all duration-150 cursor-pointer backdrop-blur-xl shadow-md ${
               filterType === 'activities'
                 ? 'bg-purple-600 text-white border border-purple-400'
                 : 'bg-slate-900/80 dark:bg-slate-900/85 text-purple-300 border border-purple-500/30 hover:bg-purple-950/60 hover:border-purple-400/50'
             }`}
           >
             <Mountain className="w-5 h-5 text-purple-400" />
-            {t('calendar.filterActivities', 'Attività')} ({counts.activities})
+            <CollapsibleLabel compact={compact}>{t('calendar.filterActivities', 'Attività')} ({counts.activities})</CollapsibleLabel>
           </button>
 
           <button
             onClick={() => setFilterType('transports')}
-            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all duration-150 cursor-pointer backdrop-blur-xl shadow-md ${
+            title={compact ? t('calendar.filterTransports', 'Spostamenti') : undefined}
+            className={`flex items-center px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all duration-150 cursor-pointer backdrop-blur-xl shadow-md ${
               filterType === 'transports'
                 ? 'bg-blue-600 text-white border border-blue-400'
                 : 'bg-slate-900/80 dark:bg-slate-900/85 text-blue-300 border border-blue-500/30 hover:bg-blue-950/60 hover:border-blue-400/50'
             }`}
           >
             <Route className="w-5 h-5 text-blue-400" />
-            {t('calendar.filterTransports', 'Spostamenti')} ({counts.transports})
+            <CollapsibleLabel compact={compact}>{t('calendar.filterTransports', 'Spostamenti')} ({counts.transports})</CollapsibleLabel>
           </button>
 
           <button
             onClick={() => setFilterType('accommodations')}
-            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all duration-150 cursor-pointer backdrop-blur-xl shadow-md ${
+            title={compact ? t('calendar.filterAccommodations', 'Alloggi') : undefined}
+            className={`flex items-center px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all duration-150 cursor-pointer backdrop-blur-xl shadow-md ${
               filterType === 'accommodations'
                 ? 'bg-emerald-600 text-white border border-emerald-400'
                 : 'bg-slate-900/80 dark:bg-slate-900/85 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-950/60 hover:border-emerald-400/50'
             }`}
           >
             <BedDouble className="w-5 h-5 text-emerald-400" />
-            {t('calendar.filterAccommodations', 'Alloggi')} ({counts.accommodations})
+            <CollapsibleLabel compact={compact}>{t('calendar.filterAccommodations', 'Alloggi')} ({counts.accommodations})</CollapsibleLabel>
           </button>
 
           <button
             onClick={() => setFilterType('bookings')}
-            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all duration-150 cursor-pointer backdrop-blur-xl shadow-md ${
+            title={compact ? t('calendar.filterBookings', 'Con Prenotazione') : undefined}
+            className={`flex items-center px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all duration-150 cursor-pointer backdrop-blur-xl shadow-md ${
               filterType === 'bookings'
                 ? 'bg-amber-600 text-white border border-amber-400'
                 : 'bg-slate-900/80 dark:bg-slate-900/85 text-amber-300 border border-amber-500/30 hover:bg-amber-950/60 hover:border-amber-400/50'
             }`}
           >
             <Ticket className="w-5 h-5 text-amber-400" />
-            {t('calendar.filterBookings', 'Con Prenotazione')} ({counts.bookings})
+            <CollapsibleLabel compact={compact}>{t('calendar.filterBookings', 'Con Prenotazione')} ({counts.bookings})</CollapsibleLabel>
           </button>
         </div>
 
         {/* View Mode Toggle with Glass Effect */}
-        <div className="flex items-center gap-1 bg-slate-900/80 dark:bg-slate-900/85 backdrop-blur-xl border border-slate-700/60 dark:border-white/10 p-1.5 rounded-full shrink-0 self-start sm:self-auto overflow-x-auto shadow-md">
+        <div className="flex items-center gap-1 bg-slate-900/80 dark:bg-slate-900/85 backdrop-blur-xl border border-slate-700/60 dark:border-white/10 p-1 rounded-full shrink-0 self-start sm:self-auto overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden shadow-md">
           {(
             [
               ['agenda', ListFilter, t('calendar.viewAgenda', 'Agenda')],
@@ -1433,14 +1456,25 @@ export const CalendarSection: React.FC<CalendarSectionProps> = ({ trip, onSelect
             <button
               key={mode}
               onClick={() => setViewMode(mode)}
-              className={`flex items-center gap-2 px-5 sm:px-6 py-2.5 rounded-full text-xs sm:text-sm font-bold tracking-wide whitespace-nowrap transition-all duration-200 cursor-pointer ${
+              title={compact ? label : undefined}
+              aria-label={label}
+              className={`relative flex items-center py-1 rounded-full text-xs font-bold tracking-wide whitespace-nowrap transition-[color,background-color,padding] duration-300 cursor-pointer ${
+                compact ? 'px-3.5' : 'px-5'
+              } ${
                 viewMode === mode
-                  ? 'bg-gold text-slate-950 shadow-sm'
+                  ? 'text-slate-950'
                   : 'text-slate-400 hover:text-slate-100 hover:bg-white/10'
               }`}
             >
-              <Icon className="w-5 h-5 shrink-0" />
-              <span>{label}</span>
+              {viewMode === mode && (
+                <motion.span
+                  layoutId="calendar-view-active"
+                  className="absolute inset-0 rounded-full bg-gold shadow-sm"
+                  transition={{ type: 'spring', stiffness: 380, damping: 32 }}
+                />
+              )}
+              <Icon className="w-5 h-5 shrink-0 relative" />
+              <span className="relative flex"><CollapsibleLabel compact={compact}>{label}</CollapsibleLabel></span>
             </button>
           ))}
         </div>
@@ -1550,9 +1584,14 @@ export const CalendarSection: React.FC<CalendarSectionProps> = ({ trip, onSelect
         </div>
       ) : viewMode === 'month' ? (
         /* Month View Grid */
-        <Card className="p-6 card-static">
+        <>
+          {/* Sticky below the filter bar, same as Week/Day (see note there) */}
+          <div
+            className="sticky z-[5] rounded-t-xl border border-b-0 border-slate-200/60 dark:border-white/10 bg-[var(--surface-1)] shadow-sm"
+            style={{ top: weekDayStickyTop }}
+          >
           {/* Month Header Navigation */}
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center justify-between px-6 pt-6 pb-5">
             <h3 className="text-lg font-bold capitalize text-deep-blue dark:text-gold-light">
               {currentDate.toLocaleDateString(i18n.language?.startsWith('it') ? 'it-IT' : 'en-US', {
                 month: 'long',
@@ -1581,14 +1620,16 @@ export const CalendarSection: React.FC<CalendarSectionProps> = ({ trip, onSelect
           </div>
 
           {/* Weekday headers */}
-          <div className="grid grid-cols-7 gap-1 mb-2 text-center text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+          <div className="grid grid-cols-7 gap-1 px-6 pb-3 border-b border-slate-200/60 dark:border-white/5 text-center text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
             {['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'].map((d) => (
               <div key={d} className="py-1">
                 {d}
               </div>
             ))}
           </div>
+          </div>
 
+          <div className="!mt-0 rounded-b-xl border border-t-0 border-slate-200/60 dark:border-white/10 bg-[var(--surface-1)] shadow-sm p-6">
           {/* Month Days Grid */}
           <div className="grid grid-cols-7 gap-1.5">
             {/* Empty prefix slots */}
@@ -1650,7 +1691,8 @@ export const CalendarSection: React.FC<CalendarSectionProps> = ({ trip, onSelect
               );
             })}
           </div>
-        </Card>
+          </div>
+        </>
       ) : viewMode === 'week' ? (
         /* Week View — 7-column time grid */
         <>
@@ -1662,12 +1704,12 @@ export const CalendarSection: React.FC<CalendarSectionProps> = ({ trip, onSelect
               scrolling reference instead of the page. `top` is measured
               (see weekDayStickyTop), not guessed. */}
           <div
-            className="sticky z-[5] rounded-t-2xl border border-b-0 border-slate-200/60 dark:border-white/10 bg-[var(--surface-1)] shadow-sm"
+            className="sticky z-[5] rounded-t-xl border border-b-0 border-slate-200/60 dark:border-white/10 bg-[var(--surface-1)] shadow-sm"
             style={{ top: weekDayStickyTop }}
           >
-          <div className="flex items-center justify-between p-4 border-b border-slate-200/60 dark:border-white/5">
+          <div className="flex items-center justify-between px-6 pt-6 pb-5 border-b border-slate-200/60 dark:border-white/5">
             <div className="flex items-center gap-2">
-              <h3 className="text-base font-bold text-deep-blue dark:text-gold-light">
+              <h3 className="text-lg font-bold text-deep-blue dark:text-gold-light">
                 {formatDateHeaderShort(weekDates[0])} - {formatDateHeaderShort(weekDates[6])}
               </h3>
               {weekAddDate && (
@@ -1696,7 +1738,7 @@ export const CalendarSection: React.FC<CalendarSectionProps> = ({ trip, onSelect
 
           {/* Day headers */}
           <div className="flex border-b border-slate-200/60 dark:border-white/5" style={{ paddingRight: weekScrollbarWidth }}>
-            <div className="w-12 shrink-0" />
+            <div className="w-14 shrink-0" />
             {weekDates.map((d) => {
               const isToday = d === dateKey(new Date());
               const isTripDay = tripDays.includes(d);
@@ -1725,7 +1767,7 @@ export const CalendarSection: React.FC<CalendarSectionProps> = ({ trip, onSelect
 
           {/* All-day strip */}
           <div className="flex border-b border-slate-200/60 dark:border-white/5" style={{ paddingRight: weekScrollbarWidth }}>
-            <div className="w-12 shrink-0" />
+            <div className="w-14 shrink-0" />
             {weekDates.map((d) => {
               const dayAllDay = (eventsByDate.get(d) || []).filter((ev) => ev.allDay || !ev.time);
               return (
@@ -1747,12 +1789,12 @@ export const CalendarSection: React.FC<CalendarSectionProps> = ({ trip, onSelect
               here directly is simpler than fighting that override. */}
           <div
             ref={weekGridRef}
-            className="overflow-y-auto max-h-[600px] rounded-b-2xl border border-t-0 border-slate-200/60 dark:border-white/10 bg-[var(--surface-1)] shadow-sm"
+            className="!mt-0 overflow-y-auto max-h-[600px] rounded-b-xl border border-t-0 border-slate-200/60 dark:border-white/10 bg-[var(--surface-1)] shadow-sm"
           >
-            <div className="flex">
-              <div className="w-12 shrink-0">
+            <div className="flex pt-3">
+              <div className="w-14 shrink-0">
                 {ALL_HOUR_LABELS.slice(weekGridStartHour).map((label) => (
-                  <div key={label} style={{ height: HOUR_HEIGHT }} className="text-[10px] text-slate-400 dark:text-slate-500 text-right pr-1.5 -translate-y-2">
+                  <div key={label} style={{ height: HOUR_HEIGHT }} className="text-[11px] text-slate-400 dark:text-slate-500 text-right pr-2 -translate-y-2">
                     {label}
                   </div>
                 ))}
@@ -1777,12 +1819,12 @@ export const CalendarSection: React.FC<CalendarSectionProps> = ({ trip, onSelect
         /* Day View — single-column time grid */
         <>
           <div
-            className="sticky z-[5] rounded-t-2xl border border-b-0 border-slate-200/60 dark:border-white/10 bg-[var(--surface-1)] shadow-sm"
+            className="sticky z-[5] rounded-t-xl border border-b-0 border-slate-200/60 dark:border-white/10 bg-[var(--surface-1)] shadow-sm"
             style={{ top: weekDayStickyTop }}
           >
-          <div className="flex items-center justify-between p-4 border-b border-slate-200/60 dark:border-white/5">
+          <div className="flex items-center justify-between px-6 pt-6 pb-5 border-b border-slate-200/60 dark:border-white/5">
             <div className="flex items-center gap-2">
-              <h3 className="text-base font-bold capitalize text-deep-blue dark:text-gold-light">
+              <h3 className="text-lg font-bold capitalize text-deep-blue dark:text-gold-light">
                 {formatDateHeader(dayDateStr)}
               </h3>
               {tripDays.includes(dayDateStr) && (
@@ -1824,8 +1866,8 @@ export const CalendarSection: React.FC<CalendarSectionProps> = ({ trip, onSelect
 
           {/* Scrollable time grid — plain div, see the same note in Week view
               about why `Card` isn't used here. */}
-          <div className="overflow-y-auto max-h-[600px] rounded-b-2xl border border-t-0 border-slate-200/60 dark:border-white/10 bg-[var(--surface-1)] shadow-sm">
-            <div className="flex">
+          <div className="!mt-0 overflow-y-auto max-h-[600px] rounded-b-xl border border-t-0 border-slate-200/60 dark:border-white/10 bg-[var(--surface-1)] shadow-sm">
+            <div className="flex pt-3">
               <div className="w-14 shrink-0">
                 {ALL_HOUR_LABELS.slice(dayGridStartHour).map((label) => (
                   <div key={label} style={{ height: HOUR_HEIGHT }} className="text-[11px] text-slate-400 dark:text-slate-500 text-right pr-2 -translate-y-2">
@@ -1901,6 +1943,7 @@ export const CalendarSection: React.FC<CalendarSectionProps> = ({ trip, onSelect
           defaultDate={creatingForDate ?? undefined}
           tripStart={trip.start_date}
           tripEnd={trip.end_date}
+          tripDestinations={trip.destinations ?? []}
           customCategories={customCategories}
           onSubmit={handleCreateActivity}
           onCancel={() => setCreatingForDate(null)}
@@ -1925,6 +1968,7 @@ export const CalendarSection: React.FC<CalendarSectionProps> = ({ trip, onSelect
             initial={editingEvent.raw as ActivityRow}
             tripStart={trip.start_date}
             tripEnd={trip.end_date}
+            tripDestinations={trip.destinations ?? []}
             customCategories={customCategories}
             onSubmit={handleEditActivity}
             onCancel={() => setEditingEvent(null)}

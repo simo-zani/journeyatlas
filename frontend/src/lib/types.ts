@@ -97,6 +97,8 @@ export type ActivityRow = {
   icon: string | null;
   status: 'planned' | 'booked' | 'completed';
   booking_ref: string | null;
+  booking_operator: string | null;
+  booking_operator_logo: string | null;
   notes: string | null;
   created_by_user_id: string;
   created_at: string;
@@ -151,6 +153,8 @@ export type AccommodationRow = {
   stars: number | null;
   /** Camere prenotate, solo per gli hotel. NULL quando non specificato. */
   rooms_count: number | null;
+  /** Bagni, solo per gli appartamenti. NULL quando non specificato. */
+  bathrooms_count: number | null;
   address: string | null;
   city: string | null;
   coordinates: Coordinates | null;
@@ -167,6 +171,8 @@ export type AccommodationRow = {
   booking_ref: string | null;
   booking_url: string | null;
   booking_platform: string | null;
+  /** Logo personalizzato della piattaforma (data URL ridotto), se non è tra quelle note. */
+  booking_platform_logo: string | null;
   amenities: string[];
   photo_url: string | null;
   photo_path: string | null;

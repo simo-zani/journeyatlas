@@ -33,6 +33,7 @@ import { useAuth } from '@/auth/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { fetchTripParticipants } from '@/lib/api';
 import { useImageBrightness } from '@/lib/useImageBrightness';
+import { useIsStuck } from '@/lib/useIsStuck';
 import type { Trip, TripParticipantDetail } from '@/lib/types';
 
 type TripSection =
@@ -72,6 +73,7 @@ export const TripDetailPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeSection, setActiveSection] = useState<TripSection>('calendar');
+  const [navSentinelRef, navStuck] = useIsStuck(0);
   const [editOpen, setEditOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [participants, setParticipants] = useState<TripParticipantDetail[]>([]);
@@ -138,7 +140,7 @@ export const TripDetailPage: React.FC = () => {
     <div className="relative w-full max-w-[1680px] mx-auto transition-all duration-300">
       {loading ? (
         <div className="flex items-center justify-center py-16">
-          <Loader2 className="w-16 h-16 text-gold animate-spin" />
+          <Loader2 className="w-10 h-10 text-gold animate-spin" />
         </div>
       ) : error || !trip ? (
         <p className="text-error">{error ?? t('trip.notFound')}</p>
@@ -303,6 +305,17 @@ export const TripDetailPage: React.FC = () => {
           )}
 
 
+          {/* Velo sfocato sotto le barre sticky: il contenuto che scorre sotto non si legge
+              fino alla cima della pagina. Altezza 0 per non occupare spazio nel flusso. */}
+          <div ref={navSentinelRef} className="h-0" aria-hidden="true" />
+          <div className="sticky top-0 z-20 h-0 pointer-events-none" aria-hidden="true">
+            <div
+              className={`absolute inset-x-[-50vw] top-[-200px] h-[calc(200px+5.5rem)] backdrop-blur-md bg-[var(--surface-0)]/60 [mask-image:linear-gradient(to_bottom,black_75%,transparent)] transition-opacity duration-500 ease-out ${
+                navStuck ? 'opacity-100' : 'opacity-0'
+              }`}
+            />
+          </div>
+
           {/* ── Section Tabs ── */}
           <nav
             className="sticky top-0 z-30 flex gap-1 sm:gap-1.5 mb-6 w-full items-center overflow-x-auto overflow-y-hidden p-1.5 rounded-full backdrop-blur-xl backdrop-saturate-150 bg-[var(--surface-0)]/65 border border-slate-200/50 dark:border-white/10 shadow-lg shadow-black/15 dark:border-white/20 transition-all"
@@ -344,7 +357,7 @@ export const TripDetailPage: React.FC = () => {
             <CalendarSection trip={trip} onSelectTab={(tab) => setActiveSection(tab)} />
           )}
           {activeSection === 'activities' && user && (
-            <ActivitySection tripId={trip.id} userId={user.id} tripStart={trip.start_date} tripEnd={trip.end_date} />
+            <ActivitySection tripId={trip.id} userId={user.id} tripStart={trip.start_date} tripEnd={trip.end_date} tripDestinations={trip.destinations ?? []} />
           )}
           {activeSection === 'accommodations' && (
             <AccommodationSection
@@ -364,7 +377,7 @@ export const TripDetailPage: React.FC = () => {
             <ChecklistSection tripId={trip.id} userId={user.id} />
           )}
           {activeSection === 'info' && (
-            <CountryInfoSection tripDestinations={trip.destinations ?? []} />
+            <CountryInfoSection tripId={trip.id} tripStart={trip.start_date} tripEnd={trip.end_date} tripDestinations={trip.destinations ?? []} />
           )}
         </>
       )}

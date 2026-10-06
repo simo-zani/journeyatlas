@@ -120,7 +120,9 @@ export const CityPicker: React.FC<CityPickerProps> = ({
   const listboxId = `city-listbox-${uid}`;
   // Testo già confermato con un click: non va interrogato Nominatim di nuovo,
   // altrimenti l'effetto sotto ripartirebbe e riaprirebbe la lista.
-  const accepted = useRef('');
+  // Parte dal valore iniziale: una città già salvata non è una ricerca da fare, altrimenti
+  // all'apertura di un form in modifica l'elenco si aprirebbe da solo appena arrivano i risultati.
+  const accepted = useRef(value.city.trim());
 
   // Il testo digitato vive nello stato locale; `onChange` viene chiamato a ogni
   // keystroke così il form resta un campo libero. Il flag evita che il reset a

@@ -237,7 +237,7 @@ export const DashboardPage: React.FC = () => {
 
       {loading ? (
         <div className="flex items-center justify-center py-16">
-          <Loader2 className="w-16 h-16 text-gold animate-spin" />
+          <Loader2 className="w-10 h-10 text-gold animate-spin" />
         </div>
       ) : trips.length === 0 ? (
         <motion.div

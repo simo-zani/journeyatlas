@@ -356,7 +356,18 @@
       "milestone": "Milestone",
       "ticket": "Ticket",
       "writing": "Writing"
-    }
+    },
+    "bookingOperator": "Operator",
+    "bookingOperatorPlaceholder": "e.g. GetYourGuide, or type a name",
+    "bookingOperatorClear": "Remove operator",
+    "operatorLogoUpload": "Upload logo",
+    "operatorLogoChange": "Change logo",
+    "operatorLogoRemove": "Remove",
+    "operatorLogoError": "Invalid image",
+    "viewListShort": "List",
+    "viewChartShort": "Chart",
+    "address": "Address",
+    "addressPlaceholder": "e.g. street, number, meeting point"
   },
   "accommodation": {
     "add": "Add Accommodation",
@@ -450,7 +461,17 @@
       "selfCheckIn": "Self check-in",
       "accessibility": "Accessible",
       "security": "24h security"
-    }
+    },
+    "apartmentRooms": "Number of rooms",
+    "bathrooms": "Number of bathrooms",
+    "apartmentRoomsValue_one": "{{count}} room",
+    "apartmentRoomsValue_other": "{{count}} rooms",
+    "bathroomsValue_one": "{{count}} bathroom",
+    "bathroomsValue_other": "{{count}} bathrooms",
+    "platformLogoUpload": "Upload logo",
+    "platformLogoChange": "Change logo",
+    "platformLogoRemove": "Remove",
+    "platformLogoError": "Invalid image"
   },
   "transport": {
     "add": "Add Transport",
@@ -644,7 +665,7 @@
     "timezone": "Time zone",
     "fromYou": "{{diff}} from you",
     "moreTimezones": "+{{count}} more time zones",
-    "callingCode": "Calling code",
+    "callingCode": "Dial code",
     "driving": "Driving",
     "side": {
       "left": "On the left",
@@ -669,13 +690,31 @@
       "emptyMessage": "Pick destinations from the city list to see the weather.",
       "skipped": "{{count}} destination without coordinates is not shown.",
       "next7": "Next 7 days",
-      "unavailable": "Forecast currently unavailable."
+      "unavailable": "Forecast currently unavailable.",
+      "mode": {
+        "forecast": "Forecast",
+        "history": "How it went",
+        "trip": "Trip days",
+        "next7": "Next 7 days"
+      },
+      "modeClimate": "Typical climate · average of the last {{years}} years",
+      "hourlyTitle": "Hour by hour",
+      "hourlyHint": "Tap a day to see the hourly weather",
+      "hourlyError": "Hourly data is not available for this day.",
+      "tripDay": "D{{n}}"
     },
     "currencyPanel": {
       "title": "Currency converter",
       "amount": "Amount",
       "from": "From currency",
-      "unavailable": "Exchange rates currently unavailable."
+      "unavailable": "Exchange rates currently unavailable.",
+      "to": "To",
+      "swap": "Swap currencies",
+      "search": "Search currency…",
+      "tripCurrencies": "Trip currencies",
+      "otherCurrencies": "Other currencies",
+      "noResults": "No currency found",
+      "updated": "Rates updated on {{date}}"
     },
     "phrasebook": {
       "search": "Search a phrase",
@@ -690,6 +729,10 @@
         "transport": "Directions and transport",
         "courtesy": "Courtesy"
       }
-    }
+    },
+    "transitTitle": "Transit countries",
+    "transitSub": "Countries your flights, trains or ferries pass through that are not a destination: the essentials for a layover.",
+    "transitBadge": "Transit",
+    "safetySub": "Official safety advisories (Italian Foreign Ministry)"
   }
 }

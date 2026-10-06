@@ -186,6 +186,8 @@ export interface ActivityInput {
   icon?: string | null;
   status: 'planned' | 'booked' | 'completed';
   booking_ref?: string | null;
+  booking_operator?: string | null;
+  booking_operator_logo?: string | null;
   notes?: string | null;
 }
 
@@ -222,6 +224,8 @@ export const createActivity = async (
       icon: input.icon ?? null,
       status: input.status,
       booking_ref: input.booking_ref ?? null,
+      booking_operator: input.booking_operator ?? null,
+      booking_operator_logo: input.booking_operator_logo ?? null,
       notes: input.notes ?? null,
     })
     .select()
@@ -253,6 +257,8 @@ export const updateActivity = async (
   if (input.icon !== undefined) patch.icon = input.icon;
   if (input.status !== undefined) patch.status = input.status;
   if (input.booking_ref !== undefined) patch.booking_ref = input.booking_ref;
+  if (input.booking_operator !== undefined) patch.booking_operator = input.booking_operator;
+  if (input.booking_operator_logo !== undefined) patch.booking_operator_logo = input.booking_operator_logo;
   if (input.notes !== undefined) patch.notes = input.notes;
 
   const { data, error } = await supabase.from('activities').update(patch).eq('id', id).select().single();
@@ -303,6 +309,8 @@ export interface AccommodationInput {
   stars?: number | null;
   /** Camere prenotate, solo per gli hotel. null quando non specificato. */
   rooms_count?: number | null;
+  /** Bagni, solo per gli appartamenti. */
+  bathrooms_count?: number | null;
   address?: string | null;
   city?: string | null;
   coordinates?: Coordinates | null;
@@ -315,6 +323,7 @@ export interface AccommodationInput {
   booking_ref?: string | null;
   booking_url?: string | null;
   booking_platform?: string | null;
+  booking_platform_logo?: string | null;
   contact_phone?: string | null;
   contact_email?: string | null;
   amenities?: string[];
@@ -343,6 +352,7 @@ const accFields = (input: Partial<AccommodationInput>) => ({
   type: input.type,
   stars: input.stars ?? null,
   rooms_count: input.rooms_count ?? null,
+  bathrooms_count: input.bathrooms_count ?? null,
   address: input.address ?? null,
   city: input.city ?? null,
   coordinates: input.coordinates ?? null,
@@ -355,6 +365,7 @@ const accFields = (input: Partial<AccommodationInput>) => ({
   booking_ref: input.booking_ref ?? null,
   booking_url: input.booking_url ?? null,
   booking_platform: input.booking_platform ?? null,
+  booking_platform_logo: input.booking_platform_logo ?? null,
   contact_phone: input.contact_phone ?? null,
   contact_email: input.contact_email ?? null,
   amenities: input.amenities ?? [],

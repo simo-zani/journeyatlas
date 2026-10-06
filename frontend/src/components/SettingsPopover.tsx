@@ -169,7 +169,7 @@ export const SettingsPopover: React.FC<SettingsPopoverProps> = ({
                   onClick={handleLogout}
                   disabled={loggingOut}
                 >
-                  {loggingOut && <Loader2 className="w-4 h-4 animate-spin mr-1.5" />}
+                  {loggingOut && <Loader2 className="w-5 h-5 animate-spin mr-1.5" />}
                   {isItalian ? 'Esci' : 'Log out'}
                 </Button>
               </div>

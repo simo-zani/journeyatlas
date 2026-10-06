@@ -264,7 +264,7 @@ export const ShareTripModal: React.FC<ShareTripModalProps> = ({
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wide text-gold hover:bg-gold/10 transition-colors cursor-pointer disabled:opacity-50 shrink-0"
                 >
                   {invitingId === friend.id ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <Loader2 className="w-5 h-5 animate-spin" />
                   ) : (
                     <Send className={MODAL_ICON_SIZE} />
                   )}

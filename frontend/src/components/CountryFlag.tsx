@@ -17,6 +17,8 @@ interface CountryFlagProps {
   label?: string;
   className?: string;
   fit?: 'contain' | 'cover';
+  /** URL alternativo, per bandiere che non sono di un paese (es. l'Unione Europea). */
+  src?: string;
 }
 
 export const CountryFlag: React.FC<CountryFlagProps> = ({
@@ -25,13 +27,14 @@ export const CountryFlag: React.FC<CountryFlagProps> = ({
   label,
   className = '',
   fit = 'contain',
+  src,
 }) => {
   const [hasError, setHasError] = useState(false);
   if (!code || hasError) return null;
   const { box, w, h } = SIZES[size];
   return (
     <img
-      src={flagUrl(code)}
+      src={src ?? flagUrl(code)}
       alt={label ?? ''}
       aria-hidden={label ? undefined : true}
       width={w}

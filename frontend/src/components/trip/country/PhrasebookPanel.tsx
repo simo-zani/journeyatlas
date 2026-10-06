@@ -92,7 +92,7 @@ export const PhrasebookPanel: React.FC<{ countries: CountryInfo[] }> = ({ countr
         href="https://translate.google.com/?sl=it"
         target="_blank"
         rel="noopener noreferrer"
-        className="inline-flex items-center justify-center gap-2 px-4 h-11 rounded-xl bg-gold/15 ring-1 ring-gold/30 hover:bg-gold/25 transition-colors font-semibold text-sm no-underline hover:no-underline shrink-0"
+        className="inline-flex items-center justify-center gap-2 px-5 h-11 rounded-full bg-gold/15 ring-1 ring-gold/30 hover:bg-gold/25 transition-colors font-semibold text-sm no-underline hover:no-underline shrink-0"
       >
         Google Translate
         <ExternalLink className="w-5 h-5 text-gold" />
@@ -113,7 +113,7 @@ export const PhrasebookPanel: React.FC<{ countries: CountryInfo[] }> = ({ countr
             key={a.code}
             type="button"
             onClick={() => setSelected(a.code)}
-            className={`inline-flex items-center gap-2.5 px-4 h-11 rounded-xl font-semibold text-sm transition-colors cursor-pointer ${
+            className={`inline-flex items-center gap-2.5 px-5 h-11 rounded-full font-semibold text-sm transition-colors cursor-pointer ${
               a.code === active
                 ? 'bg-gold/15 ring-1 ring-gold/40 text-deep-blue dark:text-gold-light'
                 : 'bg-slate-900/5 dark:bg-white/5 text-slate-600 dark:text-slate-300 hover:bg-slate-900/10 dark:hover:bg-white/10'
@@ -144,8 +144,8 @@ export const PhrasebookPanel: React.FC<{ countries: CountryInfo[] }> = ({ countr
         return (
           <section key={category}>
             <h3 className="font-poppins font-semibold text-xl mb-3 flex items-center gap-3">
-              <span className="w-12 h-12 rounded-2xl bg-gold/15 text-gold flex items-center justify-center shrink-0">
-                <Icon className="w-7 h-7" />
+              <span className="w-10 h-10 rounded-xl bg-gold/15 text-gold flex items-center justify-center shrink-0">
+                <Icon className="w-5 h-5" />
               </span>
               {t(`countryInfo.phrasebook.categories.${category}`)}
             </h3>

@@ -39,7 +39,7 @@ export const TripFlags: React.FC<TripFlagsProps> = ({ destinations, size = 'md' 
   return (
     <div className="flex items-center gap-1.5 shrink-0" aria-hidden="true">
       {codes.map((code) => (
-        <CountryFlag key={code} code={code} size={FLAG_SIZE[size]} className="shadow-sm" />
+        <CountryFlag key={code} code={code} size={FLAG_SIZE[size]} className="shadow-sm" tight />
       ))}
     </div>
   );

@@ -37,6 +37,8 @@ export type ProfileRow = {
   /** Città di partenza abituale: serve a consigliare gli aeroporti più vicini. */
   home_city: string | null;
   home_city_coords: Coordinates | null;
+  /** Nazionalità (codice ISO alpha-2), facoltativa: quel paese non compare in Info Paese. */
+  nationality: string | null;
   created_at: string;
 };
 

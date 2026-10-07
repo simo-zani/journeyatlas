@@ -158,7 +158,7 @@ export const CurrencyPanel: React.FC<CurrencyPanelProps> = ({ countries, rates }
   const [fromCode, setFromCode] = useState('EUR');
   const [toCode, setToCode] = useState('');
   // Si scrive in uno dei due campi: l'altro si calcola. `typed` resta legato alla valuta in cui è stato scritto.
-  const [typed, setTyped] = useState('100');
+  const [typed, setTyped] = useState('1');
   const [side, setSide] = useState<'from' | 'to'>('from');
   // bandiera di ogni valuta, ricavata dai dati dei paesi
   const [currencyFlags, setCurrencyFlags] = useState<Record<string, string>>({});
@@ -260,6 +260,18 @@ export const CurrencyPanel: React.FC<CurrencyPanelProps> = ({ countries, rates }
     setSide((s) => (s === 'from' ? 'to' : 'from')); // l'importo scritto resta nella sua valuta
   };
 
+  // Coppie da mostrare: la valuta di casa contro ciascuna di quelle delle mete (non tra le mete). Se la
+  // coppia scelta non è tra queste (valuta cercata a mano) compare in testa, così c'è sempre un tasso attivo.
+  const ratePairs = (() => {
+    const pairs: [string, string][] = [
+      ...new Set(trip.map((c) => c.code).filter((c) => c !== 'EUR' && rates[c])),
+    ].map((c): [string, string] => ['EUR', c]);
+    const known = pairs.some(
+      ([a, b]) => (a === fromCode && b === effectiveTo) || (a === effectiveTo && b === fromCode)
+    );
+    return known || fromCode === effectiveTo ? pairs : ([[fromCode, effectiveTo], ...pairs] as [string, string][]);
+  })();
+
   const updatedAt = ratesUpdatedAt('EUR');
   const unitRate = convert(1, fromCode, effectiveTo);
   const inverseRate = convert(1, effectiveTo, fromCode);
@@ -321,15 +333,38 @@ export const CurrencyPanel: React.FC<CurrencyPanelProps> = ({ countries, rates }
           {field('to')}
         </div>
 
-        {/* Tasso al centro, con le due valute selezionate */}
+        {/* Tassi al centro: la valuta di partenza e quelle dei paesi del viaggio, a coppie. Un clic sceglie la coppia. */}
         {unitRate !== null && (
-          <div className="mt-6 flex flex-col items-center gap-1.5">
-            <div className="inline-flex items-center gap-3 rounded-full bg-gold/10 ring-1 ring-gold/30 px-5 py-2.5 text-sm font-bold">
-              <Flag flag={options.find((o) => o.code === fromCode)?.flag ?? null} code={fromCode} />
-              <span>
-                1 {fromCode} = <span className="text-gold">{fmt(unitRate)}</span> {effectiveTo}
-              </span>
-              <Flag flag={options.find((o) => o.code === effectiveTo)?.flag ?? null} code={effectiveTo} />
+          <div className="mt-6 flex flex-col items-center gap-3">
+            <div className="flex flex-wrap items-center justify-center gap-2.5">
+              {ratePairs.map(([a, b]) => {
+                const r = convert(1, a, b);
+                if (r === null) return null;
+                const active = (fromCode === a && effectiveTo === b) || (fromCode === b && effectiveTo === a);
+                return (
+                  <button
+                    key={`${a}-${b}`}
+                    type="button"
+                    onClick={() => {
+                      setFromCode(a);
+                      setToCode(b);
+                      setSide('from');
+                    }}
+                    aria-pressed={active}
+                    className={`inline-flex items-center gap-3 rounded-full px-4 py-2 text-sm font-bold transition-colors cursor-pointer ${
+                      active
+                        ? 'bg-gold/20 ring-2 ring-gold/60'
+                        : 'bg-gold/10 ring-1 ring-gold/30 hover:bg-gold/15 hover:ring-gold/50'
+                    }`}
+                  >
+                    <Flag flag={options.find((o) => o.code === a)?.flag ?? null} code={a} />
+                    <span>
+                      1 {a} = <span className="text-gold">{fmt(r)}</span> {b}
+                    </span>
+                    <Flag flag={options.find((o) => o.code === b)?.flag ?? null} code={b} />
+                  </button>
+                );
+              })}
             </div>
             {inverseRate !== null && (
               <p className="text-xs text-slate-500 dark:text-slate-400">
@@ -356,14 +391,16 @@ export const CurrencyPanel: React.FC<CurrencyPanelProps> = ({ countries, rates }
         </div>
       </section>
 
-      {updatedAt && (
-        <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center justify-center gap-1.5 text-center">
-          <Clock className="w-3.5 h-3.5" />
-          {t('countryInfo.currencyPanel.updated', {
-            date: updatedAt.toLocaleString(i18n.language, { dateStyle: 'medium', timeStyle: 'short' }),
-          })}
-        </p>
-      )}
+      <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center justify-center gap-1.5 text-center">
+        <Clock className="w-3.5 h-3.5 shrink-0" />
+        <span>
+          {updatedAt &&
+            `${t('countryInfo.currencyPanel.updated', {
+              date: updatedAt.toLocaleString(i18n.language, { dateStyle: 'medium', timeStyle: 'short' }),
+            })} · `}
+          {t('countryInfo.ratesSource')}
+        </span>
+      </p>
     </div>
   );
 };

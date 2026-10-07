@@ -1,16 +1,19 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ImagePlus, Loader2, Pencil, X } from 'lucide-react';
 import { Modal } from '@/components/Modal';
 import { Button } from '@/components/Button';
 import { Input } from '@/components/Input';
 import { Alert } from '@/components/Alert';
+import { CountrySelect } from '@/components/CountrySelect';
 import { CityPicker, type CityValue } from '@/components/trip/CityPicker';
 import { checkUsernameAvailable, updateProfile } from '@/lib/api';
 import { MODAL_ICON_SIZE } from '@/lib/ui';
 import { compressImage } from '@/lib/image';
 import { supabase } from '@/lib/supabase';
 import { setHomeCityCache } from '@/lib/useHomeCity';
+import { setNationalityCache } from '@/lib/useNationality';
+import { countryOptions } from '@/lib/countryCodes';
 import type { Destination } from '@/lib/types';
 
 const USERNAME_PATTERN = /^[A-Za-z0-9_.-]+$/;
@@ -25,10 +28,12 @@ interface EditProfileModalProps {
   currentAvatarUrl: string | null;
   currentUsername: string | null;
   currentHomeCity: CityValue | null;
+  currentNationality: string | null;
   onSaved: (next: {
     avatarUrl: string | null;
     username: string;
     homeCity: CityValue | null;
+    nationality: string | null;
   }) => void;
 }
 
@@ -40,9 +45,11 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
   currentAvatarUrl,
   currentUsername,
   currentHomeCity,
+  currentNationality,
   onSaved,
 }) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const countries = useMemo(() => countryOptions(i18n.language), [i18n.language]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const usernameInputRef = useRef<HTMLInputElement>(null);
 
@@ -58,6 +65,8 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
   const [homeCity, setHomeCityValue] = useState<CityValue>(
     currentHomeCity ?? { city: '', coords: null }
   );
+  // Nazionalità (facoltativa): quel paese non compare in Info Paese. Stringa vuota = non impostata.
+  const [nationality, setNationality] = useState(currentNationality ?? '');
   const [profileError, setProfileError] = useState<string | null>(null);
   const [savingProfile, setSavingProfile] = useState(false);
 
@@ -81,13 +90,14 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
     setUsername(currentUsername ?? '');
     setUsernameEditing(false);
     setHomeCityValue(currentHomeCity ?? { city: '', coords: null });
+    setNationality(currentNationality ?? '');
     setProfileError(null);
     setShowPasswordFields(false);
     setNewPassword('');
     setConfirmNewPassword('');
     setPasswordError(null);
     setPasswordSuccess(false);
-  }, [open, currentAvatarUrl, currentUsername, currentHomeCity]);
+  }, [open, currentAvatarUrl, currentUsername, currentHomeCity, currentNationality]);
 
   const handleFileSelect = (selected: File | null) => {
     setProfileError(null);
@@ -134,7 +144,8 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
     Boolean(file) ||
     (avatarRemoved && currentAvatarUrl !== null) ||
     username.trim() !== (currentUsername ?? '') ||
-    homeCityChanged;
+    homeCityChanged ||
+    nationality !== (currentNationality ?? '');
 
   const handleSaveProfile = async () => {
     setProfileError(null);
@@ -182,11 +193,19 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
         username: trimmedUsername,
         home_city: nextHomeCity ? nextHomeCity.city : null,
         home_city_coords: nextHomeCity ? nextHomeCity.coords : null,
+        // solo se cambiata: così il resto del profilo si salva anche prima della migrazione 0031
+        ...(nationality !== (currentNationality ?? '') ? { nationality: nationality || null } : {}),
       });
       // Il form mezzo è spesso già montato: senza questo la nuova città
       // arriverebbe solo al prossimo reload della pagina.
       setHomeCityCache(userId, nextHomeCity);
-      onSaved({ avatarUrl: nextAvatarUrl, username: trimmedUsername, homeCity: nextHomeCity });
+      setNationalityCache(userId, nationality || null);
+      onSaved({
+        avatarUrl: nextAvatarUrl,
+        username: trimmedUsername,
+        homeCity: nextHomeCity,
+        nationality: nationality || null,
+      });
       onClose();
     } catch (err) {
       setProfileError(err instanceof Error ? err.message : t('common.error'));
@@ -356,6 +375,21 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
                 placeholder={t('cityPicker.placeholder')}
                 ariaLabel={t('profile.homeCity')}
               />
+            </div>
+
+            <div className="text-left">
+              <label className="label" htmlFor="profile-nationality">
+                {t('profile.nationality')}
+              </label>
+              <CountrySelect
+                id="profile-nationality"
+                value={nationality}
+                onChange={setNationality}
+                options={countries}
+                noneLabel={t('profile.nationalityNone')}
+                searchPlaceholder={t('profile.nationalitySearch')}
+              />
+              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{t('profile.nationalityHint')}</p>
             </div>
 
             {profileError && <Alert type="error" message={profileError} onClose={() => setProfileError(null)} />}

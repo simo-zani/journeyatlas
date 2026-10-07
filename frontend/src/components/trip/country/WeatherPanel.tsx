@@ -115,7 +115,8 @@ export const WeatherPanel: React.FC<WeatherPanelProps> = ({ destinations, tripId
   const { t, i18n } = useTranslation();
   const [results, setResults] = useState<Result[]>([]);
   const [loading, setLoading] = useState(true);
-  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  // le card partono sempre compresse: si ricordano solo quelle aperte
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [selected, setSelected] = useState<{ key: string; date: string } | null>(null);
   const [hourly, setHourly] = useState<{ hours: HourWeather[] | null; loading: boolean }>({
     hours: null,
@@ -268,8 +269,8 @@ export const WeatherPanel: React.FC<WeatherPanelProps> = ({ destinations, tripId
           <section key={place.key} className="card card-static">
             <button
               type="button"
-              onClick={() => setCollapsed((c) => ({ ...c, [place.key]: !c[place.key] }))}
-              aria-expanded={!collapsed[place.key]}
+              onClick={() => setExpanded((c) => ({ ...c, [place.key]: !c[place.key] }))}
+              aria-expanded={!!expanded[place.key]}
               className="w-full flex items-center gap-3 flex-wrap text-left cursor-pointer select-none"
             >
               {place.countryCode && <CountryFlag code={place.countryCode} size="lg" />}
@@ -277,15 +278,15 @@ export const WeatherPanel: React.FC<WeatherPanelProps> = ({ destinations, tripId
               {modeLabel(mode) && (
                 <span className="text-xs text-slate-500 dark:text-slate-400">{modeLabel(mode)}</span>
               )}
-              {collapsed[place.key] && days && days.length > 0 && <CollapsedSummary days={days} />}
+              {!expanded[place.key] && days && days.length > 0 && <CollapsedSummary days={days} />}
               <ChevronDown
-                className={`w-5 h-5 ${collapsed[place.key] && days ? '' : 'ml-auto'} shrink-0 text-slate-400 transition-transform duration-200 ${
-                  collapsed[place.key] ? '' : 'rotate-180'
+                className={`w-5 h-5 ${!expanded[place.key] && days ? '' : 'ml-auto'} shrink-0 text-slate-400 transition-transform duration-200 ${
+                  expanded[place.key] ? 'rotate-180' : ''
                 }`}
               />
             </button>
             <AnimatePresence initial={false}>
-              {!collapsed[place.key] && (
+              {expanded[place.key] && (
                 <motion.div
                   key="content"
                   initial={{ height: 0, opacity: 0 }}
@@ -429,6 +430,7 @@ export const WeatherPanel: React.FC<WeatherPanelProps> = ({ destinations, tripId
           </section>
         );
       })}
+      <p className="text-xs text-slate-500 dark:text-slate-400 text-center">{t('countryInfo.weatherSource')}</p>
     </div>
   );
 };

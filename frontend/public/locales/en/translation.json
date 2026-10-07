@@ -113,7 +113,11 @@
     "confirmNewPassword": "Confirm new password",
     "updatePassword": "Update",
     "passwordUpdated": "Password updated.",
-    "homeCity": "Home"
+    "homeCity": "Home",
+    "nationality": "Nationality",
+    "nationalityNone": "None (show all countries)",
+    "nationalitySearch": "Search a country…",
+    "nationalityHint": "If you set it, that country is hidden in Country Info."
   },
   "cityPicker": {
     "label": "City",
@@ -661,6 +665,7 @@
     "farnesina": "Viaggiare Sicuri",
     "capital": "Capital",
     "languages": "Languages",
+    "language": "Language",
     "currency": "Currency",
     "timezone": "Time zone",
     "fromYou": "{{diff}} from you",
@@ -673,8 +678,12 @@
     },
     "emptyTitle": "No country to show",
     "emptyMessage": "Add a destination to the trip to see practical country info.",
+    "onlyHomeTitle": "Only your own country",
+    "onlyHomeMessage": "This trip's destinations are in your own country, which isn't shown here.",
     "partialError": "Some information is currently unavailable.",
-    "sources": "Data: world-countries, Open-Meteo and ExchangeRate-API. Exchange rates and outlets are indicative: check before you travel.",
+    "sources": "Data: world-countries. Exchange rates and outlets are indicative: check before you travel.",
+    "weatherSource": "Weather data: Open-Meteo.",
+    "ratesSource": "Rates: ExchangeRate-API.",
     "tabs": {
       "overview": "Overview",
       "weather": "Weather",
@@ -723,7 +732,9 @@
       "fallbackMessage": "There is no phrasebook for this country yet: use Google Translate.",
       "fallbackLanguages": "Not in the phrasebook yet: {{languages}}. Use Google Translate.",
       "categories": {
-        "allergies": "Allergies and intolerances",
+        "allergies": "Allergies and diets",
+        "greetings": "Greetings",
+        "food": "Food",
         "needs": "Basic needs",
         "emergency": "Emergencies",
         "transport": "Directions and transport",

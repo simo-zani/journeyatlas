@@ -105,6 +105,8 @@ export const CityPicker: React.FC<CityPickerProps> = ({
 }) => {
   const { t, i18n } = useTranslation();
   const [query, setQuery] = useState(value.city);
+  const queryRef = useRef(query);
+  queryRef.current = query;
   const [open, setOpen] = useState(false);
   const [suggestions, setSuggestions] = useState<DestinationSuggestion[]>([]);
   const [loading, setLoading] = useState(false);
@@ -132,6 +134,10 @@ export const CityPicker: React.FC<CityPickerProps> = ({
       skipSync.current = false;
       return;
     }
+    // Un valore che arriva da fuori (profilo caricato, form riaperto) è una città già scelta, non una
+    // ricerca: senza questo parte Nominatim e l'elenco si apre da solo. Se invece il testo coincide con
+    // quello digitato è il rimbalzo del form e la ricerca deve continuare.
+    if (value.city.trim() !== queryRef.current.trim()) accepted.current = value.city.trim();
     setQuery(value.city);
   }, [value.city]);
 

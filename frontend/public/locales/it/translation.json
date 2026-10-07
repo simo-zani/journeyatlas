@@ -113,7 +113,11 @@
     "confirmNewPassword": "Conferma nuova password",
     "updatePassword": "Aggiorna",
     "passwordUpdated": "Password aggiornata.",
-    "homeCity": "Casa"
+    "homeCity": "Casa",
+    "nationality": "Nazionalità",
+    "nationalityNone": "Nessuna (mostra tutti i paesi)",
+    "nationalitySearch": "Cerca un paese…",
+    "nationalityHint": "Se la imposti, quel paese non compare in Info Paese."
   },
   "cityPicker": {
     "label": "Città",
@@ -661,6 +665,7 @@
     "farnesina": "Viaggiare Sicuri",
     "capital": "Capitale",
     "languages": "Lingue",
+    "language": "Lingua",
     "currency": "Valuta",
     "timezone": "Fuso orario",
     "fromYou": "{{diff}} rispetto a te",
@@ -673,8 +678,12 @@
     },
     "emptyTitle": "Nessun paese da mostrare",
     "emptyMessage": "Aggiungi una meta al viaggio per vedere le informazioni pratiche del paese.",
+    "onlyHomeTitle": "Solo il tuo paese",
+    "onlyHomeMessage": "Le mete di questo viaggio sono nel tuo paese, che qui non viene mostrato.",
     "partialError": "Alcune informazioni non sono disponibili al momento.",
-    "sources": "Dati: world-countries, Open-Meteo e ExchangeRate-API. Tassi e prese sono indicativi: verifica prima di partire.",
+    "sources": "Dati: world-countries. Tassi e prese sono indicativi: verifica prima di partire.",
+    "weatherSource": "Dati meteo: Open-Meteo.",
+    "ratesSource": "Tassi: ExchangeRate-API.",
     "tabs": {
       "overview": "Panoramica",
       "weather": "Meteo",
@@ -723,7 +732,9 @@
       "fallbackMessage": "Per questo paese non c'è ancora un frasario: usa Google Translate.",
       "fallbackLanguages": "Non ancora nel frasario: {{languages}}. Usa Google Translate.",
       "categories": {
-        "allergies": "Allergie e intolleranze",
+        "allergies": "Allergie e diete",
+        "greetings": "Saluti",
+        "food": "Cibo",
         "needs": "Bisogni base",
         "emergency": "Emergenze",
         "transport": "Orientamento e trasporti",

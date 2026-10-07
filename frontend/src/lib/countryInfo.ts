@@ -215,3 +215,42 @@ export const languageNames = (info: CountryInfo, locale: string): string[] => {
     }
   });
 };
+
+const REGION_NAMES_IT: Record<string, string> = {
+  Africa: 'Africa',
+  Americas: 'Americhe',
+  Asia: 'Asia',
+  Europe: 'Europa',
+  Oceania: 'Oceania',
+  Antarctic: 'Antartide',
+  'North America': 'America del Nord',
+  'South America': 'America del Sud',
+  'Central America': 'America Centrale',
+  Caribbean: 'Caraibi',
+  'Northern Europe': 'Europa settentrionale',
+  'Southern Europe': 'Europa meridionale',
+  'Western Europe': 'Europa occidentale',
+  'Eastern Europe': 'Europa orientale',
+  'Central Europe': 'Europa centrale',
+  'South-Eastern Europe': 'Europa sud-orientale',
+  'Southeast Europe': 'Europa sud-orientale',
+  'Northern Africa': 'Africa settentrionale',
+  'Western Africa': 'Africa occidentale',
+  'Middle Africa': 'Africa centrale',
+  'Eastern Africa': 'Africa orientale',
+  'Southern Africa': 'Africa meridionale',
+  'Central Asia': 'Asia centrale',
+  'Eastern Asia': 'Asia orientale',
+  'South-Eastern Asia': 'Asia sud-orientale',
+  'Southeast Asia': 'Asia sud-orientale',
+  'Southern Asia': 'Asia meridionale',
+  'Western Asia': 'Asia occidentale',
+  'Australia and New Zealand': 'Australia e Nuova Zelanda',
+  Melanesia: 'Melanesia',
+  Micronesia: 'Micronesia',
+  Polynesia: 'Polinesia',
+};
+
+/** Nome di regione/sottoregione (dataset in inglese) nella lingua dell'interfaccia. */
+export const regionName = (name: string, locale: string): string =>
+  locale.startsWith('it') ? (REGION_NAMES_IT[name] ?? name) : name;

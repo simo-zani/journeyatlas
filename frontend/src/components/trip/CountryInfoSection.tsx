@@ -1,5 +1,6 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
 import {
   ArrowLeftRight,
@@ -32,7 +33,7 @@ import {
   fetchTimezoneName,
   farnesinaUrl,
   languageNames,
-  timezoneOffsetMinutes,
+  regionName,
   type CountryInfo,
 } from '@/lib/countryInfo';
 import { PLUGS, PLUG_DESCRIPTIONS } from '@/lib/plugs';
@@ -41,6 +42,7 @@ import { airportByIata, distanceKm, loadAirports } from '@/lib/airports';
 import { loadTrainStations, stationByNameOrCode } from '@/lib/trainStations';
 import { loadFerryPorts, portByNameOrCode } from '@/lib/ferryPorts';
 import { useHomeCity } from '@/lib/useHomeCity';
+import { useNationality } from '@/lib/useNationality';
 import { useIsStuck } from '@/lib/useIsStuck';
 import type { Destination } from '@/lib/types';
 
@@ -61,6 +63,7 @@ const SUB_TABS: { id: SubTab; icon: LucideIcon }[] = [
 ];
 
 const HOME_CURRENCY = 'EUR';
+const HOME_TIMEZONE = 'Europe/Rome';
 /** Tipi di presa che si infilano nelle prese italiane (C: Europlug, F: Schuko, L: italiana). */
 const COMPATIBLE_WITH_ITALY = ['C', 'F', 'L'];
 
@@ -81,29 +84,65 @@ const BentoTile: React.FC<{
   tint?: TileTint;
   className?: string;
   bodyClassName?: string;
+  /** Elemento ancorato in alto a sinistra (es. un avviso con tooltip). */
+  corner?: React.ReactNode;
+  /** Variante bassa per impilare più riquadri nella stessa colonna. */
+  compact?: boolean;
   children: React.ReactNode;
-}> = ({ icon: Icon, label, tint = 'slate', className = '', bodyClassName = '', children }) => {
+}> = ({ icon: Icon, label, tint = 'slate', className = '', bodyClassName = '', corner, compact = false, children }) => {
   const c = TILE_TINTS[tint];
   return (
-    <div className={`relative overflow-hidden rounded-2xl ring-1 p-3.5 min-w-0 text-center ${c.box} ${className}`}>
-      <Icon className={`absolute -bottom-2 -right-2 w-14 h-14 opacity-10 ${c.icon}`} strokeWidth={1.5} />
-      <p className={`relative flex items-center justify-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider ${c.icon}`}>
+    <div className={`relative overflow-hidden rounded-2xl ring-1 ${compact ? 'px-3 py-1.5' : 'p-3'} min-w-0 text-center ${c.box} ${className}`}>
+      <Icon className={`absolute -bottom-2 -right-2 ${compact ? 'w-10 h-10' : 'w-14 h-14'} opacity-10 ${c.icon}`} strokeWidth={1.5} />
+      {corner}
+      <p className={`relative flex items-center justify-center gap-1.5 ${compact ? 'text-[10px]' : 'text-[11px]'} font-semibold uppercase tracking-wider ${c.icon}`}>
         <Icon className="w-5 h-5 shrink-0" />
         <span className="truncate">{label}</span>
       </p>
-      <div className={`relative mt-2.5 ${bodyClassName}`}>{children}</div>
+      <div className={`relative ${compact ? 'mt-0.5' : 'mt-2'} ${bodyClassName}`}>{children}</div>
     </div>
   );
 };
 
-/** Differenza oraria rispetto al dispositivo, es. "+5 h" / "−1 h 30 min". */
-const offsetFromHere = (timeZone: string): string => {
-  const diff = timezoneOffsetMinutes(timeZone) - -new Date().getTimezoneOffset();
-  if (diff === 0) return '0 h';
-  const abs = Math.abs(diff);
-  const h = Math.floor(abs / 60);
-  const m = abs % 60;
-  return `${diff > 0 ? '+' : '−'}${h} h${m ? ` ${m} min` : ''}`;
+/** Lingue su una riga sola, con i puntini se non ci stanno; al passaggio (o al tocco) l'elenco completo
+ *  in un tooltip. Il tooltip è in un portale: la tessera ritaglia tutto ciò che esce dai suoi bordi. */
+const LanguageList: React.FC<{ names: string[] }> = ({ names }) => {
+  const [tip, setTip] = useState<{ x: number; y: number } | null>(null);
+  const text = names.join(', ');
+  const multiple = names.length > 1;
+
+  const show = (el: HTMLElement) => {
+    const r = el.getBoundingClientRect();
+    setTip({ x: r.left + r.width / 2, y: r.top });
+  };
+
+  return (
+    <>
+      <p
+        className={`font-poppins font-bold text-sm leading-tight truncate ${multiple ? 'cursor-help' : ''}`}
+        tabIndex={multiple ? 0 : undefined}
+        onMouseEnter={multiple ? (e) => show(e.currentTarget) : undefined}
+        onMouseLeave={() => setTip(null)}
+        onClick={multiple ? (e) => (tip ? setTip(null) : show(e.currentTarget)) : undefined}
+        onBlur={() => setTip(null)}
+      >
+        {text}
+      </p>
+      {tip &&
+        createPortal(
+          <div
+            role="tooltip"
+            style={{ left: tip.x, top: tip.y - 8 }}
+            className="pointer-events-none fixed z-[60] max-w-xs -translate-x-1/2 -translate-y-full rounded-xl bg-emerald-950/95 px-3 py-2 text-xs font-semibold text-emerald-300 shadow-lg ring-1 ring-emerald-500/30 backdrop-blur-xl text-left"
+          >
+            {names.map((n) => (
+              <p key={n}>{n}</p>
+            ))}
+          </div>,
+          document.body
+        )}
+    </>
+  );
 };
 
 /** Logo di Viaggiare Sicuri (favicon del sito); se non carica resta lo scudo. */
@@ -122,6 +161,7 @@ const SafetyLogo: React.FC = () => {
 
 const PlugTile: React.FC<{ country: CountryInfo }> = ({ country }) => {
   const { t, i18n } = useTranslation();
+  const [tipOpen, setTipOpen] = useState(false);
   const lang = i18n.language?.startsWith('it') ? 'it' : 'en';
   const plug = PLUGS[country.code];
   if (!plug) return null;
@@ -135,37 +175,53 @@ const PlugTile: React.FC<{ country: CountryInfo }> = ({ country }) => {
       icon={Plug}
       label={t('countryInfo.plugs')}
       tint="blue"
-      className="col-span-2 flex flex-col min-h-[340px]"
-      bodyClassName="flex-1 flex flex-col"
+      className="flex-1 flex flex-col"
+      bodyClassName="flex-1 flex flex-col justify-center"
+      corner={
+        <div className="group">
+          <button
+            type="button"
+            aria-label={t('countryInfo.plugs')}
+            aria-expanded={tipOpen}
+            onClick={() => setTipOpen((v) => !v)}
+            onBlur={() => setTipOpen(false)}
+            className={`absolute top-1 left-1 z-10 p-1.5 cursor-help ${ok ? 'text-success' : 'text-amber-500 dark:text-amber-400'}`}
+          >
+            <TriangleAlert className="w-5 h-5" />
+          </button>
+          <div
+            role="tooltip"
+            className={`pointer-events-none absolute left-2.5 right-2.5 top-10 z-20 space-y-1 rounded-xl px-3 py-2 text-xs font-semibold text-left shadow-lg backdrop-blur-xl ring-1 transition-opacity duration-150 group-hover:opacity-100 ${
+              tipOpen ? 'opacity-100' : 'opacity-0'
+            } ${
+              ok
+                ? 'bg-emerald-950/95 text-success ring-success/30'
+                : 'bg-amber-950/95 text-amber-400 ring-amber-500/30'
+            }`}
+          >
+            <p>{fits ? t('countryInfo.plugFits') : t('countryInfo.plugAdapter')}</p>
+            {differentVoltage && <p>{t('countryInfo.voltageWarning', { voltage: plug.voltage })}</p>}
+          </div>
+        </div>
+      }
     >
-      <div className="flex flex-col items-center gap-3">
+      <div className="flex flex-col items-center gap-2">
         <div className="flex flex-wrap justify-center gap-3">
           {plug.types.map((type) => (
             <div key={type} className="flex flex-col items-center gap-1">
-              <PlugTypeIcon type={type} className="w-14 h-14 drop-shadow-sm" />
+              <PlugTypeIcon type={type} className="w-10 h-10 drop-shadow-sm" />
               <span className="text-xs font-bold text-gold-light">{type}</span>
             </div>
           ))}
         </div>
-        <p className="font-poppins font-bold text-xl leading-tight whitespace-nowrap">
+        <p className="font-poppins font-bold text-lg leading-tight whitespace-nowrap">
           {plug.voltage} V
-          <span className="block text-xs font-medium text-slate-500 dark:text-slate-400">{plug.frequency} Hz</span>
+          <span className="ml-1.5 text-xs font-medium text-slate-500 dark:text-slate-400">{plug.frequency} Hz</span>
         </p>
       </div>
-      <p className="my-3 text-xs text-slate-500 dark:text-slate-400">
+      <p className="mt-2 text-[11px] leading-snug text-slate-500 dark:text-slate-400">
         {plug.types.map((type) => `${type}: ${PLUG_DESCRIPTIONS[type]?.[lang] ?? ''}`).join(' · ')}
       </p>
-      <div
-        className={`mt-auto flex items-start justify-center gap-2.5 rounded-xl px-3.5 py-2.5 text-xs font-semibold text-center ${
-          ok ? 'bg-success/15 text-success' : 'bg-amber-500/15 text-amber-600 dark:text-amber-400'
-        }`}
-      >
-        <TriangleAlert className="w-5 h-5 shrink-0" />
-        <div className="space-y-1">
-          <p>{fits ? t('countryInfo.plugFits') : t('countryInfo.plugAdapter')}</p>
-          {differentVoltage && <p>{t('countryInfo.voltageWarning', { voltage: plug.voltage })}</p>}
-        </div>
-      </div>
     </BentoTile>
   );
 };
@@ -181,9 +237,23 @@ export const CountryInfoSection: React.FC<CountryInfoSectionProps> = ({ tripId, 
   const [transit, setTransit] = useState<CountryInfo[]>([]);
   const [transitZones, setTransitZones] = useState<Record<string, string[]>>({});
   const homeCity = useHomeCity();
+  const nationality = useNationality();
   const [rates, setRates] = useState<Record<string, number> | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Altezza reale della barra delle sotto-schede: le barre sticky dei pannelli si agganciano sotto di essa.
+  const barRef = useRef<HTMLDivElement>(null);
+  const [barHeight, setBarHeight] = useState(48);
+  useEffect(() => {
+    const el = barRef.current;
+    if (!el) return;
+    const measure = () => setBarHeight(el.offsetHeight);
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [loading, countries.length]);
 
   // Un viaggio senza destinazioni arriva come `[]` nuovo a ogni render: la
   // chiave stabile evita di rilanciare il caricamento senza che sia cambiato nulla.
@@ -341,25 +411,34 @@ export const CountryInfoSection: React.FC<CountryInfoSectionProps> = ({ tripId, 
     );
   }
 
+  const timeIn = (timeZone: string) =>
+    new Date().toLocaleTimeString(i18n.language, { timeZone, hour: '2-digit', minute: '2-digit' });
+
+  // Il paese dell'utente non si mostra mai (caricamento e paesi di passaggio restano sull'elenco completo).
+  const visibleCountries = countries.filter((c) => c.code.toUpperCase() !== nationality);
+  const visibleTransit = transit.filter((c) => c.code.toUpperCase() !== nationality);
+
   const renderCard = (c: CountryInfo, isTransit: boolean) => {
     const zoneList = zones[c.code] ?? transitZones[c.code] ?? [];
     const name = isItalian ? c.nameIt : c.nameEn;
     return (
       <div
         key={c.code}
-        className={`card card-static transition-opacity duration-200 ${
+        className={`card card-static flex flex-col lg:flex-row lg:items-stretch gap-6 transition-opacity duration-200 ${
           isTransit ? 'opacity-60 hover:opacity-100 border-slate-200/40 dark:border-white/5' : ''
         }`}
       >
         {/* Bandiera sullo sfondo, in alto a sinistra, che sfuma verso l'interno della card */}
         <div
           aria-hidden="true"
-          className="absolute top-0 left-0 w-[85%] h-[260px] bg-cover bg-center opacity-35 pointer-events-none [mask-image:linear-gradient(135deg,black_0%,transparent_62%)]"
+          className="absolute top-0 left-0 w-[85%] h-[260px] lg:h-full lg:w-[40%] bg-cover bg-center opacity-20 pointer-events-none [mask-image:linear-gradient(135deg,black_0%,transparent_62%)]"
           style={{ backgroundImage: `url(${flagUrl(c.code)})` }}
         />
 
+        {/* Intestazione: a sinistra su desktop, sopra le tessere su mobile */}
+        <div className="relative flex flex-col items-center gap-4 lg:grid lg:grid-rows-[1fr_auto_1fr] lg:gap-0 lg:w-72 lg:shrink-0">
         {/* Rimando al sito ufficiale Viaggiare Sicuri, con il suo logo */}
-        <div className="relative mb-5 flex items-center justify-center">
+        <div className="relative flex flex-wrap items-center justify-center gap-2 lg:row-start-3 lg:self-end">
           <a
             href={farnesinaUrl(c.cca3)}
             target="_blank"
@@ -374,21 +453,23 @@ export const CountryInfoSection: React.FC<CountryInfoSectionProps> = ({ tripId, 
             <ExternalLink className="w-5 h-5 text-gold shrink-0" />
           </a>
           {isTransit && (
-            <span className="absolute right-0 top-1/2 -translate-y-1/2 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gold/15 ring-1 ring-gold/30 text-xs font-bold text-gold">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gold/15 ring-1 ring-gold/30 text-xs font-bold text-gold">
               <Plane className="w-5 h-5" />
               {t('countryInfo.transitBadge')}
             </span>
           )}
         </div>
 
-        <div className="relative mb-6 flex flex-col items-center text-center">
+        <div className="relative flex flex-col items-center text-center lg:row-start-2 order-first lg:order-none">
           <h3 className="font-poppins font-bold text-2xl leading-tight break-words">{name}</h3>
           {(c.subregion || c.region) && (
-            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{c.subregion || c.region}</p>
+            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{regionName(c.subregion || c.region, i18n.language)}</p>
           )}
         </div>
+        </div>
 
-        <div className="relative grid grid-cols-2 gap-3">
+        <div className="relative grid grid-cols-2 xl:grid-cols-3 gap-3 flex-1 min-w-0">
+          <div className="flex flex-col gap-3 min-w-0 [&>*]:flex-1">
           {c.currencies.length > 0 && (
             <BentoTile icon={Coins} label={t('countryInfo.currency')} tint="gold">
               <div className="space-y-3">
@@ -396,15 +477,17 @@ export const CountryInfoSection: React.FC<CountryInfoSectionProps> = ({ tripId, 
                   const rate = rates?.[cur.code];
                   return (
                     <div key={cur.code} className="min-w-0">
-                      <p className="font-poppins font-bold text-3xl leading-none">{cur.symbol || cur.code}</p>
+                      <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1">
+                        <p className="font-poppins font-bold text-3xl leading-none">{cur.symbol || cur.code}</p>
+                        {rate && cur.code !== HOME_CURRENCY && (
+                          <span className="w-fit max-w-full rounded-full bg-gold/15 ring-1 ring-gold/25 px-2.5 py-1 text-[11px] font-bold text-gold truncate">
+                            1 {HOME_CURRENCY} = {rate.toLocaleString(undefined, { maximumFractionDigits: 4 })} {cur.code}
+                          </span>
+                        )}
+                      </div>
                       <p className="mt-1.5 text-xs text-slate-500 dark:text-slate-400 truncate" title={`${cur.name} · ${cur.code}`}>
                         {cur.name} · {cur.code}
                       </p>
-                      {rate && cur.code !== HOME_CURRENCY && (
-                        <p className="mx-auto mt-2.5 w-fit max-w-full rounded-full bg-gold/15 ring-1 ring-gold/25 px-2.5 py-1 text-[11px] font-bold text-gold truncate">
-                          1 {HOME_CURRENCY} = {rate.toLocaleString(undefined, { maximumFractionDigits: 4 })} {cur.code}
-                        </p>
-                      )}
                     </div>
                   );
                 })}
@@ -418,17 +501,15 @@ export const CountryInfoSection: React.FC<CountryInfoSectionProps> = ({ tripId, 
                 {zoneList.map((tz) => (
                   <div key={tz} className="min-w-0">
                     <p className="font-poppins font-bold text-3xl leading-none tabular-nums">
-                      {new Date().toLocaleTimeString(i18n.language, {
-                        timeZone: tz,
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
+                      {timeIn(tz)}
+                      {timeIn(tz) !== timeIn(HOME_TIMEZONE) && (
+                        <span className="ml-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                          ({timeIn(HOME_TIMEZONE)} IT)
+                        </span>
+                      )}
                     </p>
                     <p className="mt-1.5 text-xs text-slate-500 dark:text-slate-400 truncate" title={tz.replace('_', ' ')}>
                       {tz.replace('_', ' ')}
-                    </p>
-                    <p className="mx-auto mt-2.5 w-fit max-w-full rounded-full bg-light-blue/15 ring-1 ring-light-blue/25 px-2.5 py-1 text-[11px] font-bold text-light-blue truncate">
-                      {t('countryInfo.fromYou', { diff: offsetFromHere(tz) })}
                     </p>
                   </div>
                 ))}
@@ -436,29 +517,34 @@ export const CountryInfoSection: React.FC<CountryInfoSectionProps> = ({ tripId, 
             </BentoTile>
           )}
 
+          </div>
+          <div className="flex flex-col gap-3 min-w-0 [&>*]:flex-1">
           {c.capital.length > 0 && (
-            <BentoTile icon={Landmark} label={t('countryInfo.capital')} tint="purple">
-              <p className="font-poppins font-bold text-lg leading-snug break-words">{c.capital.join(', ')}</p>
+            <BentoTile icon={Landmark} label={t('countryInfo.capital')} compact tint="purple">
+              <p className="font-poppins font-bold text-sm leading-tight break-words">{c.capital.join(', ')}</p>
             </BentoTile>
           )}
 
           {c.languages.length > 0 && (
-            <BentoTile icon={Languages} label={t('countryInfo.languages')} tint="emerald">
-              <p className="font-poppins font-bold text-lg leading-snug break-words">{languageNames(c, i18n.language).join(', ')}</p>
+            <BentoTile icon={Languages} label={t(c.languages.length === 1 ? 'countryInfo.language' : 'countryInfo.languages')} compact tint="emerald">
+              <LanguageList names={languageNames(c, i18n.language)} />
             </BentoTile>
           )}
 
           {c.callingCode && (
-            <BentoTile icon={Phone} label={t('countryInfo.callingCode')}>
-              <p className="font-poppins font-bold text-2xl leading-none">{c.callingCode}</p>
+            <BentoTile icon={Phone} label={t('countryInfo.callingCode')} compact>
+              <p className="font-poppins font-bold text-sm leading-tight">{c.callingCode}</p>
             </BentoTile>
           )}
 
-          <BentoTile icon={Car} label={t('countryInfo.driving')}>
-            <p className="font-poppins font-bold text-lg leading-snug">{t(`countryInfo.side.${c.drivingSide}`)}</p>
+          <BentoTile icon={Car} label={t('countryInfo.driving')} compact>
+            <p className="font-poppins font-bold text-sm leading-tight">{t(`countryInfo.side.${c.drivingSide}`)}</p>
           </BentoTile>
 
-          <PlugTile country={c} />
+          </div>
+          <div className="col-span-2 xl:col-span-1 flex flex-col min-w-0">
+            <PlugTile country={c} />
+          </div>
         </div>
       </div>
     );
@@ -472,6 +558,7 @@ export const CountryInfoSection: React.FC<CountryInfoSectionProps> = ({ tripId, 
       {/* Sotto-schede: barra sticky come i filtri degli altri tab (stessa posizione e altezza) */}
       <div ref={barSentinelRef} className="h-0 !mt-0" aria-hidden="true" />
       <div
+        ref={barRef}
         className={`!mt-0 sticky top-14 z-20 py-1.5 before:content-[''] before:absolute before:-z-10 before:inset-x-[-50vw] before:top-[-120px] before:bottom-[-12px] before:backdrop-blur-md before:bg-[var(--surface-0)]/60 before:pointer-events-none before:[mask-image:linear-gradient(to_bottom,black_80%,transparent)] before:transition-opacity before:duration-500 before:ease-out ${barStuck ? 'before:opacity-100' : 'before:opacity-0'}`}
       >
         <nav
@@ -507,21 +594,28 @@ export const CountryInfoSection: React.FC<CountryInfoSectionProps> = ({ tripId, 
       {tab === 'overview' && (
         <>
           {/* Mete e paesi di passaggio nella stessa griglia: i passaggi vengono dopo, "spenti" */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {countries.map((c) => renderCard(c, false))}
-            {transit.map((c) => renderCard(c, true))}
-          </div>
+          {visibleCountries.length + visibleTransit.length === 0 ? (
+            <div className="empty-state">
+              <div className="empty-state-icon">🏠</div>
+              <p className="empty-state-title">{t('countryInfo.onlyHomeTitle')}</p>
+              <p className="empty-state-message">{t('countryInfo.onlyHomeMessage')}</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-6">
+              {visibleCountries.map((c) => renderCard(c, false))}
+              {visibleTransit.map((c) => renderCard(c, true))}
+            </div>
+          )}
 
-          <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center justify-center gap-1.5 text-center">
-            <Globe2 className="w-3.5 h-3.5" />
+          <p className="text-xs text-slate-500 dark:text-slate-400 text-center">
             {t('countryInfo.sources')}
           </p>
         </>
       )}
 
       {tab === 'weather' && <WeatherPanel destinations={tripDestinations} tripId={tripId} tripStart={tripStart} tripEnd={tripEnd} />}
-      {tab === 'currency' && <CurrencyPanel countries={countries} rates={rates} />}
-      {tab === 'phrasebook' && <PhrasebookPanel countries={countries} />}
+      {tab === 'currency' && <CurrencyPanel countries={visibleCountries} rates={rates} />}
+      {tab === 'phrasebook' && <PhrasebookPanel countries={visibleCountries} stickyTop={56 + barHeight} />}
     </div>
   );
 };

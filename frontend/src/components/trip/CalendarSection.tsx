@@ -789,6 +789,34 @@ export const CalendarSection: React.FC<CalendarSectionProps> = ({ trip, onSelect
   const filterBarRef = useRef<HTMLDivElement>(null);
   const [filterBarHeight, setFilterBarHeight] = useState(56);
   const weekDayStickyTop = FILTER_BAR_TOP + filterBarHeight;
+
+  // Intestazione di mese/settimana/giorno (sticky, angoli arrotondati): il contenuto che scorre
+  // sotto continua ad esistere sopra di lei, dove la barra dei filtri è traslucida, e lì spuntano
+  // i suoi bordi squadrati. Lo ritaglio fino al bordo inferiore dell'intestazione: sotto di lei
+  // era comunque coperto, quindi a schermo cambia solo quello che si intravedeva.
+  const stickyHeaderRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    let frame = 0;
+    const clip = () => {
+      frame = 0;
+      const header = stickyHeaderRef.current;
+      const content = header?.nextElementSibling as HTMLElement | null;
+      if (!header || !content) return;
+      const hidden = Math.max(0, header.getBoundingClientRect().bottom - content.getBoundingClientRect().top);
+      content.style.clipPath = hidden > 0 ? `inset(${hidden}px -24px -24px -24px)` : '';
+    };
+    const schedule = () => {
+      if (!frame) frame = requestAnimationFrame(clip);
+    };
+    clip();
+    window.addEventListener('scroll', schedule, { passive: true, capture: true });
+    window.addEventListener('resize', schedule);
+    return () => {
+      window.removeEventListener('scroll', schedule, true);
+      window.removeEventListener('resize', schedule);
+      if (frame) cancelAnimationFrame(frame);
+    };
+  });
   const [filterBarSentinelRef, filterBarStuck] = useIsStuck(FILTER_BAR_TOP);
   // Con la sidebar estesa lo spazio si riduce: filtri e viste mostrano solo l'icona.
   const compact = useSidebarExpanded();
@@ -1587,7 +1615,8 @@ export const CalendarSection: React.FC<CalendarSectionProps> = ({ trip, onSelect
         <>
           {/* Sticky below the filter bar, same as Week/Day (see note there) */}
           <div
-            className="sticky z-[5] rounded-t-xl border border-b-0 border-slate-200/60 dark:border-white/10 bg-[var(--surface-1)] shadow-sm"
+            ref={stickyHeaderRef}
+            className={`sticky z-[5] rounded-t-xl border border-b-0 border-slate-200/60 dark:border-white/10 bg-[var(--surface-1)] shadow-sm`}
             style={{ top: weekDayStickyTop }}
           >
           {/* Month Header Navigation */}
@@ -1704,7 +1733,8 @@ export const CalendarSection: React.FC<CalendarSectionProps> = ({ trip, onSelect
               scrolling reference instead of the page. `top` is measured
               (see weekDayStickyTop), not guessed. */}
           <div
-            className="sticky z-[5] rounded-t-xl border border-b-0 border-slate-200/60 dark:border-white/10 bg-[var(--surface-1)] shadow-sm"
+            ref={stickyHeaderRef}
+            className={`sticky z-[5] rounded-t-xl border border-b-0 border-slate-200/60 dark:border-white/10 bg-[var(--surface-1)] shadow-sm`}
             style={{ top: weekDayStickyTop }}
           >
           <div className="flex items-center justify-between px-6 pt-6 pb-5 border-b border-slate-200/60 dark:border-white/5">
@@ -1819,7 +1849,8 @@ export const CalendarSection: React.FC<CalendarSectionProps> = ({ trip, onSelect
         /* Day View — single-column time grid */
         <>
           <div
-            className="sticky z-[5] rounded-t-xl border border-b-0 border-slate-200/60 dark:border-white/10 bg-[var(--surface-1)] shadow-sm"
+            ref={stickyHeaderRef}
+            className={`sticky z-[5] rounded-t-xl border border-b-0 border-slate-200/60 dark:border-white/10 bg-[var(--surface-1)] shadow-sm`}
             style={{ top: weekDayStickyTop }}
           >
           <div className="flex items-center justify-between px-6 pt-6 pb-5 border-b border-slate-200/60 dark:border-white/5">

@@ -23,6 +23,7 @@ export const DestinationPicker: React.FC<DestinationPickerProps> = ({ value, onC
   const [loadingQuery, setLoadingQuery] = useState(false);
   const [searchError, setSearchError] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
@@ -105,6 +106,20 @@ export const DestinationPicker: React.FC<DestinationPickerProps> = ({ value, onC
   const trimmed = query.trim();
   const showSuggestions = open && trimmed.length > 0;
 
+  // Dentro una modale l'elenco può uscire dall'area visibile: faccio scorrere solo il contenitore
+  // scorrevole più vicino (la modale), mai la pagina, finché l'elenco non è tutto in vista.
+  useEffect(() => {
+    const list = listRef.current;
+    if (!showSuggestions || !list) return;
+    let parent: HTMLElement | null = list.parentElement;
+    while (parent && !(parent.scrollHeight > parent.clientHeight && /(auto|scroll)/.test(getComputedStyle(parent).overflowY))) {
+      parent = parent.parentElement;
+    }
+    if (!parent) return;
+    const overflow = list.getBoundingClientRect().bottom - parent.getBoundingClientRect().bottom;
+    if (overflow > 0) parent.scrollBy({ top: overflow + 8, behavior: 'smooth' });
+  }, [showSuggestions, suggestions.length]);
+
   return (
     <div className="w-full">
       <label className="label">{t('trip.destinations')}</label>
@@ -127,7 +142,10 @@ export const DestinationPicker: React.FC<DestinationPickerProps> = ({ value, onC
         </div>
 
         {showSuggestions && (
-          <div className="absolute z-20 mt-2 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-lg overflow-hidden">
+          <div
+            ref={listRef}
+            className="absolute z-20 mt-2 w-full max-h-56 overflow-y-auto overscroll-contain rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-lg"
+          >
             {searchError && (
               <p className="px-3 py-2.5 text-sm text-slate-500 dark:text-slate-400">
                 {t('trip.destinationsSearchError')}

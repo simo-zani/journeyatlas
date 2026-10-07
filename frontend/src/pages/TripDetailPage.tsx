@@ -330,6 +330,8 @@ export const TripDetailPage: React.FC = () => {
                   key={section}
                   onClick={() => isEnabled && setActiveSection(section)}
                   disabled={!isEnabled}
+                  aria-label={sectionLabel(section)}
+                  title={sectionLabel(section)}
                   className={`tab-pill relative flex flex-1 min-w-0 px-1 sm:px-2 py-2.5 items-center justify-center gap-1 sm:gap-1.5 text-[11px] sm:text-xs xl:text-sm font-semibold transition-all ${
                     isActiveSection
                       ? 'text-deep-blue dark:text-gold-light'
@@ -346,7 +348,7 @@ export const TripDetailPage: React.FC = () => {
                     />
                   )}
                   <Icon className="w-6 h-6 relative shrink-0" strokeWidth={2} />
-                  <span className="relative truncate select-none">{sectionLabel(section)}</span>
+                  <span className="relative hidden sm:inline truncate select-none">{sectionLabel(section)}</span>
                 </button>
               );
             })}

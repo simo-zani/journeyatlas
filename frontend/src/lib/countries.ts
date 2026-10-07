@@ -9,6 +9,8 @@ export interface DestinationSuggestion {
   coords: { lat: number; lon: number } | null;
   /** Nominatim `importance`: serve a ordinare i risultati per rilevanza. */
   importance: number;
+  /** Altri nomi con cui il luogo è stato trovato (es. "Greater London" per "Londra"): servono solo al riordino. */
+  altNames?: string[];
 }
 
 interface NominatimAddress {
@@ -65,7 +67,9 @@ export const foldText = (s: string): string =>
 const toSuggestion = (result: NominatimResult): DestinationSuggestion | null => {
   // Il nome trovato ("Roma", "Lisboa") è l'etichetta; l'indirizzo serve solo come
   // appoggio quando il match non ha un nome proprio leggibile.
-  const matched = result.namedetails?.name || result.name || '';
+  // `name` è già nella lingua richiesta ("Londra"); `namedetails.name` è il nome grezzo di OSM
+  // ("Greater London"), che resta utile solo per capire se il luogo corrisponde a quanto digitato.
+  const matched = result.name || result.namedetails?.name || '';
   const city =
     matched || placeLabel(result.address) || result.display_name?.split(',')[0]?.trim() || '';
   const country = result.address?.country ?? '';
@@ -81,6 +85,7 @@ const toSuggestion = (result: NominatimResult): DestinationSuggestion | null => 
     countryCode: countryCode || null,
     coords: Number.isFinite(lat) && Number.isFinite(lon) ? { lat, lon } : null,
     importance: typeof result.importance === 'number' ? result.importance : 0,
+    altNames: result.namedetails?.name && result.namedetails.name !== matched ? [result.namedetails.name] : [],
   };
 };
 
@@ -122,13 +127,14 @@ const fetchNominatim = async (
  * non esce qualcosa, poi si riordina in locale premiando chi inizia davvero con
  * la query digitata, così "cologno mon" mette in cima "Cologno Monzese".
  */
-const localScore = (name: string, query: string, importance: number): number => {
-  const n = foldText(name);
+const localScore = (names: string[], query: string, importance: number): number => {
   const q = foldText(query);
   if (!q) return importance;
-  if (n.startsWith(q)) return importance + 100;
+  const folded = names.map(foldText);
+  // inizio di una qualunque parola del nome: "london" trova anche "Greater London", non solo "London, Canada"
+  if (folded.some((n) => ` ${n}`.includes(` ${q}`))) return importance + 100;
   const tokens = q.split(/\s+/).filter(Boolean);
-  if (tokens.length > 1 && tokens.every((t) => n.includes(t))) return importance + 10;
+  if (tokens.length > 1 && folded.some((n) => tokens.every((t) => n.includes(t)))) return importance + 10;
   return importance;
 };
 
@@ -163,7 +169,9 @@ export const searchDestinations = async (
     .map(toSuggestion)
     .filter((s): s is DestinationSuggestion => s !== null)
     .sort(
-      (a, b) => localScore(b.city, query, b.importance) - localScore(a.city, query, a.importance)
+      (a, b) =>
+        localScore([b.city, ...(b.altNames ?? [])], query, b.importance) -
+        localScore([a.city, ...(a.altNames ?? [])], query, a.importance)
     )
     // "Boston" arriva più volte (città, frazione, comune): tieni la più rilevante.
     .filter((s, i, list) => list.findIndex((o) => o.city === s.city && o.country === s.country) === i)

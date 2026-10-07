@@ -15,7 +15,6 @@ import {
   Check,
   ChevronDown,
   ChevronsDown,
-  ChevronsUp,
   CreditCard,
   Droplets,
   FileText,
@@ -564,7 +563,7 @@ export const ChecklistSection: React.FC<ChecklistSectionProps> = ({ tripId, user
               title={allCollapsed ? 'Espandi tutte le sezioni' : 'Comprimi tutte le sezioni'}
               aria-label={allCollapsed ? 'Espandi tutte le sezioni' : 'Comprimi tutte le sezioni'}
             >
-              {allCollapsed ? <ChevronsDown size={20} /> : <ChevronsUp size={20} />}
+              <ChevronsDown size={20} className={`transition-transform duration-200 ${allCollapsed ? '' : 'rotate-180'}`} />
             </button>
           )}
           <Button className="!h-[38px] !min-h-0 !py-0 !px-5 !text-xs" onClick={() => setForm({ open: true, editing: null })}>
@@ -660,7 +659,7 @@ export const ChecklistSection: React.FC<ChecklistSectionProps> = ({ tripId, user
                     <ChevronDown
                       size={22}
                       className={`text-slate-400 shrink-0 transition-transform duration-200 ${
-                        isCollapsed ? '-rotate-90' : ''
+                        isCollapsed ? '' : 'rotate-180'
                       }`}
                     />
                   </div>

@@ -103,6 +103,7 @@ export const AppLayout: React.FC = () => {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [username, setUsername] = useState<string | null>(null);
   const [homeCity, setHomeCity] = useState<CityValue | null>(null);
+  const [nationality, setNationality] = useState<string | null>(null);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
 
@@ -144,6 +145,7 @@ export const AppLayout: React.FC = () => {
       setAvatarUrl(null);
       setUsername(null);
       setHomeCity(null);
+      setNationality(null);
       return;
     }
     let cancelled = false;
@@ -155,6 +157,7 @@ export const AppLayout: React.FC = () => {
           setHomeCity(
             profile?.home_city ? { city: profile.home_city, coords: profile.home_city_coords ?? null } : null
           );
+          setNationality(profile?.nationality ? profile.nationality.toUpperCase() : null);
         }
       })
       .catch(() => {
@@ -746,10 +749,12 @@ export const AppLayout: React.FC = () => {
           currentAvatarUrl={avatarUrl}
           currentUsername={username}
           currentHomeCity={homeCity}
+          currentNationality={nationality}
           onSaved={(next) => {
             setAvatarUrl(next.avatarUrl);
             setUsername(next.username);
             setHomeCity(next.homeCity);
+            setNationality(next.nationality);
           }}
         />
       )}

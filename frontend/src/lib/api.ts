@@ -39,6 +39,8 @@ export const updateProfile = async (
     /** null = azzera il campo, come per gli altri optional. */
     home_city?: string | null;
     home_city_coords?: Coordinates | null;
+    /** Codice ISO alpha-2; null = nessuna nazionalità. */
+    nationality?: string | null;
   }
 ): Promise<ProfileRow> => {
   const { data, error } = await supabase

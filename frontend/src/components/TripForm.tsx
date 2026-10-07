@@ -1,13 +1,13 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { GripVertical, ImagePlus, Loader2, Lock, LockOpen, Sparkles, X } from 'lucide-react';
+import { GripVertical, ImagePlus, Loader2, Lock, LockOpen, Plus, Sparkles, Users, X } from 'lucide-react';
 import { Button } from '@/components/Button';
 import { Input } from '@/components/Input';
 import { Alert } from '@/components/Alert';
 import { DestinationPicker } from '@/components/DestinationPicker';
 import { useAuth } from '@/auth/AuthContext';
 import { MODAL_ICON_SIZE } from '@/lib/ui';
-import { createTrip, updateTrip } from '@/lib/api';
+import { createTrip, fetchTripParticipants, syncCompanions, updateTrip, type CompanionDraft } from '@/lib/api';
 import { compressImage } from '@/lib/image';
 import { supabase } from '@/lib/supabase';
 import {
@@ -44,6 +44,38 @@ export const TripForm: React.FC<TripFormProps> = ({ onSuccess, initial }) => {
     initial?.budget_planned != null ? String(initial.budget_planned) : ''
   );
   const [isPublic, setIsPublic] = useState<boolean>(initial?.is_public ?? false);
+
+  // Compagni di viaggio senza account (segnaposto a cui gli amici invitati si collegheranno).
+  const [companions, setCompanions] = useState<CompanionDraft[]>([]);
+  const [savedCompanions, setSavedCompanions] = useState<CompanionDraft[]>([]);
+  const [companionsLoading, setCompanionsLoading] = useState(false);
+
+  useEffect(() => {
+    if (!initial) return;
+    let cancelled = false;
+    setCompanionsLoading(true);
+    fetchTripParticipants(initial.id)
+      .then((rows) => {
+        if (cancelled) return;
+        const unlinked = rows
+          .filter((r) => r.user_id === null && r.role !== 'owner')
+          .map((r) => ({ id: r.participant_id, name: r.display_name ?? '' }));
+        setSavedCompanions(unlinked);
+        setCompanions(unlinked);
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        if (!cancelled) setCompanionsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [initial?.id]);
+
+  const addCompanion = () => setCompanions((prev) => [...prev, { name: '' }]);
+  const renameCompanion = (index: number, name: string) =>
+    setCompanions((prev) => prev.map((c, i) => (i === index ? { ...c, name } : c)));
+  const removeCompanion = (index: number) => setCompanions((prev) => prev.filter((_, i) => i !== index));
 
   // Cover image state
   const [coverPreview, setCoverPreview] = useState<string | null>(initial?.cover_image_url ?? null);
@@ -211,6 +243,11 @@ export const TripForm: React.FC<TripFormProps> = ({ onSuccess, initial }) => {
       };
 
       let trip: Trip;
+      // Nome vuoto → "Persona N", così ogni segnaposto è riconoscibile da chi deve sceglierlo.
+      const desiredCompanions = companions.map((c, i) => ({
+        ...c,
+        name: c.name.trim() || t('trip.companionsDefaultName', { n: i + 1 }),
+      }));
 
       if (initial) {
         // Update: first save basic fields, then upload image if changed
@@ -236,6 +273,8 @@ export const TripForm: React.FC<TripFormProps> = ({ onSuccess, initial }) => {
           if (url) trip = await updateTrip(trip.id, { cover_image_url: url, cover_position_y: coverPositionY });
         }
       }
+
+      await syncCompanions(trip.id, savedCompanions, desiredCompanions);
 
       onSuccess(trip);
     } catch (err) {
@@ -505,6 +544,58 @@ export const TripForm: React.FC<TripFormProps> = ({ onSuccess, initial }) => {
         {/* Full width (12 cols): Destinations */}
         <div className="md:col-span-12 pt-2 border-t border-slate-200/60 dark:border-white/5">
           <DestinationPicker value={destinations} onChange={setDestinations} />
+        </div>
+
+        {/* Full width (12 cols): Travel companions */}
+        <div className="md:col-span-12 pt-2 border-t border-slate-200/60 dark:border-white/5 space-y-3">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <label className="label !flex items-center gap-2">
+                <Users className={`${MODAL_ICON_SIZE} shrink-0`} />
+                {t('trip.companionsLabel')}
+                {companions.length > 0 && (
+                  <span className="text-xs font-medium text-slate-400">
+                    · {t('trip.companionsCount', { count: companions.length })}
+                  </span>
+                )}
+              </label>
+              <p className="text-xs text-slate-400 dark:text-slate-500">{t('trip.companionsHint')}</p>
+            </div>
+            <button
+              type="button"
+              onClick={addCompanion}
+              className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-gold hover:bg-gold/10 transition-colors cursor-pointer"
+            >
+              <Plus className={`${MODAL_ICON_SIZE} shrink-0`} strokeWidth={2.5} />
+              {t('trip.companionsAdd')}
+            </button>
+          </div>
+
+          {companionsLoading && <Loader2 className="w-4 h-4 text-gold animate-spin" />}
+
+          {companions.length > 0 && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {companions.map((c, index) => (
+                <div key={c.id ?? `new-${index}`} className="flex items-center gap-2">
+                  <input
+                    value={c.name}
+                    onChange={(e) => renameCompanion(index, e.target.value)}
+                    placeholder={t('trip.companionsNamePlaceholder')}
+                    maxLength={40}
+                    className="input-field flex-1 min-w-0"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeCompanion(index)}
+                    className="shrink-0 p-2 rounded-lg text-slate-400 hover:text-error hover:bg-error/10 transition-colors cursor-pointer"
+                    title={t('common.remove')}
+                  >
+                    <X className={`${MODAL_ICON_SIZE} shrink-0`} strokeWidth={2.5} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 

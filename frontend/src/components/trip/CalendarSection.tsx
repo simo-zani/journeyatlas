@@ -78,6 +78,8 @@ import type {
 interface CalendarSectionProps {
   trip: Trip;
   onSelectTab?: (tab: 'activities' | 'accommodations' | 'transport') => void;
+  /** Viewer role: hides/blocks every create/edit/move control. */
+  readOnly?: boolean;
 }
 
 export type EventType =
@@ -736,7 +738,7 @@ const computeGridStartHour = (events: UnifiedEvent[]): number => {
   return Math.min(DEFAULT_GRID_START_HOUR, ...earliestHours);
 };
 
-export const CalendarSection: React.FC<CalendarSectionProps> = ({ trip, onSelectTab }) => {
+export const CalendarSection: React.FC<CalendarSectionProps> = ({ trip, onSelectTab, readOnly = false }) => {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
@@ -1206,6 +1208,7 @@ export const CalendarSection: React.FC<CalendarSectionProps> = ({ trip, onSelect
    * dragged UnifiedEvent wraps and updates only its date/time fields —
    * duration is preserved (the end time/date shift by the same amount). */
   const handleEventDrop = async (evId: string, newDate: string, rawMinutes: number) => {
+    if (readOnly) return;
     const ev = eventsById.get(evId);
     if (!ev) return;
     const startMin = snapMinutes(rawMinutes);
@@ -1264,7 +1267,7 @@ export const CalendarSection: React.FC<CalendarSectionProps> = ({ trip, onSelect
   };
 
   const handleEditActivity = async (input: ActivityInput) => {
-    if (!editingEvent) return;
+    if (readOnly || !editingEvent) return;
     const act = editingEvent.raw as ActivityRow;
     const category = input.category ?? null;
     if (
@@ -1280,7 +1283,7 @@ export const CalendarSection: React.FC<CalendarSectionProps> = ({ trip, onSelect
   };
 
   const handleEditTransport = async (input: TransportInput) => {
-    if (!editingEvent) return;
+    if (readOnly || !editingEvent) return;
     const tr = editingEvent.raw as TransportRow;
     await updateTransport(tr.id, input);
     setEditingEvent(null);
@@ -1288,7 +1291,7 @@ export const CalendarSection: React.FC<CalendarSectionProps> = ({ trip, onSelect
   };
 
   const handleEditAccommodation = async (input: AccommodationInput) => {
-    if (!editingEvent) return;
+    if (readOnly || !editingEvent) return;
     const acc = editingEvent.raw as AccommodationRow;
     await updateAccommodation(acc.id, input);
     setEditingEvent(null);
@@ -1299,7 +1302,7 @@ export const CalendarSection: React.FC<CalendarSectionProps> = ({ trip, onSelect
    * view — opens the same Activity form used everywhere else, pre-filled
    * with that day's date. */
   const handleCreateActivity = async (input: ActivityInput) => {
-    if (!user) return;
+    if (readOnly || !user) return;
     const category = input.category ?? null;
     if (
       category &&
@@ -1601,7 +1604,7 @@ export const CalendarSection: React.FC<CalendarSectionProps> = ({ trip, onSelect
                         color={resolveEventColor(ev)}
                         copiedRef={copiedRef}
                         onCopyRef={handleCopyRef}
-                        onClick={() => setEditingEvent(ev)}
+                        onClick={readOnly ? undefined : () => setEditingEvent(ev)}
                       />
                     ))}
                   </div>
@@ -1704,7 +1707,7 @@ export const CalendarSection: React.FC<CalendarSectionProps> = ({ trip, onSelect
                         key={ev.id}
                         ev={ev}
                         color={resolveEventColor(ev)}
-                        onClick={(e) => {
+                        onClick={readOnly ? undefined : (e) => {
                           e.stopPropagation();
                           setEditingEvent(ev);
                         }}
@@ -1742,7 +1745,7 @@ export const CalendarSection: React.FC<CalendarSectionProps> = ({ trip, onSelect
               <h3 className="text-lg font-bold text-deep-blue dark:text-gold-light">
                 {formatDateHeaderShort(weekDates[0])} - {formatDateHeaderShort(weekDates[6])}
               </h3>
-              {weekAddDate && (
+              {!readOnly && weekAddDate && (
                 <button
                   onClick={() => setCreatingForDate(weekAddDate)}
                   className="p-1.5 rounded-full text-deep-blue dark:text-gold-light hover:bg-gold/15 transition-colors cursor-pointer"
@@ -1803,7 +1806,7 @@ export const CalendarSection: React.FC<CalendarSectionProps> = ({ trip, onSelect
               return (
                 <div key={d} className="flex-1 min-w-0 p-1 space-y-1 border-l border-slate-200/40 dark:border-white/5">
                   {dayAllDay.map((ev) => (
-                    <AllDayChip key={ev.id} ev={ev} color={resolveEventColor(ev)} compact onClick={() => setEditingEvent(ev)} />
+                    <AllDayChip key={ev.id} ev={ev} color={resolveEventColor(ev)} compact onClick={readOnly ? undefined : () => setEditingEvent(ev)} />
                   ))}
                 </div>
               );
@@ -1837,8 +1840,8 @@ export const CalendarSection: React.FC<CalendarSectionProps> = ({ trip, onSelect
                     colorFor={resolveEventColor}
                     startHour={weekGridStartHour}
                     compact
-                    onEventClick={(ev) => setEditingEvent(ev)}
-                    onEventDrop={handleEventDrop}
+                    onEventClick={readOnly ? undefined : (ev) => setEditingEvent(ev)}
+                    onEventDrop={readOnly ? undefined : handleEventDrop}
                   />
                 </div>
               ))}
@@ -1858,7 +1861,7 @@ export const CalendarSection: React.FC<CalendarSectionProps> = ({ trip, onSelect
               <h3 className="text-lg font-bold capitalize text-deep-blue dark:text-gold-light">
                 {formatDateHeader(dayDateStr)}
               </h3>
-              {tripDays.includes(dayDateStr) && (
+              {!readOnly && tripDays.includes(dayDateStr) && (
               <button
                 onClick={() => setCreatingForDate(dayDateStr)}
                 className="p-1.5 rounded-full text-deep-blue dark:text-gold-light hover:bg-gold/15 transition-colors cursor-pointer"
@@ -1888,7 +1891,7 @@ export const CalendarSection: React.FC<CalendarSectionProps> = ({ trip, onSelect
             return dayAllDay.length > 0 ? (
               <div className="p-3 border-b border-slate-200/60 dark:border-white/5 space-y-1.5">
                 {dayAllDay.map((ev) => (
-                  <AllDayChip key={ev.id} ev={ev} color={resolveEventColor(ev)} onClick={() => setEditingEvent(ev)} />
+                  <AllDayChip key={ev.id} ev={ev} color={resolveEventColor(ev)} onClick={readOnly ? undefined : () => setEditingEvent(ev)} />
                 ))}
               </div>
             ) : null;
@@ -1912,8 +1915,8 @@ export const CalendarSection: React.FC<CalendarSectionProps> = ({ trip, onSelect
                   events={(eventsByDate.get(dayDateStr) || []).filter((ev) => !ev.allDay && ev.time)}
                   colorFor={resolveEventColor}
                   startHour={dayGridStartHour}
-                  onEventClick={(ev) => setEditingEvent(ev)}
-                  onEventDrop={handleEventDrop}
+                  onEventClick={readOnly ? undefined : (ev) => setEditingEvent(ev)}
+                  onEventDrop={readOnly ? undefined : handleEventDrop}
                 />
               </div>
             </div>
@@ -1927,6 +1930,7 @@ export const CalendarSection: React.FC<CalendarSectionProps> = ({ trip, onSelect
         onClose={() => setSelectedDay(null)}
         title={selectedDay ? formatDateHeader(selectedDay) : ''}
       >
+        {!readOnly && (
         <div className="flex justify-end mb-3">
           <Button
             onClick={() => {
@@ -1939,6 +1943,7 @@ export const CalendarSection: React.FC<CalendarSectionProps> = ({ trip, onSelect
             {t('activity.add')}
           </Button>
         </div>
+        )}
         {selectedDayEvents.length === 0 ? (
           <p className="text-sm italic text-slate-400 py-4 text-center">
             {t('calendar.noEventsThisDay', 'Nessun impegno programmato per questo giorno')}
@@ -1952,7 +1957,7 @@ export const CalendarSection: React.FC<CalendarSectionProps> = ({ trip, onSelect
                 color={resolveEventColor(ev)}
                 copiedRef={copiedRef}
                 onCopyRef={handleCopyRef}
-                onClick={() => {
+                onClick={readOnly ? undefined : () => {
                   setSelectedDay(null);
                   setEditingEvent(ev);
                 }}
@@ -1965,7 +1970,7 @@ export const CalendarSection: React.FC<CalendarSectionProps> = ({ trip, onSelect
       {/* Quick-add popup — "+" from the month day popup, or clicking a day
           header in Day/Week view. */}
       <Modal
-        open={!!creatingForDate}
+        open={!readOnly && !!creatingForDate}
         onClose={() => setCreatingForDate(null)}
         title={t('activity.add')}
       >
@@ -1984,7 +1989,7 @@ export const CalendarSection: React.FC<CalendarSectionProps> = ({ trip, onSelect
       {/* Edit modal — clicking any event, in any view, opens the same form
           its own tab (Attività/Mezzi/Alloggi) uses, reused as-is. */}
       <Modal
-        open={!!editingEvent}
+        open={!readOnly && !!editingEvent}
         onClose={() => setEditingEvent(null)}
         title={
           editingEvent?.type === 'activity'

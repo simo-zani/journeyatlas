@@ -8,7 +8,7 @@ interface ModalProps {
   onClose: () => void;
   title: string;
   maxWidth?: string;
-  /** Variante "alta": pannello più alto (95vh) e senza scroll verticale. */
+  /** Variante "alta": pannello più alto (95vh); scorre solo se il contenuto non ci sta. */
   tall?: boolean;
   children: React.ReactNode;
 }
@@ -80,7 +80,7 @@ export const Modal: React.FC<ModalProps> = ({ open, onClose, title, maxWidth = '
           <motion.div
             ref={panelRef}
             tabIndex={-1}
-            className={`outline-none surface-panel w-full overscroll-contain ${maxWidth} ${tall ? 'max-h-[95vh] overflow-hidden' : 'max-h-[90vh] overflow-y-auto'}`}
+            className={`outline-none surface-panel w-full overscroll-contain ${maxWidth} ${tall ? 'max-h-[95vh] overflow-y-auto' : 'max-h-[90vh] overflow-y-auto'}`}
             initial={{ opacity: 0, y: 16, scale: 0.97 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 10, scale: 0.98 }}

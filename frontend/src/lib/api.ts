@@ -18,7 +18,9 @@ import type {
   PublicTripRow,
   Trip,
   TripParticipantDetail,
+  InviteCompanion,
   TripParticipantRow,
+  TripNotification,
 } from '@/lib/types';
 
 export const fetchProfile = async (userId: string): Promise<ProfileRow | null> => {
@@ -684,9 +686,79 @@ export const fetchPendingInvitesForMe = async (): Promise<PendingInvite[]> => {
 
 /** L'invitato accetta/rifiuta il proprio invito, tramite RPC dedicata
  * (un self-update via RLS gli avrebbe permesso di alterare anche il ruolo). */
-export const respondToInvite = async (participantId: string, accept: boolean): Promise<void> => {
-  const { error } = await supabase.rpc('respond_to_invite', { participant_id: participantId, accept });
+export const respondToInvite = async (
+  participantId: string,
+  accept: boolean,
+  companionId?: string | null
+): Promise<void> => {
+  const { error } = await supabase.rpc('respond_to_invite', {
+    participant_id: participantId,
+    accept,
+    companion_id: companionId ?? null,
+  });
   if (error) throw error;
+};
+
+/** Compagni di viaggio non ancora collegati a un account, tra cui l'invitato
+ * sceglie "chi è" quando accetta l'invito. */
+export const fetchInviteCompanions = async (participantId: string): Promise<InviteCompanion[]> => {
+  const { data, error } = await supabase.rpc('fetch_invite_companions', {
+    invite_participant_id: participantId,
+  });
+  if (error) throw error;
+  return data ?? [];
+};
+
+export interface CompanionDraft {
+  /** Presente solo per i compagni già salvati. */
+  id?: string;
+  name: string;
+}
+
+/** Allinea i compagni senza account di un viaggio alla lista desiderata:
+ * crea i nuovi, rinomina quelli esistenti e rimuove quelli tolti. Tocca solo
+ * i compagni non ancora collegati (user_id nullo). */
+export const syncCompanions = async (
+  tripId: string,
+  existing: CompanionDraft[],
+  desired: CompanionDraft[]
+): Promise<void> => {
+  const keptIds = new Set(desired.filter((d) => d.id).map((d) => d.id));
+  const toDelete = existing.filter((e) => e.id && !keptIds.has(e.id));
+  const toRename = desired.filter((d) => {
+    const prev = existing.find((e) => e.id === d.id);
+    return d.id && prev && prev.name !== d.name;
+  });
+  const toCreate = desired.filter((d) => !d.id);
+
+  if (toDelete.length > 0) {
+    const { error } = await supabase
+      .from('trip_participants')
+      .delete()
+      .in('id', toDelete.map((d) => d.id as string))
+      .is('user_id', null);
+    if (error) throw error;
+  }
+  for (const d of toRename) {
+    const { error } = await supabase
+      .from('trip_participants')
+      .update({ display_name: d.name })
+      .eq('id', d.id as string)
+      .is('user_id', null);
+    if (error) throw error;
+  }
+  if (toCreate.length > 0) {
+    const { error } = await supabase.from('trip_participants').insert(
+      toCreate.map((d) => ({
+        trip_id: tripId,
+        user_id: null,
+        role: 'viewer' as const,
+        status: 'accepted' as const,
+        display_name: d.name,
+      }))
+    );
+    if (error) throw error;
+  }
 };
 
 /** Partecipanti di un viaggio con i dati profilo essenziali, via RPC
@@ -702,8 +774,24 @@ export const updateParticipantRole = async (participantId: string, role: Role): 
   if (error) throw error;
 };
 
+/** Rimuove un partecipante tramite RPC (solo proprietario): se aveva un account ed
+ * era già dentro, la funzione gli lascia anche una notifica di rimozione. */
 export const removeParticipant = async (participantId: string): Promise<void> => {
-  const { error } = await supabase.from('trip_participants').delete().eq('id', participantId);
+  const { error } = await supabase.rpc('remove_trip_participant', { participant_id: participantId });
+  if (error) throw error;
+};
+
+export const fetchMyTripNotifications = async (): Promise<TripNotification[]> => {
+  const { data, error } = await supabase
+    .from('trip_notifications')
+    .select('*')
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as TripNotification[];
+};
+
+export const dismissTripNotification = async (id: string): Promise<void> => {
+  const { error } = await supabase.from('trip_notifications').delete().eq('id', id);
   if (error) throw error;
 };
 

@@ -8,6 +8,7 @@ import { Card } from '@/components/Card';
 
 import { Modal } from '@/components/Modal';
 import { PendingInvites } from '@/components/PendingInvites';
+import { TripNotices } from '@/components/TripNotices';
 import { TripForm } from '@/components/TripForm';
 import { TripFlags } from '@/components/TripFlags';
 import { useAuth } from '@/auth/AuthContext';
@@ -84,6 +85,9 @@ export const DashboardPage: React.FC = () => {
     for (const trip of trips) {
       byStatus[getStatus(trip)].push(trip);
     }
+    // In ogni gruppo, dal viaggio più recente (data di inizio) al più vecchio; senza data in fondo.
+    const byStartDesc = (x: Trip, y: Trip) => (y.start_date ?? '').localeCompare(x.start_date ?? '');
+    for (const status of STATUS_ORDER) byStatus[status].sort(byStartDesc);
     return byStatus;
   }, [trips]);
 
@@ -151,7 +155,7 @@ export const DashboardPage: React.FC = () => {
             />
 
             {/* Contenuto in basso */}
-            <div className="absolute bottom-0 left-0 right-0 px-5 pb-4">
+            <div className="absolute bottom-0 left-0 right-0 px-5 pb-5">
               {/* Bandiera + titolo */}
               <div className="flex items-center gap-2.5 mb-1">
                 <TripFlags destinations={trip.destinations} size="sm" />
@@ -220,6 +224,7 @@ export const DashboardPage: React.FC = () => {
         </Button>
       </div>
 
+      <TripNotices />
       <PendingInvites onAccepted={() => void loadTrips()} />
 
       <AnimatePresence>

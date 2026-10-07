@@ -63,6 +63,7 @@ import type { ChecklistCategoryRow, ChecklistItemCategory, ChecklistItemRow } fr
 interface ChecklistSectionProps {
   tripId: string;
   userId: string;
+  readOnly?: boolean;
 }
 
 interface FormState {
@@ -300,7 +301,7 @@ const CategorySelect: React.FC<CategorySelectProps> = ({
   );
 };
 
-export const ChecklistSection: React.FC<ChecklistSectionProps> = ({ tripId, userId }) => {
+export const ChecklistSection: React.FC<ChecklistSectionProps> = ({ tripId, userId, readOnly = false }) => {
   const { t } = useTranslation();
   const [items, setItems] = useState<ChecklistItemRow[]>([]);
   const [categories, setCategories] = useState<ChecklistCategoryRow[]>([]);
@@ -412,6 +413,7 @@ export const ChecklistSection: React.FC<ChecklistSectionProps> = ({ tripId, user
   };
 
   const handleToggle = async (item: ChecklistItemRow) => {
+    if (readOnly) return;
     // 1. Optimistic update: instant visual toggle, stays in exact alphabetical position
     const nextPacked = !item.packed;
     setItems((prev) =>
@@ -438,6 +440,7 @@ export const ChecklistSection: React.FC<ChecklistSectionProps> = ({ tripId, user
   };
 
   const handleDelete = async (id: string) => {
+    if (readOnly) return;
     const backup = items;
     setItems((prev) => prev.filter((i) => i.id !== id));
     try {
@@ -449,6 +452,7 @@ export const ChecklistSection: React.FC<ChecklistSectionProps> = ({ tripId, user
   };
 
   const handleSubmit = async (input: ChecklistItemInput, icon?: string) => {
+    if (readOnly) return;
     const category = input.category ?? null;
     if (
       category &&
@@ -566,10 +570,12 @@ export const ChecklistSection: React.FC<ChecklistSectionProps> = ({ tripId, user
               <ChevronsDown size={20} className={`transition-transform duration-200 ${allCollapsed ? '' : 'rotate-180'}`} />
             </button>
           )}
-          <Button className="!h-[38px] !min-h-0 !py-0 !px-5 !text-xs" onClick={() => setForm({ open: true, editing: null })}>
-            <Plus size={20} strokeWidth={2.5} />
-            {t('checklist.add')}
-          </Button>
+          {!readOnly && (
+            <Button className="!h-[38px] !min-h-0 !py-0 !px-5 !text-xs" onClick={() => setForm({ open: true, editing: null })}>
+              <Plus size={20} strokeWidth={2.5} />
+              {t('checklist.add')}
+            </Button>
+          )}
         </div>
       </div>
 
@@ -681,11 +687,16 @@ export const ChecklistSection: React.FC<ChecklistSectionProps> = ({ tripId, user
                         <button
                           type="button"
                           onClick={() => handleToggle(item)}
-                          tabIndex={0}
+                          tabIndex={readOnly ? -1 : 0}
+                          disabled={readOnly}
                           aria-label={t(item.packed ? 'checklist.markTodo' : 'checklist.markPacked')}
-                          className={`w-[34px] h-[34px] rounded-xl border-2 flex items-center justify-center shrink-0 transition-all cursor-pointer ${
+                          className={`w-[34px] h-[34px] rounded-xl border-2 flex items-center justify-center shrink-0 transition-all ${
+                            readOnly ? 'cursor-default' : 'cursor-pointer'
+                          } ${
                             item.packed
                               ? 'bg-gold border-gold text-slate-950 shadow-sm shadow-gold/30'
+                              : readOnly
+                              ? 'border-slate-600 bg-slate-800/60 text-transparent'
                               : 'border-slate-600 bg-slate-800/60 text-transparent hover:border-gold hover:text-gold/40'
                           }`}
                         >
@@ -694,8 +705,8 @@ export const ChecklistSection: React.FC<ChecklistSectionProps> = ({ tripId, user
 
                         {/* Title and notes (clicking also toggles) */}
                         <div
-                          className="min-w-0 flex-1 cursor-pointer select-none"
-                          onClick={() => handleToggle(item)}
+                          className={`min-w-0 flex-1 select-none ${readOnly ? '' : 'cursor-pointer'}`}
+                          onClick={readOnly ? undefined : () => handleToggle(item)}
                         >
                           <div className="flex items-center gap-2 flex-wrap">
                             <span
@@ -719,18 +730,20 @@ export const ChecklistSection: React.FC<ChecklistSectionProps> = ({ tripId, user
                         </div>
 
                         {/* Actions */}
-                        <div className="flex items-center gap-1 shrink-0 opacity-80 group-hover:opacity-100 transition-opacity">
-                          <button
-                            type="button"
-                            onClick={() => setForm({ open: true, editing: item })}
-                            className="p-2.5 rounded-xl text-slate-400 hover:text-light-blue hover:bg-light-blue/10 transition-colors cursor-pointer"
-                            aria-label={t('common.edit')}
-                            title={t('common.edit')}
-                          >
-                            <Pencil className="w-5 h-5" />
-                          </button>
-                          <DeleteButton onDelete={() => handleDelete(item.id)} />
-                        </div>
+                        {!readOnly && (
+                          <div className="flex items-center gap-1 shrink-0 opacity-80 group-hover:opacity-100 transition-opacity">
+                            <button
+                              type="button"
+                              onClick={() => setForm({ open: true, editing: item })}
+                              className="p-2.5 rounded-xl text-slate-400 hover:text-light-blue hover:bg-light-blue/10 transition-colors cursor-pointer"
+                              aria-label={t('common.edit')}
+                              title={t('common.edit')}
+                            >
+                              <Pencil className="w-5 h-5" />
+                            </button>
+                            <DeleteButton onDelete={() => handleDelete(item.id)} />
+                          </div>
+                        )}
                       </li>
                     ))}
                   </ul>
@@ -743,7 +756,7 @@ export const ChecklistSection: React.FC<ChecklistSectionProps> = ({ tripId, user
 
       {/* Add / Edit Modal */}
       <Modal
-        open={form.open}
+        open={!readOnly && form.open}
         onClose={() => setForm({ open: false, editing: null })}
         title={form.editing ? t('checklist.edit') : t('checklist.add')}
       >

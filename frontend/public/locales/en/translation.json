@@ -103,7 +103,15 @@
     "makePrivate": "Make private",
     "publicLabel": "Public",
     "privateLabel": "Private",
-    "visibilityLabel": "Visibility"
+    "visibilityLabel": "Visibility",
+    "companionsLabel": "Travel companions",
+    "companionsHint": "Who is travelling with you, even without an account. You can invite friends and each will link to their own name.",
+    "companionsAdd": "Add person",
+    "companionsNamePlaceholder": "Name (e.g. Mark)",
+    "companionsLinked": "Linked to @{{username}}",
+    "companionsDefaultName": "Person {{n}}",
+    "companionsCount_one": "{{count}} person besides you",
+    "companionsCount_other": "{{count}} people besides you"
   },
   "profile": {
     "title": "Profile",
@@ -624,7 +632,28 @@
     "status": {
       "pending": "Pending",
       "declined": "Declined"
-    }
+    },
+    "section": {
+      "joined": "In the trip",
+      "companions": "Companions without an account",
+      "invited": "Invites sent",
+      "invite": "Invite friends"
+    },
+    "removeTitle": "Remove from trip?",
+    "removeBodyAccount": "{{name}} will lose access to the trip and be removed from the participants list.",
+    "removeBodyCompanion": "{{name}} will be removed from the participants list.",
+    "removeConfirm": "Remove",
+    "unlinked": "Not linked yet",
+    "linkedAs": "{{name}}",
+    "pickWhoTitle": "Which participant are you?",
+    "pickWhoHint": "Link your account to one of the trip participants. If you are not listed, you will be added as an extra person.",
+    "pickNone": "I am not listed: add me",
+    "confirmAccept": "Confirm and join"
+  },
+  "notices": {
+    "removedBy": "@{{username}} removed you from the trip “{{trip}}”",
+    "removed": "You have been removed from the trip “{{trip}}”",
+    "dismiss": "Dismiss"
   },
   "travelers": {
     "title": "Travelers",
@@ -649,10 +678,12 @@
   },
   "travelerProfile": {
     "back": "Back to search",
+    "backToTrip": "Back to trip",
     "memberSince": "Member since {{date}}",
     "notFound": "Profile not found",
     "publicTrips": "Public trips",
     "noPublicTrips": "No public trips",
+    "youAreIn": "You are in this trip too",
     "privacyNote": "Only trips marked as public are visible",
     "stats": {
       "countries": "Countries visited",

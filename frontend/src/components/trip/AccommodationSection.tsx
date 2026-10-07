@@ -616,6 +616,8 @@ interface AccommodationSectionProps {
   tripStart: string | null;
   tripEnd: string | null;
   tripDestinations?: Destination[];
+  /** Sola lettura (ruolo viewer): nasconde e disabilita ogni modifica. */
+  readOnly?: boolean;
 }
 
 interface FormState {
@@ -638,6 +640,7 @@ export const AccommodationSection: React.FC<AccommodationSectionProps> = ({
   tripStart,
   tripEnd,
   tripDestinations = [],
+  readOnly = false,
 }) => {
   const { t } = useTranslation();
   const { user } = useAuth();
@@ -716,6 +719,7 @@ export const AccommodationSection: React.FC<AccommodationSectionProps> = ({
   };
 
   const handleSubmit = async (input: AccommodationInput, photo: PhotoSelection) => {
+    if (readOnly) return;
     const editing = form.editing;
 
     if (editing) {
@@ -763,6 +767,7 @@ export const AccommodationSection: React.FC<AccommodationSectionProps> = ({
   };
 
   const handleDelete = async (acc: AccommodationRow) => {
+    if (readOnly) return;
     await deleteAccommodation(acc.id);
     // Pulizia della foto: l'alloggio non esiste più, l'oggetto no.
     await discardPhotoObject(acc.photo_path, null);
@@ -774,6 +779,8 @@ export const AccommodationSection: React.FC<AccommodationSectionProps> = ({
   return (
     <div className="space-y-6">
       {/* Barra con il pulsante: stessa posizione, altezza e comportamento sticky del tab Attività */}
+      {!readOnly && (
+      <>
       <div ref={addBarSentinelRef} className="h-0 !mt-0" aria-hidden="true" />
       <div
         className={`!mt-0 sticky top-14 z-20 py-1.5 before:content-[''] before:absolute before:-z-10 before:inset-x-[-50vw] before:top-[-120px] before:bottom-[-12px] before:backdrop-blur-md before:bg-[var(--surface-0)]/60 before:pointer-events-none before:[mask-image:linear-gradient(to_bottom,black_80%,transparent)] before:transition-opacity before:duration-500 before:ease-out ${addBarStuck ? 'before:opacity-100' : 'before:opacity-0'} flex items-center justify-end`}
@@ -785,6 +792,8 @@ export const AccommodationSection: React.FC<AccommodationSectionProps> = ({
           </Button>
         </div>
       </div>
+      </>
+      )}
 
       {error && <Alert type="error" message={error} onClose={() => setError(null)} />}
 
@@ -851,6 +860,7 @@ export const AccommodationSection: React.FC<AccommodationSectionProps> = ({
                       {acc.name}
                     </h3>
                   </div>
+                  {!readOnly && (
                   <div className="flex flex-col items-center gap-0 shrink-0">
                     {confirmingDeleteId !== acc.id && (
                       <button
@@ -867,6 +877,7 @@ export const AccommodationSection: React.FC<AccommodationSectionProps> = ({
                       onDelete={() => handleDelete(acc)}
                     />
                   </div>
+                  )}
                 </div>
 
                 {/* Location — il contenitore esiste sempre (min-h-10 = 2 righe
@@ -1073,6 +1084,7 @@ export const AccommodationSection: React.FC<AccommodationSectionProps> = ({
         </div>
       )}
 
+      {!readOnly && (
       <Modal
         open={form.open}
         onClose={() => setForm({ open: false, editing: null })}
@@ -1087,6 +1099,7 @@ export const AccommodationSection: React.FC<AccommodationSectionProps> = ({
           onCancel={() => setForm({ open: false, editing: null })}
         />
       </Modal>
+      )}
     </div>
   );
 };

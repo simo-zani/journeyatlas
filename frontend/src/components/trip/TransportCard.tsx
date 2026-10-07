@@ -44,6 +44,8 @@ interface TransportCardProps {
   homeTz: string;
   /** Mostra o nasconde la conversione con il fuso orario di riferimento */
   showHomeTz?: boolean;
+  /** Sola lettura: nasconde modifica ed eliminazione. */
+  readOnly?: boolean;
   onEdit: () => void;
   onDelete: () => Promise<void>;
 }
@@ -118,6 +120,7 @@ export const TransportCard: React.FC<TransportCardProps> = ({
   ferryOperators,
   homeTz,
   showHomeTz = false,
+  readOnly = false,
   onEdit,
   onDelete,
 }) => {
@@ -437,19 +440,21 @@ export const TransportCard: React.FC<TransportCardProps> = ({
                 </span>
               )}
             </div>
-            <div className="flex items-center gap-1">
-              {!confirmingDelete && (
-                <button
-                  onClick={onEdit}
-                  className="p-2 rounded-xl text-slate-400 hover:text-light-blue hover:bg-light-blue/10 transition-colors"
-                  aria-label={t('common.edit')}
-                  title={t('common.edit')}
-                >
-                  <Pencil className={MODAL_ICON_SIZE} />
-                </button>
-              )}
-              <DeleteButton onDelete={onDelete} onConfirmingChange={setConfirmingDelete} />
-            </div>
+            {!readOnly && (
+              <div className="flex items-center gap-1">
+                {!confirmingDelete && (
+                  <button
+                    onClick={onEdit}
+                    className="p-2 rounded-xl text-slate-400 hover:text-light-blue hover:bg-light-blue/10 transition-colors"
+                    aria-label={t('common.edit')}
+                    title={t('common.edit')}
+                  >
+                    <Pencil className={MODAL_ICON_SIZE} />
+                  </button>
+                )}
+                <DeleteButton onDelete={onDelete} onConfirmingChange={setConfirmingDelete} />
+              </div>
+            )}
           </div>
 
           {transport.booking_ref && (

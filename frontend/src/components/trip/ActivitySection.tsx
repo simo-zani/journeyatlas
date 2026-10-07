@@ -65,6 +65,8 @@ interface ActivitySectionProps {
   tripStart: string | null;
   tripEnd: string | null;
   tripDestinations?: Destination[];
+  /** Sola lettura (ruolo viewer): nasconde e disabilita ogni azione di modifica. */
+  readOnly?: boolean;
 }
 
 interface FormState {
@@ -92,7 +94,7 @@ const formatDuration = (start: string | null, end: string | null): string | null
   return h ? `${h} h${m ? ` ${m} min` : ''}` : `${m} min`;
 };
 
-export const ActivitySection: React.FC<ActivitySectionProps> = ({ tripId, userId, tripStart, tripEnd, tripDestinations }) => {
+export const ActivitySection: React.FC<ActivitySectionProps> = ({ tripId, userId, tripStart, tripEnd, tripDestinations, readOnly = false }) => {
   const { t } = useTranslation();
   const [activities, setActivities] = useState<ActivityRow[]>([]);
   const [categories, setCategories] = useState<ActivityCategoryRow[]>([]);
@@ -179,6 +181,7 @@ export const ActivitySection: React.FC<ActivitySectionProps> = ({ tripId, userId
   }, [filtered, sortBy, categoryLabel]);
 
   const handleSubmit = async (input: ActivityInput) => {
+    if (readOnly) return;
     const category = input.category ?? null;
     if (
       category &&
@@ -197,6 +200,7 @@ export const ActivitySection: React.FC<ActivitySectionProps> = ({ tripId, userId
   };
 
   const handleDelete = async (id: string) => {
+    if (readOnly) return;
     await deleteActivity(id);
     await load();
   };
@@ -208,6 +212,7 @@ export const ActivitySection: React.FC<ActivitySectionProps> = ({ tripId, userId
   const compact = useSidebarExpanded();
 
   const handleQuickComplete = async (id: string) => {
+    if (readOnly) return;
     setError(null);
     try {
       await updateActivity(id, { status: 'completed' });
@@ -297,10 +302,12 @@ export const ActivitySection: React.FC<ActivitySectionProps> = ({ tripId, userId
               </button>
             ))}
           </div>
-          <Button className="!h-[38px] !min-h-0 !py-0 !px-5 !text-xs" onClick={() => setForm({ open: true, editing: null })}>
-            <Plus className="w-5 h-5" />
-            {t('activity.add')}
-          </Button>
+          {!readOnly && (
+            <Button className="!h-[38px] !min-h-0 !py-0 !px-5 !text-xs" onClick={() => setForm({ open: true, editing: null })}>
+              <Plus className="w-5 h-5" />
+              {t('activity.add')}
+            </Button>
+          )}
         </div>
       </div>
 
@@ -436,6 +443,7 @@ export const ActivitySection: React.FC<ActivitySectionProps> = ({ tripId, userId
                       </span>
                     )}
                   </div>
+                  {!readOnly && (
                   <div className="flex items-center gap-0.5 shrink-0">
                     {activity.status !== 'completed' && confirmingDeleteId !== activity.id && (
                       <ConfirmIconButton
@@ -460,6 +468,7 @@ export const ActivitySection: React.FC<ActivitySectionProps> = ({ tripId, userId
                       onDelete={() => handleDelete(activity.id)}
                     />
                   </div>
+                  )}
                 </div>
               </Card>
             );
@@ -467,6 +476,7 @@ export const ActivitySection: React.FC<ActivitySectionProps> = ({ tripId, userId
         </div>
       )}
 
+      {!readOnly && (
       <Modal
         open={form.open}
         onClose={() => setForm({ open: false, editing: null })}
@@ -482,6 +492,7 @@ export const ActivitySection: React.FC<ActivitySectionProps> = ({ tripId, userId
           onCancel={() => setForm({ open: false, editing: null })}
         />
       </Modal>
+      )}
     </div>
   );
 };

@@ -52,7 +52,19 @@ export type TripParticipantRow = {
   status: ParticipantStatus;
   invited_email: string | null;
   invited_by: string | null;
+  /** Nome del compagno senza account (user_id nullo finché non viene collegato). */
+  display_name: string | null;
   joined_at: string | null;
+  created_at: string;
+};
+
+/** Avviso per l'utente (per ora solo: rimosso da un viaggio). */
+export type TripNotification = {
+  id: string;
+  user_id: string;
+  kind: 'removed';
+  trip_name: string;
+  actor_username: string | null;
   created_at: string;
 };
 
@@ -67,6 +79,8 @@ export type PendingInvite = {
   trip_id: string;
   trip_name: string;
   trip_cover_image_url: string | null;
+  trip_start_date: string | null;
+  trip_end_date: string | null;
   role: Role;
   invited_by_username: string | null;
   created_at: string;
@@ -81,6 +95,13 @@ export type TripParticipantDetail = {
   created_at: string;
   username: string | null;
   avatar_url: string | null;
+  display_name: string | null;
+};
+
+/** Compagno di viaggio non ancora collegato a un account. */
+export type InviteCompanion = {
+  participant_id: string;
+  display_name: string | null;
 };
 
 export type ActivityRow = {
@@ -253,6 +274,8 @@ export type PublicTripRow = {
   cover_image_url: string | null;
   cover_position_y: number;
   created_at: string;
+  /** Chi guarda è partecipante accettato di questo viaggio. */
+  viewer_in_trip: boolean;
 };
 
 export type Database = {
@@ -290,6 +313,12 @@ export type Database = {
           status: 'pending' | 'accepted' | 'declined';
           responded_at: string | null;
         }>;
+        Relationships: [];
+      };
+      trip_notifications: {
+        Row: TripNotification;
+        Insert: Partial<TripNotification>;
+        Update: Partial<TripNotification>;
         Relationships: [];
       };
       country_continents: {
@@ -356,8 +385,16 @@ export type Database = {
         Returns: PendingInvite[];
       };
       respond_to_invite: {
-        Args: { participant_id: string; accept: boolean };
+        Args: { participant_id: string; accept: boolean; companion_id?: string | null };
         Returns: void;
+      };
+      remove_trip_participant: {
+        Args: { participant_id: string };
+        Returns: void;
+      };
+      fetch_invite_companions: {
+        Args: { invite_participant_id: string };
+        Returns: InviteCompanion[];
       };
       fetch_trip_participants: {
         Args: { for_trip_id: string };

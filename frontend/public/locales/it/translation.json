@@ -103,7 +103,15 @@
     "makePrivate": "Rendi privato",
     "publicLabel": "Pubblico",
     "privateLabel": "Privato",
-    "visibilityLabel": "Visibilità"
+    "visibilityLabel": "Visibilità",
+    "companionsLabel": "Compagni di viaggio",
+    "companionsHint": "Chi viaggia con te, anche senza account. Potrai invitare gli amici e ognuno si collegherà al proprio nome.",
+    "companionsAdd": "Aggiungi persona",
+    "companionsNamePlaceholder": "Nome (es. Marco)",
+    "companionsLinked": "Collegato a @{{username}}",
+    "companionsDefaultName": "Persona {{n}}",
+    "companionsCount_one": "{{count}} persona oltre a te",
+    "companionsCount_other": "{{count}} persone oltre a te"
   },
   "profile": {
     "title": "Profilo",
@@ -624,7 +632,28 @@
     "status": {
       "pending": "In attesa",
       "declined": "Rifiutato"
-    }
+    },
+    "section": {
+      "joined": "Nel viaggio",
+      "companions": "Compagni senza account",
+      "invited": "Inviti inviati",
+      "invite": "Invita amici"
+    },
+    "removeTitle": "Rimuovere dal viaggio?",
+    "removeBodyAccount": "{{name}} perderà l'accesso al viaggio e verrà tolto dall'elenco dei partecipanti.",
+    "removeBodyCompanion": "{{name}} verrà tolto dall'elenco dei partecipanti.",
+    "removeConfirm": "Rimuovi",
+    "unlinked": "Non ancora collegato",
+    "linkedAs": "{{name}}",
+    "pickWhoTitle": "Chi sei tra i partecipanti?",
+    "pickWhoHint": "Collega il tuo account a uno dei partecipanti del viaggio. Se non ci sei, verrai aggiunto come persona in più.",
+    "pickNone": "Non sono in elenco: aggiungimi",
+    "confirmAccept": "Conferma e unisciti"
+  },
+  "notices": {
+    "removedBy": "@{{username}} ti ha rimosso dal viaggio “{{trip}}”",
+    "removed": "Sei stato rimosso dal viaggio “{{trip}}”",
+    "dismiss": "Chiudi"
   },
   "travelers": {
     "title": "Viaggiatori",
@@ -649,10 +678,12 @@
   },
   "travelerProfile": {
     "back": "Torna alla ricerca",
+    "backToTrip": "Torna al viaggio",
     "memberSince": "Membro da {{date}}",
     "notFound": "Profilo non trovato",
     "publicTrips": "Viaggi pubblici",
     "noPublicTrips": "Nessun viaggio pubblico",
+    "youAreIn": "Ci sei anche tu",
     "privacyNote": "Solo i viaggi contrassegnati come pubblici sono visibili",
     "stats": {
       "countries": "Paesi visitati",

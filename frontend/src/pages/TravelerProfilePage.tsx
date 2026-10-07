@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import { useAuth } from '@/auth/AuthContext';
 import { motion } from 'framer-motion';
 import {
   ArrowLeft,
@@ -38,8 +39,11 @@ const formatTripDate = (date: string | null): string => {
 
 export const TravelerProfilePage: React.FC = () => {
   const { userId } = useParams<{ userId: string }>();
+  const { user: me } = useAuth();
   const { t } = useTranslation();
   const navigate = useNavigate();
+  // Se arrivi dalla pagina di un viaggio (avatar/elenco partecipanti), "indietro" torna lì e non alla ricerca.
+  const backTo = (useLocation().state as { backTo?: string } | null)?.backTo ?? null;
 
   const [profile, setProfile] = useState<TravelerProfile | null>(null);
   const [trips, setTrips] = useState<PublicTripRow[]>([]);
@@ -89,11 +93,11 @@ export const TravelerProfilePage: React.FC = () => {
     return (
       <div className="max-w-4xl mx-auto">
         <button
-          onClick={() => navigate('/travelers')}
+          onClick={() => navigate(backTo ?? '/travelers')}
           className="flex items-center gap-2 text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 transition-colors cursor-pointer mb-6"
         >
           <ArrowLeft className="w-5 h-5" />
-          {t('travelerProfile.back')}
+          {backTo ? t('travelerProfile.backToTrip') : t('travelerProfile.back')}
         </button>
         <p className="text-error">{error ?? t('travelerProfile.notFound')}</p>
       </div>
@@ -131,11 +135,11 @@ export const TravelerProfilePage: React.FC = () => {
   return (
     <div className="relative w-full max-w-[1680px] mx-auto transition-all duration-300">
       <button
-        onClick={() => navigate('/travelers')}
+        onClick={() => navigate(backTo ?? '/travelers')}
         className="flex items-center gap-2 ml-2 text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 transition-colors cursor-pointer mb-6"
       >
         <ArrowLeft className="w-5 h-5" />
-        {t('travelerProfile.back')}
+        {backTo ? t('travelerProfile.backToTrip') : t('travelerProfile.back')}
       </button>
 
       {error && <p className="text-error text-sm mb-4">{error}</p>}
@@ -283,7 +287,13 @@ export const TravelerProfilePage: React.FC = () => {
                     'linear-gradient(to top, rgba(0,0,0,0.92) 0%, rgba(0,0,0,0.70) 25%, rgba(0,0,0,0.35) 50%, rgba(0,0,0,0.08) 75%, transparent 100%)',
                 }}
               />
-              <div className="absolute bottom-0 left-0 right-0 px-5 pb-4">
+              {trip.viewer_in_trip && me?.id !== userId && (
+                <div className="absolute top-3 right-3 inline-flex items-center gap-1.5 rounded-full bg-black/60 backdrop-blur-md ring-1 ring-gold/50 px-3 py-1.5 text-xs font-semibold text-gold-light">
+                  <Users className="w-5 h-5 shrink-0" />
+                  {t('travelerProfile.youAreIn')}
+                </div>
+              )}
+              <div className="absolute bottom-0 left-0 right-0 px-5 pb-5">
                 <div className="flex items-center gap-2.5 mb-1">
                   <TripFlags destinations={trip.destinations} size="sm" />
                   <h3 className="text-white text-base font-semibold truncate leading-snug drop-shadow">

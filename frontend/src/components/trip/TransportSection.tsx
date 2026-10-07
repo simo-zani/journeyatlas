@@ -42,6 +42,8 @@ interface TransportSectionProps {
   tripId: string;
   /** Mete del viaggio: alimentano gli aeroporti consigliati nel form volo. */
   tripDestinations: Destination[];
+  /** Sola lettura (ruolo viewer): nasconde e disattiva ogni modifica. */
+  readOnly?: boolean;
 }
 
 interface FormState {
@@ -74,6 +76,7 @@ const toLocalInput = (iso: string | null): string => {
 export const TransportSection: React.FC<TransportSectionProps> = ({
   tripId,
   tripDestinations,
+  readOnly = false,
 }) => {
   const { t } = useTranslation();
   const [items, setItems] = useState<TransportRow[]>([]);
@@ -153,6 +156,7 @@ export const TransportSection: React.FC<TransportSectionProps> = ({
   const [barSentinelRef, barStuck] = useIsStuck(56);
 
   const handleSubmit = async (input: TransportInput) => {
+    if (readOnly) return;
     if (form.editing) {
       await updateTransport(form.editing.id, input);
     } else {
@@ -163,6 +167,7 @@ export const TransportSection: React.FC<TransportSectionProps> = ({
   };
 
   const handleDelete = async (id: string) => {
+    if (readOnly) return;
     await deleteTransport(id);
     await load();
   };
@@ -203,10 +208,12 @@ export const TransportSection: React.FC<TransportSectionProps> = ({
           </span>
         </button>
 
-        <Button className="!h-[38px] !min-h-0 !py-0 !px-5 !text-xs" onClick={() => setForm({ open: true, editing: null })}>
-          <Plus className="w-5 h-5" />
-          {t('transport.add')}
-        </Button>
+        {!readOnly && (
+          <Button className="!h-[38px] !min-h-0 !py-0 !px-5 !text-xs" onClick={() => setForm({ open: true, editing: null })}>
+            <Plus className="w-5 h-5" />
+            {t('transport.add')}
+          </Button>
+        )}
       </div>
 
       {error && <Alert type="error" message={error} onClose={() => setError(null)} />}
@@ -237,25 +244,30 @@ export const TransportSection: React.FC<TransportSectionProps> = ({
               ferryOperators={ferryOperators}
               homeTz={homeTz}
               showHomeTz={showHomeTz}
-              onEdit={() => setForm({ open: true, editing: transport })}
+              readOnly={readOnly}
+              onEdit={() => {
+                if (!readOnly) setForm({ open: true, editing: transport });
+              }}
               onDelete={() => handleDelete(transport.id)}
             />
           ))}
         </div>
       )}
 
-      <Modal
-        open={form.open}
-        onClose={() => setForm({ open: false, editing: null })}
-        title={form.editing ? t('transport.edit') : t('transport.add')}
-      >
-        <TransportForm
-          initial={form.editing}
-          onSubmit={handleSubmit}
-          onCancel={() => setForm({ open: false, editing: null })}
-          tripDestinations={tripDestinations}
-        />
-      </Modal>
+      {!readOnly && (
+        <Modal
+          open={form.open}
+          onClose={() => setForm({ open: false, editing: null })}
+          title={form.editing ? t('transport.edit') : t('transport.add')}
+        >
+          <TransportForm
+            initial={form.editing}
+            onSubmit={handleSubmit}
+            onCancel={() => setForm({ open: false, editing: null })}
+            tripDestinations={tripDestinations}
+          />
+        </Modal>
+      )}
     </div>
   );
 };

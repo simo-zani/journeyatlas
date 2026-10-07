@@ -123,6 +123,13 @@ export const TripDetailPage: React.FC = () => {
     return { nights: days - 1 };
   }, [trip]);
 
+  // Ruolo di chi guarda: i viewer vedono tutto ma non possono modificare nulla
+  // (la RLS lo impedisce già lato DB; qui si nascondono i comandi). Finché i
+  // partecipanti non sono caricati, chi non è proprietario resta in sola lettura.
+  const isOwner = !!user && !!trip && trip.owner_id === user.id;
+  const myRole = isOwner ? 'owner' : participants.find((p) => p.user_id === user?.id)?.role ?? null;
+  const readOnly = myRole !== 'owner' && myRole !== 'editor';
+
   const sectionLabel = (section: TripSection) => t(`tripSection.${section}`);
   const hasCover = Boolean(trip?.cover_image_url);
   // Colore vero della cover sotto il testo, non il tema chiaro/scuro
@@ -228,18 +235,20 @@ export const TripDetailPage: React.FC = () => {
 
             {/* Right: Action icons column (uniform w-6 h-6 icons in prominent buttons) */}
             <div className="flex sm:flex-col items-center gap-2 shrink-0 self-start sm:self-auto">
-              <button
-                onClick={() => setEditOpen(true)}
-                className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all cursor-pointer shadow-lg hover:scale-105 active:scale-95 ${
-                  hasCover
-                    ? 'text-white bg-black/60 hover:bg-black/80 backdrop-blur-md ring-2 ring-gold/50'
-                    : 'text-gold-light bg-slate-800/90 hover:bg-slate-700/90 ring-2 ring-gold/40 hover:ring-gold'
-                }`}
-                aria-label={t('trip.editTitle')}
-                title={t('trip.editTitle')}
-              >
-                <Pencil className="w-5 h-5 text-gold" strokeWidth={2} />
-              </button>
+              {isOwner && (
+                <button
+                  onClick={() => setEditOpen(true)}
+                  className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all cursor-pointer shadow-lg hover:scale-105 active:scale-95 ${
+                    hasCover
+                      ? 'text-white bg-black/60 hover:bg-black/80 backdrop-blur-md ring-2 ring-gold/50'
+                      : 'text-gold-light bg-slate-800/90 hover:bg-slate-700/90 ring-2 ring-gold/40 hover:ring-gold'
+                  }`}
+                  aria-label={t('trip.editTitle')}
+                  title={t('trip.editTitle')}
+                >
+                  <Pencil className="w-5 h-5 text-gold" strokeWidth={2} />
+                </button>
+              )}
 
               <button
                 onClick={() => setShareOpen(true)}
@@ -287,6 +296,7 @@ export const TripDetailPage: React.FC = () => {
               onSuccess={(updated) => {
                 setTrip(updated);
                 setEditOpen(false);
+                void loadParticipants();
               }}
             />
           </Modal>
@@ -356,13 +366,14 @@ export const TripDetailPage: React.FC = () => {
 
           {/* ── Section Content ── */}
           {activeSection === 'calendar' && (
-            <CalendarSection trip={trip} onSelectTab={(tab) => setActiveSection(tab)} />
+            <CalendarSection readOnly={readOnly} trip={trip} onSelectTab={(tab) => setActiveSection(tab)} />
           )}
           {activeSection === 'activities' && user && (
-            <ActivitySection tripId={trip.id} userId={user.id} tripStart={trip.start_date} tripEnd={trip.end_date} tripDestinations={trip.destinations ?? []} />
+            <ActivitySection readOnly={readOnly} tripId={trip.id} userId={user.id} tripStart={trip.start_date} tripEnd={trip.end_date} tripDestinations={trip.destinations ?? []} />
           )}
           {activeSection === 'accommodations' && (
             <AccommodationSection
+              readOnly={readOnly}
               tripId={trip.id}
               tripStart={trip.start_date}
               tripEnd={trip.end_date}
@@ -371,12 +382,13 @@ export const TripDetailPage: React.FC = () => {
           )}
           {activeSection === 'transport' && (
             <TransportSection
+              readOnly={readOnly}
               tripId={trip.id}
               tripDestinations={trip.destinations ?? []}
             />
           )}
           {activeSection === 'packing' && user && (
-            <ChecklistSection tripId={trip.id} userId={user.id} />
+            <ChecklistSection readOnly={readOnly} tripId={trip.id} userId={user.id} />
           )}
           {activeSection === 'info' && (
             <CountryInfoSection tripId={trip.id} tripStart={trip.start_date} tripEnd={trip.end_date} tripDestinations={trip.destinations ?? []} />

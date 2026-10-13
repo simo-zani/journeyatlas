@@ -24,6 +24,8 @@ interface RegionMapProps {
   homeCoords?: Coordinates | null;
   /** Bandiere delle regioni, se il paese le ha tutte. */
   flags?: Record<string, string>;
+  /** Nome da mostrare (tradotto) a partire dal nome originale della regione. */
+  regionLabel?: (name: string) => string;
 }
 
 const FILL: Record<CountryStatus, string> = {
@@ -47,7 +49,7 @@ const projectionFor = (code: string, collection: FeatureCollection<Geometry>, w:
     .fitExtent([[pad, pad], [w - pad, h - pad]], collection);
 };
 
-export const RegionMap: React.FC<RegionMapProps> = ({ countryCode, regions, states, cities, onToggle, homeCoords = null, flags }) => {
+export const RegionMap: React.FC<RegionMapProps> = ({ countryCode, regions, states, cities, onToggle, homeCoords = null, flags, regionLabel = (n) => n }) => {
   const { t } = useTranslation();
   const containerRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ width: 800, height: 500 });
@@ -137,7 +139,7 @@ export const RegionMap: React.FC<RegionMapProps> = ({ countryCode, regions, stat
           {flags?.[hover.name] && (
             <img src={flags[hover.name]} alt="" className="inline-block h-[16px] w-auto mr-1.5 -mt-0.5 rounded-[2px] align-middle" />
           )}
-          <span className="font-semibold">{hover.name}</span>
+          <span className="font-semibold">{regionLabel(hover.name)}</span>
           <span className="text-white/70">
             {' · '}
             {hoverState

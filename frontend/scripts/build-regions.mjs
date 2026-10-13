@@ -26,7 +26,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import mapshaper from 'mapshaper';
-import { fixRegionName } from './region-names.mjs';
+import { EXCLUDE, fixRegionName } from './region-names.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const OUT_DIR = path.join(here, '..', 'public', 'regions');
@@ -38,10 +38,6 @@ const NE_BREAKAWAY =
 /** Paesi in cui le "regioni" stanno a un livello diverso dal primo. */
 const LEVEL_OVERRIDES = { ITA: 'ADM2' };
 
-/** Unità da escludere perché nell'atlante sono paesi a sé. */
-const EXCLUDE = {
-  USA: ['American Samoa', 'Guam', 'Commonwealth of the Northern Mariana Islands', 'Puerto Rico', 'United States Virgin Islands'],
-};
 
 /** Stati a riconoscimento limitato presi dal layer "breakaway" di Natural Earth. */
 const BREAKAWAY = { B35: 'X-ABK', B37: 'X-SOS', B36: 'X-TRN' };
@@ -124,9 +120,9 @@ const main = async () => {
       try {
         const info = await buildCountry(meta);
         if (info) {
-          // Le bandiere (build-region-flags.mjs) restano: rigenerare i confini non le perde.
-          const flags = previous[meta.boundaryISO]?.flags;
-          index[meta.boundaryISO] = flags ? { ...info, flags } : info;
+          // Bandiere e nomi tradotti (build-region-flags.mjs) restano: rigenerare i confini non li perde.
+          const { flags, names } = previous[meta.boundaryISO] ?? {};
+          index[meta.boundaryISO] = { ...info, ...(flags && { flags }), ...(names && { names }) };
           console.log(`${meta.boundaryISO} ${info.level}: ${info.count} regioni, ${(info.bytes / 1024).toFixed(1)} KB`);
         } else {
           delete index[meta.boundaryISO];

@@ -123,6 +123,8 @@ export const countryCenter = (geo: WorldGeo, code: string): [number, number] | n
 export interface RegionIndexEntry {
   /** Nome regione → miniatura della bandiera (solo se TUTTE le regioni ne hanno una). */
   flags?: Record<string, string>;
+  /** Nomi tradotti per lingua dell'app: { it: { nome originale: nome tradotto } }. */
+  names?: Record<string, Record<string, string>>;
   level: string;
   count: number;
   license: string;

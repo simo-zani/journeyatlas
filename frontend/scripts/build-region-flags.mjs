@@ -22,7 +22,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { fixRegionName } from './region-names.mjs';
+import { EXCLUDE, fixRegionName } from './region-names.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const INDEX = path.join(here, '..', 'public', 'regions', 'index.json');
@@ -32,8 +32,26 @@ const UA = 'journeyatlas-dev/1.0 (generazione asset una tantum)';
 const LANGS = ['en', 'it', 'es', 'ca', 'eu', 'gl', 'fr', 'de', 'pt', 'nl', 'ja', 'ru', 'uk', 'zh', 'ar', 'tr', 'pl', 'sv', 'no', 'da', 'fi', 'ko', 'id', 'ms', 'vi', 'th', 'el', 'cs', 'hu', 'ro', 'hr', 'sr'];
 const THUMB_WIDTH = 80;
 
-/** Abbinamenti a mano: { ISO3: { 'nome regione sulla mappa': 'Q-id Wikidata' } }. */
-const MANUAL = {};
+/** Abbinamenti a mano: { ISO3: { 'nome regione sulla mappa': 'Q-id Wikidata' } }
+ * per i nomi che il confronto automatico non riconosce. */
+const MANUAL = {
+  POL: { 'Subcarpathian Voivodeship': 'Q54175' },
+};
+
+/** Bandiere prese direttamente da Wikimedia Commons, quando su Wikidata manca il
+ * collegamento (P41) o la regione non è tra le suddivisioni del paese. */
+const MANUAL_FILES = {
+  ARG: { 'Ciudad Autónoma de Buenos Aires': 'Bandera de la Ciudad de Buenos Aires.svg' },
+  PER: { 'Municipalidad Metropolitana de Lima': 'Flag of Lima.svg' },
+  SWE: { 'Värmlands län': 'Värmlands län vapenflagga.svg' },
+  EGY: { 'Cairo Governorate': 'Flag of Cairo Governorate.svg', 'Luxor Governate': 'Flag of Luxor Governorate.gif' },
+  // L'Irlanda del Nord non ha una bandiera ufficiale dal 1973: si usa l'Ulster
+  // Banner (ufficiale 1953-1972, ancora usato nello sport), scelta dell'utente.
+  GBR: { 'Northern Ireland': 'Flag of Northern Ireland (1953–1972).svg' },
+};
+
+const commonsThumb = (file) =>
+  `https://commons.wikimedia.org/wiki/Special:FilePath/${encodeURIComponent(file)}?width=${THUMB_WIDTH}`;
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -75,15 +93,29 @@ const query = async (iso3) => {
   throw new Error(`Wikidata ${iso3}: troppi errori`);
 };
 
-/** Elementi Wikidata del paese: id → { iso, flag, nomi normalizzati }. */
+/** Lingue in cui l'app mostra i nomi delle regioni (campo `names` dell'indice). */
+const UI_LANGS = ['it', 'en'];
+
+/** Paesi i cui nomi originali sono già nella lingua dell'app: lì le etichette di
+ * Wikidata non aggiungono nulla, anzi peggiorano ("Trentino-Alto Adige/Südtirol"). */
+const NATIVE = { it: ['ITA', 'SMR', 'VAT'], en: ['USA', 'GBR', 'AUS', 'NZL', 'IRL'] };
+
+/** Wikidata scrive in minuscolo i nomi comuni ("regione di Antofagasta"). */
+const capitalize = (s) => s.charAt(0).toLocaleUpperCase() + s.slice(1);
+
+/** Elementi Wikidata del paese: id → { iso, flag, nomi normalizzati, etichette per lingua }. */
 const itemsOf = (json) => {
   const items = new Map();
   for (const b of json.results.bindings) {
     const id = b.r.value.split('/').pop();
-    const item = items.get(id) ?? { id, iso: null, flag: null, names: new Set() };
+    const item = items.get(id) ?? { id, iso: null, flag: null, names: new Set(), labels: {} };
     if (b.iso) item.iso = b.iso.value.toUpperCase();
     if (b.flag) item.flag ??= b.flag.value;
-    if (b.label) item.names.add(fold(b.label.value));
+    if (b.label) {
+      item.names.add(fold(b.label.value));
+      const lang = b.label['xml:lang'];
+      if (UI_LANGS.includes(lang)) item.labels[lang] ??= b.label.value;
+    }
     items.set(id, item);
   }
   return [...items.values()];
@@ -111,8 +143,11 @@ const match = (iso3, regions, items) => {
   const used = new Set();
   const flags = {};
   const missing = [];
+  // Nomi tradotti, solo dove cambiano rispetto all'originale: { it: { originale: tradotto } }
+  const names = Object.fromEntries(UI_LANGS.map((l) => [l, {}]));
   const byIso = new Map(items.filter((i) => i.iso).map((i) => [i.iso, i]));
   for (const region of regions) {
+    const file = MANUAL_FILES[iso3]?.[region.name];
     const manual = MANUAL[iso3]?.[region.name];
     const n = fold(region.name);
     const candidates = items.filter((i) => !used.has(i.id));
@@ -126,31 +161,39 @@ const match = (iso3, regions, items) => {
         const hits = candidates.filter((i) => [...i.names].some((x) => x.length >= 4 && (x.includes(n) || n.includes(x))));
         return hits.length === 1 ? hits[0] : undefined;
       })();
-    if (item?.flag && !used.has(item.id)) {
-      used.add(item.id);
-      flags[region.name] = thumb(item.flag);
-    } else {
-      missing.push(region.name);
+    const matched = item && !used.has(item.id) ? item : null;
+    if (matched) {
+      used.add(matched.id);
+      for (const lang of UI_LANGS) {
+        if (NATIVE[lang]?.includes(iso3)) continue;
+        const label = matched.labels[lang] && capitalize(matched.labels[lang]);
+        if (label && label !== region.name) names[lang][region.name] = label;
+      }
     }
+    // La bandiera presa a mano da Commons vince su quella (eventuale) di Wikidata.
+    if (file) flags[region.name] = commonsThumb(file);
+    else if (matched?.flag) flags[region.name] = thumb(matched.flag);
+    else missing.push(region.name);
   }
-  return { flags, missing };
+  return { flags, missing, names };
 };
 
-// Stesse esclusioni di build-regions.mjs (territori che nell'atlante sono paesi a sé).
-const EXCLUDE = {
-  USA: ['American Samoa', 'Guam', 'Commonwealth of the Northern Mariana Islands', 'Puerto Rico', 'United States Virgin Islands'],
-};
 
 const main = async () => {
   const only = process.argv.slice(2).map((s) => s.toUpperCase());
   const index = JSON.parse(fs.readFileSync(INDEX, 'utf8'));
   let complete = 0;
+  let fromCache = false;
   const partial = [];
   for (const [iso3, entry] of Object.entries(index)) {
     if (only.length && !only.includes(iso3)) continue;
     try {
+      fromCache = fs.existsSync(path.join(CACHE_DIR, `wd-${iso3}.json`));
       const regions = regionsOf(iso3, entry.level, new Set(EXCLUDE[iso3] ?? []));
-      const { flags, missing } = match(iso3, regions, itemsOf(await query(iso3)));
+      const { flags, missing, names } = match(iso3, regions, itemsOf(await query(iso3)));
+      // I nomi tradotti valgono per tutte le regioni abbinate, anche senza bandiere complete.
+      if (UI_LANGS.some((l) => Object.keys(names[l]).length > 0)) entry.names = names;
+      else delete entry.names;
       if (missing.length === 0 && regions.length > 0) {
         entry.flags = flags;
         complete++;
@@ -162,10 +205,11 @@ const main = async () => {
     } catch (err) {
       console.warn(`${iso3}: ${err.message}`);
     }
-    await sleep(300);
+    if (!fromCache) await sleep(300);
   }
   fs.writeFileSync(INDEX, JSON.stringify(index));
-  console.log(`\n${complete} paesi con tutte le bandiere.`);
+  const named = Object.values(index).filter((e) => e.names).length;
+  console.log(`\n${complete} paesi con tutte le bandiere, ${named} con i nomi tradotti.`);
   console.log(`Incompleti (senza bandiere):\n  ${partial.join('\n  ')}`);
 };
 

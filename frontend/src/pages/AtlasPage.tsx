@@ -230,6 +230,11 @@ export const AtlasPage: React.FC = () => {
   // la mappa delle regioni compare però solo quando il volo verso il paese è finito.
   const showRegions = hasRegions && regions?.code === selected;
   const regionFlags = selectedCca3 ? regionIndex[selectedCca3]?.flags : undefined;
+  // Nome mostrato di una regione: tradotto nella lingua dell'app se disponibile.
+  // Il nome originale resta la chiave (geometrie, segni a mano).
+  const uiLang = i18n.language?.startsWith('it') ? 'it' : 'en';
+  const regionTranslations = selectedCca3 ? regionIndex[selectedCca3]?.names?.[uiLang] : undefined;
+  const regionLabel = useCallback((name: string) => regionTranslations?.[name] ?? name, [regionTranslations]);
   const regionMapVisible = showRegions && settled === selected && regionsOn;
 
   const regionStates = useMemo(() => {
@@ -253,9 +258,12 @@ export const AtlasPage: React.FC = () => {
   const regionNamesSorted = useMemo(
     () =>
       regions && regions.code === selected
-        ? regions.features.map((f) => f.code ?? '').filter(Boolean).sort((a, b) => a.localeCompare(b, i18n.language))
+        ? regions.features
+            .map((f) => f.code ?? '')
+            .filter(Boolean)
+            .sort((a, b) => regionLabel(a).localeCompare(regionLabel(b), i18n.language))
         : [],
-    [regions, selected, i18n.language]
+    [regions, selected, i18n.language, regionLabel]
   );
   const visitedRegions = regionNamesSorted.filter((n) => regionStates.get(n)?.status === 'visited').length;
 
@@ -515,6 +523,7 @@ export const AtlasPage: React.FC = () => {
                           cities={atlas.cities}
                           homeCoords={homeCity?.coords ?? null}
                           flags={regionFlags}
+                          regionLabel={regionLabel}
                           onToggle={(name) => void toggleMark(selected, name)}
                         />
                       </motion.div>
@@ -662,7 +671,7 @@ export const AtlasPage: React.FC = () => {
                                     className="h-[20px] w-[30px] object-cover rounded-[4px] ring-1 ring-black/10 shrink-0"
                                   />
                                 )}
-                                <span className="flex-1 min-w-0 truncate">{name}</span>
+                                <span className="flex-1 min-w-0 truncate">{regionLabel(name)}</span>
                                 {state && state.status !== 'visited' && <Swatch status={state.status} />}
                                 {auto && <span className="text-[10px] text-slate-400 shrink-0">{t('atlas.regions.fromTripsShort')}</span>}
                               </button>

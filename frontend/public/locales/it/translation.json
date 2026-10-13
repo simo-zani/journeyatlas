@@ -25,7 +25,8 @@
     "openSidebar": "Espandi menu laterale",
     "closeSidebar": "Comprimi menu laterale",
     "collapseSidebar": "Comprimi menu laterale",
-    "expandSidebar": "Espandi menu laterale"
+    "expandSidebar": "Espandi menu laterale",
+    "atlas": "Il mio atlante"
   },
   "auth": {
     "email": "Email",
@@ -159,7 +160,6 @@
     "packing": "Check List",
     "expenses": "Spese",
     "info": "Info Paese",
-    "documents": "Documenti",
     "chat": "Chat",
     "report": "Report"
   },
@@ -930,5 +930,90 @@
     "transitSub": "Paesi attraversati da voli, treni o traghetti che non sono una meta del viaggio: le informazioni essenziali per uno scalo.",
     "transitBadge": "Scalo",
     "safetySub": "Avvisi e sicurezza del Ministero degli Esteri"
+  },
+  "atlas": {
+    "title": "Il mio atlante",
+    "subtitle": "I paesi che hai sbloccato viaggiando, quelli di passaggio e quelli che ti aspettano.",
+    "mapLabel": "Mappa del mondo con i paesi visitati",
+    "view": {
+      "globe": "Globo",
+      "flat": "Mappa"
+    },
+    "status": {
+      "visited": "Sbloccato",
+      "transit": "Di passaggio",
+      "planned": "In programma",
+      "home": "Il tuo paese"
+    },
+    "group": {
+      "visited": "Paesi sbloccati",
+      "transit": "Di passaggio",
+      "planned": "In programma"
+    },
+    "tiles": {
+      "countries": "Paesi sbloccati",
+      "worldPercent": "{{percent}}% del mondo",
+      "continents": "Continenti",
+      "noContinents": "Ancora nessuno",
+      "trips": "Viaggi fatti",
+      "planned_one": "{{count}} in programma",
+      "planned_other": "{{count}} in programma",
+      "cities": "Città visitate",
+      "transit_one": "{{count}} paese di passaggio",
+      "transit_other": "{{count}} paesi di passaggio",
+      "territories_one": "+{{count}} territorio",
+      "territories_other": "+{{count}} territori",
+      "limited_one": "+{{count}} non riconosciuto",
+      "limited_other": "+{{count}} non riconosciuti"
+    },
+    "continent": {
+      "europe": "Europa",
+      "asia": "Asia",
+      "africa": "Africa",
+      "north-america": "Nord America",
+      "south-america": "Sud America",
+      "oceania": "Oceania",
+      "antarctica": "Antartide"
+    },
+    "hintGlobe": "Trascina per ruotare · pizzica o Ctrl + rotella per lo zoom · clicca un paese per i dettagli",
+    "hintFlat": "Trascina per spostarti · pizzica o Ctrl + rotella per lo zoom · clicca un paese per i dettagli",
+    "zoomIn": "Ingrandisci",
+    "zoomOut": "Riduci",
+    "resetView": "Vista iniziale",
+    "allCountries": "Tutti i paesi",
+    "notVisited": "Non ancora visitato",
+    "noTripsHere": "Nessun viaggio in questo paese, per ora.",
+    "noDates": "Date da definire",
+    "tripDone": "Fatto",
+    "tripPlanned": "In programma",
+    "tripStopover": "Scalo",
+    "tripsCount_one": "{{count}} viaggio",
+    "tripsCount_other": "{{count}} viaggi",
+    "empty": "Il tuo atlante è ancora vuoto",
+    "emptySub": "Aggiungi le mete ai tuoi viaggi: i paesi si sbloccano quando il viaggio inizia.",
+    "kind": {
+      "limited": "Non riconosciuto",
+      "territory": "Territorio"
+    },
+    "entity": {
+      "X-NCY": "Cipro del Nord",
+      "X-SOL": "Somaliland",
+      "X-ABK": "Abcasia",
+      "X-SOS": "Ossezia del Sud",
+      "X-TRN": "Transnistria"
+    },
+    "regions": {
+      "title": "Regioni · {{country}}",
+      "mapLabel": "Mappa delle regioni del paese",
+      "listTitle": "Regioni sbloccate",
+      "loading": "Carico le regioni…",
+      "hint": "Clicca una regione per segnarla (o togliere il segno) a mano · quelle sbloccate dai viaggi restano",
+      "manual": "segnato a mano",
+      "fromTrips": "Sbloccata da un viaggio",
+      "fromTripsShort": "viaggio"
+    },
+    "markCountry": "Segna come visitato",
+    "unmarkCountry": "Togli il segno",
+    "credits": "Confini: Natural Earth · Regioni: geoBoundaries (Runfola et al. 2020, CC BY 4.0) · I conteggi dei paesi seguono i 193 membri ONU più Vaticano e Palestina"
   }
 }

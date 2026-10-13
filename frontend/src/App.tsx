@@ -8,6 +8,7 @@ import { DashboardPage } from '@/pages/DashboardPage';
 import { TripDetailPage } from '@/pages/TripDetailPage';
 import { TravelersPage } from '@/pages/TravelersPage';
 import { TravelerProfilePage } from '@/pages/TravelerProfilePage';
+import { AtlasPage } from '@/pages/AtlasPage';
 
 export default function App() {
   return (
@@ -39,6 +40,7 @@ export default function App() {
         >
           <Route path="/" element={<DashboardPage />} />
           <Route path="/trips/:tripId" element={<TripDetailPage />} />
+          <Route path="/atlas" element={<AtlasPage />} />
           <Route path="/travelers" element={<TravelersPage />} />
           <Route path="/travelers/:userId" element={<TravelerProfilePage />} />
         </Route>

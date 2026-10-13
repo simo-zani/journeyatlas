@@ -25,7 +25,8 @@
     "openSidebar": "Expand sidebar",
     "closeSidebar": "Collapse sidebar",
     "collapseSidebar": "Collapse sidebar",
-    "expandSidebar": "Expand sidebar"
+    "expandSidebar": "Expand sidebar",
+    "atlas": "My atlas"
   },
   "auth": {
     "email": "Email",
@@ -159,7 +160,6 @@
     "packing": "Check List",
     "expenses": "Expenses",
     "info": "Country Info",
-    "documents": "Documents",
     "chat": "Chat",
     "report": "Report"
   },
@@ -930,5 +930,90 @@
     "transitSub": "Countries your flights, trains or ferries pass through that are not a destination: the essentials for a layover.",
     "transitBadge": "Transit",
     "safetySub": "Official safety advisories (Italian Foreign Ministry)"
+  },
+  "atlas": {
+    "title": "My atlas",
+    "subtitle": "The countries you unlocked by travelling, the ones you passed through and the ones waiting for you.",
+    "mapLabel": "World map with visited countries",
+    "view": {
+      "globe": "Globe",
+      "flat": "Map"
+    },
+    "status": {
+      "visited": "Unlocked",
+      "transit": "Passed through",
+      "planned": "Planned",
+      "home": "Your country"
+    },
+    "group": {
+      "visited": "Unlocked countries",
+      "transit": "Passed through",
+      "planned": "Planned"
+    },
+    "tiles": {
+      "countries": "Countries unlocked",
+      "worldPercent": "{{percent}}% of the world",
+      "continents": "Continents",
+      "noContinents": "None yet",
+      "trips": "Trips taken",
+      "planned_one": "{{count}} planned",
+      "planned_other": "{{count}} planned",
+      "cities": "Cities visited",
+      "transit_one": "{{count}} country passed through",
+      "transit_other": "{{count}} countries passed through",
+      "territories_one": "+{{count}} territory",
+      "territories_other": "+{{count}} territories",
+      "limited_one": "+{{count}} unrecognized",
+      "limited_other": "+{{count}} unrecognized"
+    },
+    "continent": {
+      "europe": "Europe",
+      "asia": "Asia",
+      "africa": "Africa",
+      "north-america": "North America",
+      "south-america": "South America",
+      "oceania": "Oceania",
+      "antarctica": "Antarctica"
+    },
+    "hintGlobe": "Drag to rotate · pinch or Ctrl + wheel to zoom · click a country for details",
+    "hintFlat": "Drag to pan · pinch or Ctrl + wheel to zoom · click a country for details",
+    "zoomIn": "Zoom in",
+    "zoomOut": "Zoom out",
+    "resetView": "Reset view",
+    "allCountries": "All countries",
+    "notVisited": "Not visited yet",
+    "noTripsHere": "No trips in this country, for now.",
+    "noDates": "Dates to be set",
+    "tripDone": "Done",
+    "tripPlanned": "Planned",
+    "tripStopover": "Stopover",
+    "tripsCount_one": "{{count}} trip",
+    "tripsCount_other": "{{count}} trips",
+    "empty": "Your atlas is still empty",
+    "emptySub": "Add destinations to your trips: countries unlock when the trip starts.",
+    "kind": {
+      "limited": "Unrecognized",
+      "territory": "Territory"
+    },
+    "entity": {
+      "X-NCY": "Northern Cyprus",
+      "X-SOL": "Somaliland",
+      "X-ABK": "Abkhazia",
+      "X-SOS": "South Ossetia",
+      "X-TRN": "Transnistria"
+    },
+    "regions": {
+      "title": "Regions · {{country}}",
+      "mapLabel": "Map of the country regions",
+      "listTitle": "Regions unlocked",
+      "loading": "Loading regions…",
+      "hint": "Click a region to mark (or unmark) it by hand · those unlocked by trips stay",
+      "manual": "marked by hand",
+      "fromTrips": "Unlocked by a trip",
+      "fromTripsShort": "trip"
+    },
+    "markCountry": "Mark as visited",
+    "unmarkCountry": "Remove mark",
+    "credits": "Borders: Natural Earth · Regions: geoBoundaries (Runfola et al. 2020, CC BY 4.0) · Country counts follow the 193 UN members plus Vatican City and Palestine"
   }
 }

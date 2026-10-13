@@ -1,6 +1,7 @@
 import i18n from '@/i18n/config';
 import { supabase } from '@/lib/supabase';
 import type {
+  AtlasMarkRow,
   AccommodationRow,
   ActivityCategoryRow,
   ActivityRow,
@@ -493,6 +494,39 @@ export const fetchTransports = async (tripId: string): Promise<TransportRow[]> =
     .order('departure_datetime', { ascending: true, nullsFirst: true });
   if (error) throw error;
   return (data ?? []) as TransportRow[];
+};
+
+/** Mezzi di più viaggi in una sola richiesta (per l'atlante). */
+export const fetchTransportsForTrips = async (tripIds: string[]): Promise<TransportRow[]> => {
+  if (tripIds.length === 0) return [];
+  const { data, error } = await supabase
+    .from('flights')
+    .select('*')
+    .in('trip_id', tripIds)
+    .order('departure_datetime', { ascending: true, nullsFirst: true });
+  if (error) throw error;
+  return (data ?? []) as TransportRow[];
+};
+
+/** Segni a mano dell'utente sull'atlante (paesi e regioni). */
+export const fetchAtlasMarks = async (): Promise<AtlasMarkRow[]> => {
+  const { data, error } = await supabase.from('atlas_marks').select('*');
+  if (error) throw error;
+  return (data ?? []) as AtlasMarkRow[];
+};
+
+export const setAtlasMark = async (countryCode: string, regionKey: string, marked: boolean): Promise<void> => {
+  const { error } = marked
+    ? await supabase.from('atlas_marks').insert({ country_code: countryCode, region_key: regionKey })
+    : await supabase.from('atlas_marks').delete().eq('country_code', countryCode).eq('region_key', regionKey);
+  if (error) throw error;
+};
+
+/** Codice paese (alpha-2 maiuscolo) -> continente, dalla tabella country_continents. */
+export const fetchCountryContinents = async (): Promise<Map<string, string>> => {
+  const { data, error } = await supabase.from('country_continents').select('code, continent');
+  if (error) throw error;
+  return new Map((data ?? []).map((r) => [r.code.toUpperCase(), r.continent]));
 };
 
 export const createTransport = async (

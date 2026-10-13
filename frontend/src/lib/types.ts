@@ -276,6 +276,14 @@ export type ExpenseCategoryRow = {
   created_at: string;
 };
 
+/** Segno a mano sull'atlante: region_key '' = l'intero paese. */
+export type AtlasMarkRow = {
+  user_id: string;
+  country_code: string;
+  region_key: string;
+  created_at: string;
+};
+
 export type Trip = TripRow & { participants?: TripParticipantRow[] };
 
 export type FriendStatus = 'friends' | 'outgoing' | 'incoming' | 'self' | null;
@@ -431,6 +439,12 @@ export type Database = {
             referencedColumns: ['id'];
           },
         ];
+      };
+      atlas_marks: {
+        Row: AtlasMarkRow;
+        Insert: Partial<AtlasMarkRow>;
+        Update: Partial<AtlasMarkRow>;
+        Relationships: [];
       };
       expense_categories: {
         Row: ExpenseCategoryRow;

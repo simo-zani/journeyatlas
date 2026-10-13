@@ -26,3 +26,6 @@ scripts/wiki-airlines.json
 *.njsproj
 *.sln
 *.sw?
+
+# Cache dei download di scripts/build-regions.mjs
+scripts/.cache-regions/

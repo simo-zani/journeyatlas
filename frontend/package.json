@@ -12,6 +12,7 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.116.0",
     "class-variance-authority": "^0.7.1",
+    "d3-geo": "^3.1.1",
     "framer-motion": "^11.18.2",
     "i18next": "^26.4.2",
     "i18next-browser-languagedetector": "^8.2.1",
@@ -20,11 +21,16 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-i18next": "^17.0.14",
-    "react-router-dom": "^7.18.3"
+    "react-router-dom": "^7.18.3",
+    "topojson-client": "^3.1.0",
+    "world-atlas": "^2.0.2"
   },
   "devDependencies": {
+    "@types/d3-geo": "^3.1.1",
+    "@types/geojson": "^7946.0.16",
     "@types/react": "^18.2.15",
     "@types/react-dom": "^18.2.7",
+    "@types/topojson-client": "^3.1.5",
     "@typescript-eslint/eslint-plugin": "^6.0.0",
     "@typescript-eslint/parser": "^6.0.0",
     "@vitejs/plugin-react": "^4.0.3",
@@ -32,6 +38,7 @@
     "eslint": "^8.45.0",
     "eslint-plugin-react-hooks": "^4.6.0",
     "eslint-plugin-react-refresh": "^0.4.3",
+    "mapshaper": "^0.6.102",
     "postcss": "^8.5.28",
     "tailwindcss": "^3.4.19",
     "typescript": "^5.0.2",

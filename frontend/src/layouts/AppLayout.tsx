@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
+  Earth,
   Globe,
   Map,
   Menu,
@@ -28,6 +29,7 @@ import { fetchProfile, countIncomingFriendRequests } from '@/lib/api';
 
 const NAV_ITEMS = [
   { key: 'myTrips', to: '/', icon: Map },
+  { key: 'atlas', to: '/atlas', icon: Earth },
 ];
 
 const SIDEBAR_WIDTH = 256;

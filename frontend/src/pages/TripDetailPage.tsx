@@ -6,7 +6,6 @@ import {
   BarChart3,
   BedDouble,
   CalendarDays,
-  FileText,
   Info,
   Loader2,
   MessageSquare,
@@ -44,13 +43,9 @@ type TripSection =
   | 'transport'
   | 'packing'
   | 'expenses'
-  | 'info'
-  | 'documents'
-  | 'chat'
-  | 'report';
+  | 'info';
 
-const ACTIVE_SECTIONS: TripSection[] = ['calendar', 'activities', 'accommodations', 'transport', 'packing', 'expenses', 'info'];
-const INACTIVE_SECTIONS: TripSection[] = ['documents'];
+const SECTIONS: TripSection[] = ['calendar', 'activities', 'accommodations', 'transport', 'packing', 'expenses', 'info'];
 
 const SECTION_ICONS: Record<TripSection, LucideIcon> = {
   calendar: CalendarDays,
@@ -60,9 +55,6 @@ const SECTION_ICONS: Record<TripSection, LucideIcon> = {
   packing: NotebookText,
   expenses: Wallet,
   info: Info,
-  documents: FileText,
-  chat: MessageSquare,
-  report: BarChart3,
 };
 
 export const TripDetailPage: React.FC = () => {
@@ -334,23 +326,19 @@ export const TripDetailPage: React.FC = () => {
             className="sticky top-0 z-30 flex gap-1 sm:gap-1.5 mb-6 w-full items-center overflow-x-auto overflow-y-hidden p-1.5 rounded-full backdrop-blur-xl backdrop-saturate-150 bg-[var(--surface-0)]/65 border border-slate-200/50 dark:border-white/10 shadow-lg shadow-black/15 dark:border-white/20 transition-all"
             aria-label="Trip sections"
           >
-            {[...ACTIVE_SECTIONS, ...INACTIVE_SECTIONS].map((section) => {
+            {SECTIONS.map((section) => {
               const isActiveSection = activeSection === section;
-              const isEnabled = ACTIVE_SECTIONS.includes(section);
               const Icon = SECTION_ICONS[section];
               return (
                 <button
                   key={section}
-                  onClick={() => isEnabled && setActiveSection(section)}
-                  disabled={!isEnabled}
+                  onClick={() => setActiveSection(section)}
                   aria-label={sectionLabel(section)}
                   title={sectionLabel(section)}
                   className={`tab-pill relative flex flex-1 min-w-0 px-1 sm:px-2 py-2.5 items-center justify-center gap-1 sm:gap-1.5 text-[11px] sm:text-xs xl:text-sm font-semibold transition-all ${
                     isActiveSection
                       ? 'text-deep-blue dark:text-gold-light'
-                      : isEnabled
-                        ? 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
-                        : 'text-slate-400 dark:text-slate-600 cursor-not-allowed opacity-60'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
                   }`}
                 >
                   {isActiveSection && (

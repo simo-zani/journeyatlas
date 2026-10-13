@@ -31,6 +31,9 @@ export interface CountryInfo {
 interface WorldCountry {
   cca2: string;
   cca3: string;
+  /** Codice numerico ISO 3166-1 (es. "380"): è l'id dei confini di Natural Earth / world-atlas. */
+  ccn3?: string;
+  unMember?: boolean;
   name: { common: string };
   translations?: { ita?: { common?: string } };
   capital?: string[];
@@ -174,6 +177,28 @@ export const ratesUpdatedAt = (base: string): Date | null => {
   const unix = readCache<number>(`r2t:${base}`, COUNTRY_TTL_MS);
   return unix ? new Date(unix * 1000) : null;
 };
+
+export interface CountryIndexEntry {
+  /** ISO alpha-2 maiuscolo. */
+  code: string;
+  /** ISO alpha-3 (es. "ITA"): nome dei file delle regioni. */
+  cca3: string;
+  unMember: boolean;
+  /** ISO numerico a 3 cifre, '' se assente (es. Kosovo). */
+  numeric: string;
+  latlng: [number, number] | null;
+}
+
+/** Indice leggero di tutti i paesi (codici e centro), per collegare i codici delle
+ * mete ai confini della mappa e posizionare i paesi troppo piccoli per avere un poligono. */
+export const loadCountryIndex = async (): Promise<CountryIndexEntry[]> =>
+  (await loadAllCountries()).map((c) => ({
+    code: c.cca2.toUpperCase(),
+    cca3: c.cca3.toUpperCase(),
+    unMember: !!c.unMember,
+    numeric: c.ccn3 ?? '',
+    latlng: c.latlng?.length === 2 ? [c.latlng[0], c.latlng[1]] : null,
+  }));
 
 /** Valuta -> paese per la bandiera, per TUTTE le valute del dataset. Con più paesi per la stessa
  *  valuta (USD, EUR, XOF...) vince quello il cui codice coincide con le prime due lettere della

@@ -35,6 +35,16 @@
   --cat-color-6: #D4AF37; /* gold */
   --cat-color-7: #14B8A6; /* teal */
   --cat-color-other: #94A3B8; /* slate — overflow bucket in charts */
+
+  /* Atlante (mappa dei paesi): validati con il validatore dataviz contro il
+     colore della terra, in entrambi i temi. Il contrasto basso con la terra è
+     compensato da confini, tratteggio per gli scali ed elenco testuale. */
+  --atlas-ocean: #E4EDF5;
+  --atlas-land: #E8E4DA;
+  --atlas-border: #FFFFFF;
+  --atlas-visited: #D4AF37;
+  --atlas-planned: #4A90E2;
+  --atlas-home: #9333EA;
 }
 
 .dark {
@@ -53,6 +63,13 @@
   --cat-color-6: #A9821F;
   --cat-color-7: #0D9488;
   --cat-color-other: #64748B;
+
+  --atlas-ocean: #0D1428;
+  --atlas-land: #243049;
+  --atlas-border: #10162A;
+  --atlas-visited: #A9821F;
+  --atlas-planned: #4A90E2;
+  --atlas-home: #9333EA;
 }
 
 /* ==========================================================================

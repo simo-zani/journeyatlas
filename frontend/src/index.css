@@ -45,6 +45,7 @@
   --atlas-visited: #D4AF37;
   --atlas-planned: #4A90E2;
   --atlas-home: #9333EA;
+  --atlas-selected-stroke: #003366;
 }
 
 .dark {
@@ -70,6 +71,24 @@
   --atlas-visited: #A9821F;
   --atlas-planned: #4A90E2;
   --atlas-home: #9333EA;
+  --atlas-selected-stroke: #E8CC6D;
+}
+
+/* Atlante: paese selezionato che "respira" lentamente nel colore del suo stato
+   (--pulse-a → --pulse-b, impostati sull'elemento). */
+@keyframes atlas-pulse {
+  0%, 100% { fill: var(--pulse-a); }
+  50% { fill: var(--pulse-b); }
+}
+@keyframes atlas-pulse-opacity {
+  0%, 100% { fill-opacity: 1; }
+  50% { fill-opacity: 0.45; }
+}
+.atlas-pulse {
+  animation: atlas-pulse 2.6s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .atlas-pulse { animation: none; }
 }
 
 /* ==========================================================================

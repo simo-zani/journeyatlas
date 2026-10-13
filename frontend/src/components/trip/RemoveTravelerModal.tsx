@@ -71,7 +71,7 @@ export const RemoveTravelerModal: React.FC<RemoveTravelerModalProps> = ({ travel
     >
       {hasExpenses === null ? (
         <div className="flex justify-center py-6">
-          <Loader2 className="w-8 h-8 text-gold animate-spin" />
+          <Loader2 className="w-[32px] h-[32px] text-gold animate-spin" />
         </div>
       ) : hasExpenses ? (
         <div className="space-y-5">

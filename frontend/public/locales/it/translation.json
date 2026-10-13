@@ -26,7 +26,7 @@
     "closeSidebar": "Comprimi menu laterale",
     "collapseSidebar": "Comprimi menu laterale",
     "expandSidebar": "Espandi menu laterale",
-    "atlas": "Il mio atlante"
+    "atlas": "Il mio Atlante"
   },
   "auth": {
     "email": "Email",
@@ -932,7 +932,7 @@
     "safetySub": "Avvisi e sicurezza del Ministero degli Esteri"
   },
   "atlas": {
-    "title": "Il mio atlante",
+    "title": "Il mio Atlante",
     "subtitle": "I paesi che hai sbloccato viaggiando, quelli di passaggio e quelli che ti aspettano.",
     "mapLabel": "Mappa del mondo con i paesi visitati",
     "view": {
@@ -943,7 +943,7 @@
       "visited": "Sbloccato",
       "transit": "Di passaggio",
       "planned": "In programma",
-      "home": "Il tuo paese"
+      "home": "Casa"
     },
     "group": {
       "visited": "Paesi sbloccati",
@@ -1003,17 +1003,22 @@
       "X-TRN": "Transnistria"
     },
     "regions": {
-      "title": "Regioni · {{country}}",
       "mapLabel": "Mappa delle regioni del paese",
       "listTitle": "Regioni sbloccate",
       "loading": "Carico le regioni…",
       "hint": "Clicca una regione per segnarla (o togliere il segno) a mano · quelle sbloccate dai viaggi restano",
       "manual": "segnato a mano",
       "fromTrips": "Sbloccata da un viaggio",
-      "fromTripsShort": "viaggio"
+      "fromTripsShort": "viaggio",
+      "toggle": "Regioni",
+      "toggleTitle": "Mostra o nascondi le regioni di {{country}}"
     },
-    "markCountry": "Segna come visitato",
-    "unmarkCountry": "Togli il segno",
-    "credits": "Confini: Natural Earth · Regioni: geoBoundaries (Runfola et al. 2020, CC BY 4.0) · I conteggi dei paesi seguono i 193 membri ONU più Vaticano e Palestina"
+    "credits": "Confini: Natural Earth · Regioni: geoBoundaries (Runfola et al. 2020, CC BY 4.0) · Bandiere delle regioni: Wikidata / Wikimedia Commons · I conteggi dei paesi seguono i 193 membri ONU più Vaticano e Palestina",
+    "visitedLocked_one": "Non puoi toglierlo: risulta visitato nel viaggio «{{trips}}». Per farlo devi prima eliminare il viaggio.",
+    "visitedLocked_other": "Non puoi toglierlo: risulta visitato nei viaggi {{trips}}. Per farlo devi prima eliminare quei viaggi.",
+    "markVisited": "Segna come visitato",
+    "unmarkVisited": "Togli il segno di visitato",
+    "pauseRotation": "Ferma la rotazione",
+    "resumeRotation": "Riprendi la rotazione"
   }
 }

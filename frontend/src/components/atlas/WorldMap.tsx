@@ -1,6 +1,6 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Minus, Plus, RotateCcw } from 'lucide-react';
+import { House, Minus, Pause, Play, Plus, RotateCcw } from 'lucide-react';
 import {
   geoDistance,
   geoGraticule10,
@@ -11,6 +11,7 @@ import {
 } from 'd3-geo';
 import { countryCenter, mainPart, type GeoFeature, type WorldGeo } from '@/lib/atlasGeo';
 import type { AtlasCity, AtlasCountry, CountryStatus } from '@/lib/atlas';
+import type { Coordinates } from '@/lib/types';
 
 export type MapView = 'globe' | 'flat';
 type MapStatus = CountryStatus | 'home';
@@ -27,11 +28,40 @@ interface WorldMapProps {
   countryName: (code: string) => string;
   /** Chiamata quando l'animazione verso il paese selezionato è finita. */
   onFocusSettled?: (code: string) => void;
+  /** Città di casa dal profilo: segnata con l'icona di una casa. */
+  homeCoords?: Coordinates | null;
+}
+
+/** Colori del lampeggio del paese selezionato: dal suo colore pieno a una
+ * versione stemperata verso la terra (per i non visitati: dalla terra a un
+ * tono più chiaro). Il tratteggio degli scali è un pattern e non si può
+ * mescolare: lì lampeggia l'opacità. */
+const pulseStyle = (status: MapStatus | null): React.CSSProperties => {
+  if (status === 'transit') return { animationName: 'atlas-pulse-opacity' };
+  const base = status ? FILL[status] : 'var(--atlas-land)';
+  const soft = status
+    ? `color-mix(in srgb, ${base} 45%, var(--atlas-land))`
+    : 'color-mix(in srgb, var(--atlas-land) 65%, #ffffff)';
+  return { ['--pulse-a' as string]: base, ['--pulse-b' as string]: soft } as React.CSSProperties;
+};
+
+/** Inquadratura: rotazione del globo, zoom, spostamento del planisfero. */
+interface Camera {
+  rotation: [number, number];
+  zoom: number;
+  pan: [number, number];
 }
 
 const MIN_ZOOM = 1;
 const MAX_ZOOM = 8;
 const SPHERE = { type: 'Sphere' } as const;
+const GRATICULE = geoGraticule10();
+const INITIAL_ROTATION: [number, number] = [-12, -30];
+/** Velocità della rotazione automatica, legata al giro vero della Terra (15° = un
+ * fuso orario all'ora): qui 10 secondi = 1 ora reale, quindi un fuso ogni 10
+ * secondi e un giro completo in 4 minuti. Il verso è quello reale, da ovest verso est. */
+const SECONDS_PER_TIME_ZONE = 10;
+const SPIN_DEG_PER_MS = 15 / (SECONDS_PER_TIME_ZONE * 1000);
 
 const FILL: Record<MapStatus, string> = {
   visited: 'var(--atlas-visited)',
@@ -52,6 +82,38 @@ const angularRadius = (f: GeoFeature, center: [number, number]): number => {
 const prefersReducedMotion = () =>
   typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
+const makeProjection = (view: MapView, width: number, height: number, cam: Camera): GeoProjection => {
+  if (view === 'globe') {
+    const radius = (Math.min(width, height) / 2) * 0.92;
+    return geoOrthographic()
+      .scale(radius * cam.zoom)
+      .translate([width / 2, height / 2])
+      .rotate([cam.rotation[0], cam.rotation[1], 0])
+      .clipAngle(90)
+      .precision(0.5);
+  }
+  const p = geoNaturalEarth1().fitSize([width, height], SPHERE);
+  const [tx, ty] = p.translate();
+  // Zoom attorno al centro della mappa, più lo spostamento trascinato.
+  return p
+    .scale(p.scale() * cam.zoom)
+    .translate([
+      width / 2 + (tx - width / 2) * cam.zoom + cam.pan[0],
+      height / 2 + (ty - height / 2) * cam.zoom + cam.pan[1],
+    ]);
+};
+
+/**
+ * Mappa del mondo (globo o planisfero).
+ *
+ * Le animazioni (rotazione automatica, volo verso un paese, trascinamento, zoom)
+ * NON passano dallo stato di React: l'inquadratura vive in una ref e `draw()`
+ * aggiorna direttamente gli attributi dell'SVG a ogni fotogramma. Con uno
+ * setState per fotogramma la pagina restava sempre "occupata" e le navigazioni
+ * di React Router (che sono transizioni a bassa priorità) non arrivavano mai a
+ * compimento: cliccando "I miei viaggi" cambiava l'URL ma non la pagina.
+ * React ridisegna solo quando cambiano i dati (stati, selezione, hover).
+ */
 export const WorldMap: React.FC<WorldMapProps> = ({
   geo,
   view,
@@ -62,18 +124,35 @@ export const WorldMap: React.FC<WorldMapProps> = ({
   onSelect,
   countryName,
   onFocusSettled,
+  homeCoords = null,
 }) => {
   const { t } = useTranslation();
   const containerRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(800);
-
-  // Stato della vista: rotazione del globo, zoom e spostamento del planisfero.
-  const [rotation, setRotation] = useState<[number, number]>([-12, -30]);
-  const [zoom, setZoom] = useState(1);
-  const [pan, setPan] = useState<[number, number]>([0, 0]);
-  const [spinning, setSpinning] = useState(() => !prefersReducedMotion());
   const [hover, setHover] = useState<{ code: string; x: number; y: number } | null>(null);
   const drag = useRef<{ x: number; y: number; moved: number } | null>(null);
+
+  const cam = useRef<Camera>({ rotation: INITIAL_ROTATION, zoom: 1, pan: [0, 0] });
+  // La rotazione automatica vive in una ref (letta a ogni fotogramma); lo stato serve
+  // solo all'icona del pulsante pausa/riprendi.
+  const spinning = useRef(!prefersReducedMotion());
+  const [spinOn, setSpinOn] = useState(spinning.current);
+  const setSpin = useCallback((on: boolean) => {
+    spinning.current = on;
+    setSpinOn(on);
+  }, []);
+
+  // Elementi SVG aggiornati da draw()
+  const sphereEl = useRef<SVGPathElement>(null);
+  const graticuleEl = useRef<SVGPathElement>(null);
+  const shadeEl = useRef<SVGPathElement>(null);
+  const countryEls = useRef<(SVGPathElement | null)[]>([]);
+  const tinyEls = useRef(new Map<string, SVGCircleElement>());
+  const cityEls = useRef(new Map<string, SVGCircleElement>());
+  const labelEls = useRef(new Map<string, SVGTextElement>());
+  const homeEl = useRef<SVGGElement>(null);
+
+  const height = view === 'globe' ? Math.min(width, 620) : Math.round(width * 0.52);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -83,42 +162,6 @@ export const WorldMap: React.FC<WorldMapProps> = ({
     setWidth(el.clientWidth);
     return () => ro.disconnect();
   }, []);
-
-  // Cambiando vista si riparte dalla visuale d'insieme.
-  useEffect(() => {
-    setZoom(1);
-    setPan([0, 0]);
-  }, [view]);
-
-  const height = view === 'globe' ? Math.min(width, 620) : Math.round(width * 0.52);
-
-  const projection = useMemo<GeoProjection>(() => {
-    if (view === 'globe') {
-      const radius = (Math.min(width, height) / 2) * 0.92;
-      return geoOrthographic()
-        .scale(radius * zoom)
-        .translate([width / 2, height / 2])
-        .rotate([rotation[0], rotation[1], 0])
-        .clipAngle(90)
-        .precision(0.5);
-    }
-    const p = geoNaturalEarth1().fitSize([width, height], SPHERE);
-    const [tx, ty] = p.translate();
-    // Zoom attorno al centro della mappa, più lo spostamento trascinato.
-    return p
-      .scale(p.scale() * zoom)
-      .translate([width / 2 + (tx - width / 2) * zoom + pan[0], height / 2 + (ty - height / 2) * zoom + pan[1]]);
-  }, [view, width, height, zoom, pan, rotation]);
-
-  const path = useMemo(() => geoPath(projection), [projection]);
-
-  // Centro visibile del globo, per nascondere punti sul lato opposto.
-  const center: [number, number] = [-rotation[0], -rotation[1]];
-  const isVisible = useCallback(
-    (lon: number, lat: number) => view === 'flat' || geoDistance([lon, lat], center) < Math.PI / 2 - 0.02,
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [view, rotation[0], rotation[1]]
-  );
 
   const statusOf = useCallback(
     (code: string | null): MapStatus | null => {
@@ -130,77 +173,172 @@ export const WorldMap: React.FC<WorldMapProps> = ({
     [countries, homeCode]
   );
 
+  // Paesi senza poligono a questa risoluzione (Malta, Singapore, Andorra...):
+  // un puntino nel loro centro, solo se hanno uno stato da mostrare.
+  const tinyCountries = useMemo(() => {
+    const withShape = new Set(geo.features.map((f) => f.code).filter(Boolean));
+    const codes = new Set([...countries.keys(), ...(homeCode ? [homeCode] : [])]);
+    return [...codes]
+      .filter((code) => !withShape.has(code))
+      .map((code) => ({ code, latlng: geo.index.find((c) => c.code === code)?.latlng ?? null }))
+      .filter((c): c is { code: string; latlng: [number, number] } => !!c.latlng);
+  }, [geo, countries, homeCode]);
+
+  const visitedCities = useMemo(() => cities.filter((c) => c.visited), [cities]);
+  // Entrando in un paese se ne mostrano i nomi delle città visitate.
+  const labeledCities = useMemo(
+    () => (selected ? visitedCities.filter((c) => c.countryCode === selected) : []),
+    [visitedCities, selected]
+  );
+
+  // Valori correnti letti da draw(), che resta stabile (nessuna dipendenza).
+  const latest = useRef({ view, width, height, tinyCountries, visitedCities, labeledCities, homeCoords, features: geo.features });
+  latest.current = { view, width, height, tinyCountries, visitedCities, labeledCities, homeCoords, features: geo.features };
+
+  const draw = useCallback(() => {
+    const { view: v, width: w, height: h, tinyCountries: tiny, visitedCities: vc, labeledCities: lc, homeCoords: home, features } =
+      latest.current;
+    const projection = makeProjection(v, w, h, cam.current);
+    const path = geoPath(projection);
+    sphereEl.current?.setAttribute('d', path(SPHERE) ?? '');
+    graticuleEl.current?.setAttribute('d', path(GRATICULE) ?? '');
+    shadeEl.current?.setAttribute('d', path(SPHERE) ?? '');
+    features.forEach((f, i) => countryEls.current[i]?.setAttribute('d', path(f) ?? ''));
+
+    // Sul globo i punti sul lato nascosto non si disegnano.
+    const center: [number, number] = [-cam.current.rotation[0], -cam.current.rotation[1]];
+    const pointAt = (lon: number, lat: number) => {
+      const visible = v === 'flat' || geoDistance([lon, lat], center) < Math.PI / 2 - 0.02;
+      return visible ? projection([lon, lat]) : null;
+    };
+    const place = (el: SVGCircleElement | undefined, lon: number, lat: number) => {
+      if (!el) return;
+      const pt = pointAt(lon, lat);
+      if (!pt) {
+        el.style.display = 'none';
+        return;
+      }
+      el.style.display = '';
+      el.setAttribute('cx', String(pt[0]));
+      el.setAttribute('cy', String(pt[1]));
+    };
+    tiny.forEach(({ code, latlng }) => place(tinyEls.current.get(code), latlng[1], latlng[0]));
+    vc.forEach((c) => place(cityEls.current.get(c.key), c.lon, c.lat));
+    lc.forEach((c) => {
+      const el = labelEls.current.get(c.key);
+      if (!el) return;
+      const pt = pointAt(c.lon, c.lat);
+      el.style.display = pt ? '' : 'none';
+      if (pt) {
+        el.setAttribute('x', String(pt[0] + 7));
+        el.setAttribute('y', String(pt[1] + 4));
+      }
+    });
+    if (homeEl.current) {
+      const pt = home ? pointAt(home.lon, home.lat) : null;
+      homeEl.current.style.display = pt ? '' : 'none';
+      if (pt) homeEl.current.setAttribute('transform', `translate(${pt[0]} ${pt[1]})`);
+    }
+  }, []);
+
+  // Dopo ogni render (dati, dimensioni, selezione) si ridisegna con l'inquadratura corrente.
+  useLayoutEffect(() => {
+    draw();
+  });
+
+  // Cambiando vista si riparte dalla visuale d'insieme.
+  useEffect(() => {
+    cam.current = { ...cam.current, zoom: 1, pan: [0, 0] };
+    draw();
+  }, [view, draw]);
+
   // Rotazione lenta del globo finché l'utente non lo tocca.
   useEffect(() => {
-    if (view !== 'globe' || !spinning) return;
+    if (view !== 'globe') return;
     let frame = 0;
-    const tick = () => {
-      setRotation(([l, p]) => [l + 0.08, p]);
+    let last: number | null = null;
+    // Avanza in base al tempo trascorso, non ai fotogrammi: stessa velocità a 60, 120 o 144 Hz.
+    const tick = (now: number) => {
+      const dt = last === null ? 0 : Math.min(now - last, 100);
+      last = now;
+      if (spinning.current) {
+        const [l, p] = cam.current.rotation;
+        cam.current = { ...cam.current, rotation: [l + dt * SPIN_DEG_PER_MS, p] };
+        draw();
+      }
       frame = requestAnimationFrame(tick);
     };
     frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
-  }, [view, spinning]);
+  }, [view, draw]);
 
   // Selezionando un paese (dalla mappa o dall'elenco) la vista vola fino a lui:
   // sul globo rotazione + zoom insieme, sul planisfero zoom + spostamento.
   // Deselezionando si torna alla vista d'insieme con la stessa animazione.
-  // A fine corsa `onFocusSettled` avvisa la pagina (che poi mostra le regioni).
+  // A fine corsa `onFocusSettled` avvisa la pagina.
   const onFocusSettledRef = useRef(onFocusSettled);
   onFocusSettledRef.current = onFocusSettled;
   useEffect(() => {
-    const fromRot = rotation;
-    const fromZoom = zoom;
-    const fromPan = pan;
-    let toRot: [number, number] = fromRot;
+    const from = cam.current;
+    let toRot: [number, number] = from.rotation;
     let toZoom = 1;
     let toPan: [number, number] = [0, 0];
+    const { width: w, height: h } = latest.current;
 
     if (selected) {
-      setSpinning(false);
+      setSpin(false);
       const found = geo.features.find((x) => x.code === selected);
       const f = found ? mainPart(found) : null;
       const c = countryCenter(geo, selected);
       if (!c) return;
       if (view === 'globe') {
-        toRot = [-c[0], Math.max(-70, Math.min(70, -c[1]))];
-        // Raggio angolare del paese: il più lontano dei suoi vertici dal centro.
+        toRot = [-c[0], clamp(-c[1], -70, 70)];
         const a = f ? angularRadius(f, c) : 0.03;
         toZoom = clamp(0.85 / Math.sin(Math.min(a, Math.PI / 2)), MIN_ZOOM, MAX_ZOOM);
       } else {
-        const base = geoNaturalEarth1().fitSize([width, height], SPHERE);
-        const pt = base(c) ?? [width / 2, height / 2];
+        const base = geoNaturalEarth1().fitSize([w, h], SPHERE);
+        const pt = base(c) ?? [w / 2, h / 2];
         const b = f ? geoPath(base).bounds(f) : [[pt[0] - 4, pt[1] - 4], [pt[0] + 4, pt[1] + 4]];
         const bw = Math.max(b[1][0] - b[0][0], 1);
         const bh = Math.max(b[1][1] - b[0][1], 1);
-        toZoom = clamp(Math.min((0.7 * width) / bw, (0.7 * height) / bh), MIN_ZOOM, MAX_ZOOM);
+        toZoom = clamp(Math.min((0.7 * w) / bw, (0.7 * h) / bh), MIN_ZOOM, MAX_ZOOM);
         const cx = (b[0][0] + b[1][0]) / 2;
         const cy = (b[0][1] + b[1][1]) / 2;
-        toPan = [-(cx - width / 2) * toZoom, -(cy - height / 2) * toZoom];
+        toPan = [-(cx - w / 2) * toZoom, -(cy - h / 2) * toZoom];
       }
-    } else if (fromZoom === 1 && fromPan[0] === 0 && fromPan[1] === 0) {
+    } else if (from.zoom === 1 && from.pan[0] === 0 && from.pan[1] === 0) {
       return;
     }
 
     // percorso più breve in longitudine
-    const dl = ((toRot[0] - fromRot[0] + 540) % 360) - 180;
+    const dl = ((toRot[0] - from.rotation[0] + 540) % 360) - 180;
     const duration = prefersReducedMotion() ? 0 : 900;
     const start = performance.now();
     let frame = 0;
     const step = (now: number) => {
       const k = duration === 0 ? 1 : Math.min(1, (now - start) / duration);
       const e = k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2; // ease-in-out cubica
-      setRotation([fromRot[0] + dl * e, fromRot[1] + (toRot[1] - fromRot[1]) * e]);
-      // zoom interpolato in scala logaritmica: la velocità percepita resta costante
-      setZoom(fromZoom * Math.pow(toZoom / fromZoom, e));
-      setPan([fromPan[0] + (toPan[0] - fromPan[0]) * e, fromPan[1] + (toPan[1] - fromPan[1]) * e]);
+      cam.current = {
+        rotation: [from.rotation[0] + dl * e, from.rotation[1] + (toRot[1] - from.rotation[1]) * e],
+        // zoom interpolato in scala logaritmica: la velocità percepita resta costante
+        zoom: from.zoom * Math.pow(toZoom / from.zoom, e),
+        pan: [from.pan[0] + (toPan[0] - from.pan[0]) * e, from.pan[1] + (toPan[1] - from.pan[1]) * e],
+      };
+      draw();
       if (k < 1) frame = requestAnimationFrame(step);
       else if (selected) onFocusSettledRef.current?.(selected);
     };
     frame = requestAnimationFrame(step);
     return () => cancelAnimationFrame(frame);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selected, geo, view]);
+  }, [selected, geo, view, draw, setSpin]);
+
+  const zoomBy = useCallback(
+    (factor: number) => {
+      cam.current = { ...cam.current, zoom: clamp(cam.current.zoom * factor, MIN_ZOOM, MAX_ZOOM) };
+      draw();
+    },
+    [draw]
+  );
 
   // Zoom con pinch del trackpad / Ctrl+rotella: la rotella semplice continua a scorrere la pagina.
   useEffect(() => {
@@ -209,16 +347,16 @@ export const WorldMap: React.FC<WorldMapProps> = ({
     const onWheel = (e: WheelEvent) => {
       if (!e.ctrlKey && !e.metaKey) return;
       e.preventDefault();
-      setZoom((z) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, z * Math.exp(-e.deltaY * 0.01))));
+      zoomBy(Math.exp(-e.deltaY * 0.01));
     };
     el.addEventListener('wheel', onWheel, { passive: false });
     return () => el.removeEventListener('wheel', onWheel);
-  }, []);
+  }, [zoomBy]);
 
   const onPointerDown = (e: React.PointerEvent) => {
     (e.target as Element).setPointerCapture?.(e.pointerId);
     drag.current = { x: e.clientX, y: e.clientY, moved: 0 };
-    setSpinning(false);
+    setSpin(false);
   };
   const onPointerMove = (e: React.PointerEvent) => {
     const d = drag.current;
@@ -228,12 +366,14 @@ export const WorldMap: React.FC<WorldMapProps> = ({
     d.x = e.clientX;
     d.y = e.clientY;
     d.moved += Math.abs(dx) + Math.abs(dy);
+    const c = cam.current;
     if (view === 'globe') {
-      const k = 0.25 / zoom;
-      setRotation(([l, p]) => [l + dx * k, Math.max(-80, Math.min(80, p - dy * k))]);
+      const k = 0.25 / c.zoom;
+      cam.current = { ...c, rotation: [c.rotation[0] + dx * k, clamp(c.rotation[1] - dy * k, -80, 80)] };
     } else {
-      setPan(([x, y]) => [x + dx, y + dy]);
+      cam.current = { ...c, pan: [c.pan[0] + dx, c.pan[1] + dy] };
     }
+    draw();
   };
   const onPointerUp = () => {
     // il click su un paese arriva comunque: `moved` dice se era un trascinamento
@@ -245,22 +385,16 @@ export const WorldMap: React.FC<WorldMapProps> = ({
   };
 
   const resetView = () => {
-    setZoom(1);
-    setPan([0, 0]);
-    setRotation([-12, -30]);
+    cam.current = { rotation: INITIAL_ROTATION, zoom: 1, pan: [0, 0] };
+    draw();
     onSelect(null);
   };
 
-  // Paesi senza poligono a questa risoluzione (Malta, Singapore, Andorra...):
-  // un puntino nel loro centro, solo se hanno uno stato da mostrare.
-  const tinyCountries = useMemo(() => {
-    const withShape = new Set(geo.features.map((f) => f.code).filter(Boolean));
-    const codes = new Set([...countries.keys(), ...(homeCode ? [homeCode] : [])]);
-    return [...codes]
-      .filter((code) => !withShape.has(code))
-      .map((code) => ({ code, latlng: geo.index.find((c) => c.code === code)?.latlng ?? null }))
-      .filter((c): c is { code: string; latlng: [number, number] } => !!c.latlng);
-  }, [geo, countries, homeCode]);
+  const showHover = (code: string) => (e: React.PointerEvent) => {
+    if (drag.current) return;
+    const box = containerRef.current?.getBoundingClientRect();
+    if (box) setHover({ code, x: e.clientX - box.left, y: e.clientY - box.top });
+  };
 
   const hoverStatus = hover ? statusOf(hover.code) : null;
 
@@ -289,9 +423,9 @@ export const WorldMap: React.FC<WorldMapProps> = ({
           </radialGradient>
         </defs>
 
-        <path d={path(SPHERE) ?? undefined} style={{ fill: 'var(--atlas-ocean)' }} onClick={() => handleCountryClick(null)} />
+        <path ref={sphereEl} style={{ fill: 'var(--atlas-ocean)' }} onClick={() => handleCountryClick(null)} />
         <path
-          d={path(geoGraticule10()) ?? undefined}
+          ref={graticuleEl}
           fill="none"
           strokeWidth={0.5}
           className="pointer-events-none"
@@ -301,76 +435,87 @@ export const WorldMap: React.FC<WorldMapProps> = ({
         {geo.features.map((f, i) => {
           const status = statusOf(f.code);
           const isSelected = !!f.code && f.code === selected;
-          const d = path(f);
-          if (!d) return null;
           return (
             <path
               key={`${f.id ?? f.properties.name}-${i}`}
-              d={d}
-              onClick={() => handleCountryClick(f.code)}
-              onPointerMove={(e) => {
-                if (!f.code || drag.current) return;
-                const box = containerRef.current?.getBoundingClientRect();
-                if (box) setHover({ code: f.code, x: e.clientX - box.left, y: e.clientY - box.top });
+              ref={(el) => {
+                countryEls.current[i] = el;
               }}
+              onClick={() => handleCountryClick(f.code)}
+              onPointerMove={f.code ? showHover(f.code) : undefined}
               onPointerLeave={() => setHover(null)}
-              className="transition-[filter] duration-150 hover:brightness-110 cursor-pointer"
-              strokeWidth={isSelected ? 1.8 : 0.5}
+              className={`transition-[filter] duration-150 hover:brightness-110 cursor-pointer ${isSelected ? 'atlas-pulse' : ''}`}
+              strokeWidth={isSelected ? 1.5 : 0.5}
               style={{
                 fill: status ? FILL[status] : 'var(--atlas-land)',
-                stroke: isSelected ? '#003366' : 'var(--atlas-border)',
+                stroke: isSelected ? 'var(--atlas-selected-stroke)' : 'var(--atlas-border)',
+                ...(isSelected ? pulseStyle(status) : null),
               }}
             />
           );
         })}
 
-        {/* Paesi piccoli: anello nel colore del loro stato */}
-        {tinyCountries.map(({ code, latlng }) => {
+        {/* Paesi piccoli: pallino nel colore del loro stato */}
+        {tinyCountries.map(({ code }) => {
           const status = statusOf(code);
-          if (!status || !isVisible(latlng[1], latlng[0])) return null;
-          const pt = projection([latlng[1], latlng[0]]);
-          if (!pt) return null;
+          if (!status) return null;
           return (
             <circle
               key={code}
-              cx={pt[0]}
-              cy={pt[1]}
+              ref={(el) => {
+                if (el) tinyEls.current.set(code, el);
+                else tinyEls.current.delete(code);
+              }}
               r={code === selected ? 6 : 4.5}
               strokeWidth={1.5}
               onClick={() => handleCountryClick(code)}
-              onPointerMove={(e) => {
-                const box = containerRef.current?.getBoundingClientRect();
-                if (box) setHover({ code, x: e.clientX - box.left, y: e.clientY - box.top });
-              }}
+              onPointerMove={showHover(code)}
               onPointerLeave={() => setHover(null)}
-              className="cursor-pointer"
-              style={{ fill: FILL[status], stroke: 'var(--atlas-border)' }}
+              className={`cursor-pointer ${code === selected ? 'atlas-pulse' : ''}`}
+              style={{ fill: FILL[status], stroke: 'var(--atlas-border)', ...(code === selected ? pulseStyle(status) : null) }}
             />
           );
         })}
 
         {/* Città visitate */}
-        {cities
-          .filter((c) => c.visited && isVisible(c.lon, c.lat))
-          .map((c) => {
-            const pt = projection([c.lon, c.lat]);
-            if (!pt) return null;
-            return (
-              <circle
-                key={c.key}
-                cx={pt[0]}
-                cy={pt[1]}
-                r={2.2}
-                strokeWidth={1}
-                className="pointer-events-none fill-deep-blue dark:fill-white"
-                style={{ stroke: 'var(--atlas-border)' }}
-              />
-            );
-          })}
+        {visitedCities.map((c) => (
+          <circle
+            key={c.key}
+            ref={(el) => {
+              if (el) cityEls.current.set(c.key, el);
+              else cityEls.current.delete(c.key);
+            }}
+            r={3.4}
+            strokeWidth={1.2}
+            className="pointer-events-none fill-deep-blue dark:fill-white"
+            style={{ stroke: 'var(--atlas-border)' }}
+          />
+        ))}
 
-        {view === 'globe' && (
-          <path d={path(SPHERE) ?? undefined} fill="url(#atlas-shade)" className="pointer-events-none" />
+        {/* Nomi delle città del paese in cui si è entrati */}
+        {labeledCities.map((c) => (
+          <text
+            key={c.key}
+            ref={(el) => {
+              if (el) labelEls.current.set(c.key, el);
+              else labelEls.current.delete(c.key);
+            }}
+            className="pointer-events-none text-[11px] font-semibold fill-slate-700 dark:fill-slate-100"
+            style={{ paintOrder: 'stroke', stroke: 'var(--atlas-land)', strokeWidth: 3 }}
+          >
+            {c.city}
+          </text>
+        ))}
+
+        {/* Casa (città di casa dal profilo) */}
+        {homeCoords && (
+          <g ref={homeEl} className="pointer-events-none">
+            <circle r={10} strokeWidth={1.5} style={{ fill: 'var(--atlas-home)', stroke: 'var(--atlas-border)' }} />
+            <House x={-6} y={-6} width={12} height={12} strokeWidth={2.4} className="text-white" />
+          </g>
         )}
+
+        {view === 'globe' && <path ref={shadeEl} fill="url(#atlas-shade)" className="pointer-events-none" />}
       </svg>
 
       {hover && (
@@ -386,9 +531,16 @@ export const WorldMap: React.FC<WorldMapProps> = ({
       {/* Controlli: zoom e ritorno alla vista iniziale */}
       <div className="absolute right-3 bottom-3 flex flex-col gap-1.5">
         {[
-          { icon: Plus, label: t('atlas.zoomIn'), onClick: () => setZoom((z) => Math.min(MAX_ZOOM, z * 1.5)) },
-          { icon: Minus, label: t('atlas.zoomOut'), onClick: () => setZoom((z) => Math.max(MIN_ZOOM, z / 1.5)) },
+          { icon: Plus, label: t('atlas.zoomIn'), onClick: () => zoomBy(1.5) },
+          { icon: Minus, label: t('atlas.zoomOut'), onClick: () => zoomBy(1 / 1.5) },
           { icon: RotateCcw, label: t('atlas.resetView'), onClick: resetView },
+          ...(view === 'globe'
+            ? [
+                spinOn
+                  ? { icon: Pause, label: t('atlas.pauseRotation'), onClick: () => setSpin(false) }
+                  : { icon: Play, label: t('atlas.resumeRotation'), onClick: () => setSpin(true) },
+              ]
+            : []),
         ].map(({ icon: Icon, label, onClick }) => (
           <button
             key={label}

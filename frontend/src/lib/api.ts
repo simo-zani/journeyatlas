@@ -522,6 +522,12 @@ export const setAtlasMark = async (countryCode: string, regionKey: string, marke
   if (error) throw error;
 };
 
+/** Toglie tutti i segni a mano di un paese (il paese intero e le sue regioni). */
+export const clearAtlasMarks = async (countryCode: string): Promise<void> => {
+  const { error } = await supabase.from('atlas_marks').delete().eq('country_code', countryCode);
+  if (error) throw error;
+};
+
 /** Codice paese (alpha-2 maiuscolo) -> continente, dalla tabella country_continents. */
 export const fetchCountryContinents = async (): Promise<Map<string, string>> => {
   const { data, error } = await supabase.from('country_continents').select('code, continent');

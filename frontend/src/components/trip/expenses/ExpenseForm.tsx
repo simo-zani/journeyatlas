@@ -49,7 +49,7 @@ function Segmented<T extends string>({ value, options, onChange, layoutId }: Seg
             type="button"
             onClick={() => onChange(o.value)}
             aria-pressed={selected}
-            className={`relative flex items-center gap-1.5 h-8 px-4 rounded-full text-xs font-bold whitespace-nowrap transition-colors duration-200 cursor-pointer ${
+            className={`relative flex items-center gap-1.5 h-[32px] px-[16px] rounded-full text-xs font-bold whitespace-nowrap transition-colors duration-200 cursor-pointer ${
               selected ? 'text-slate-950' : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
             }`}
           >
@@ -364,7 +364,7 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
       {currency !== baseCurrency && (
         <div className="flex flex-wrap items-center gap-3 p-3.5 rounded-xl border border-gold/30 bg-gold/[0.04] text-sm">
           <span className="font-semibold text-slate-700 dark:text-slate-300">1 {currency} =</span>
-          <div className="w-32">
+          <div className="w-[128px]">
             <Input
               inputMode="decimal"
               value={rateStr}
@@ -550,7 +550,7 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
                   ) : (
                     <>
                       {splitMode === 'shares' && (
-                        <div className="w-16 shrink-0">
+                        <div className="w-[64px] shrink-0">
                           <Input
                             inputMode="decimal"
                             value={shares[id] ?? ''}
@@ -561,7 +561,7 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
                           />
                         </div>
                       )}
-                      <span className="w-24 shrink-0 text-right text-sm font-semibold tabular-nums text-slate-600 dark:text-slate-300">
+                      <span className="w-[96px] shrink-0 text-right text-sm font-semibold tabular-nums text-slate-600 dark:text-slate-300">
                         {isIn ? fmt(cents) : '—'}
                       </span>
                     </>

@@ -2,14 +2,21 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ArrowLeft, Building2, Check, Compass, Earth, Globe2, Loader2, Map as MapIcon, Plane } from 'lucide-react';
+import { ArrowLeft, Building2, Check, Compass, Earth, Globe2, Layers, Loader2, Map as MapIcon, Plane } from 'lucide-react';
 import { Card } from '@/components/Card';
 import { Alert } from '@/components/Alert';
 import { CountryFlag } from '@/components/CountryFlag';
 import { WorldMap, type MapView } from '@/components/atlas/WorldMap';
 import { RegionMap, type RegionState } from '@/components/atlas/RegionMap';
 import { useAuth } from '@/auth/AuthContext';
-import { fetchAtlasMarks, fetchCountryContinents, fetchMyTrips, fetchTransportsForTrips, setAtlasMark } from '@/lib/api';
+import {
+  clearAtlasMarks,
+  fetchAtlasMarks,
+  fetchCountryContinents,
+  fetchMyTrips,
+  fetchTransportsForTrips,
+  setAtlasMark,
+} from '@/lib/api';
 import {
   buildAtlas,
   isTripStarted,
@@ -88,6 +95,8 @@ export const AtlasPage: React.FC = () => {
   const [regionsLoading, setRegionsLoading] = useState(false);
   // Paese su cui l'animazione del mondo è arrivata: solo allora compaiono le regioni.
   const [settled, setSettled] = useState<string | null>(null);
+  // Vista per regioni accesa/spenta a mano: resta com'è passando da un paese all'altro.
+  const [regionsOn, setRegionsOn] = useState(false);
   // Ogni nuova selezione riparte da capo: le regioni aspettano la fine del nuovo volo.
   useEffect(() => setSettled(null), [selected]);
 
@@ -220,7 +229,8 @@ export const AtlasPage: React.FC = () => {
   // Le regioni sono "aperte" appena caricate (barra e pannello si aggiornano subito);
   // la mappa delle regioni compare però solo quando il volo verso il paese è finito.
   const showRegions = hasRegions && regions?.code === selected;
-  const regionMapVisible = showRegions && settled === selected;
+  const regionFlags = selectedCca3 ? regionIndex[selectedCca3]?.flags : undefined;
+  const regionMapVisible = showRegions && settled === selected && regionsOn;
 
   const regionStates = useMemo(() => {
     const states = new Map<string, RegionState>();
@@ -265,13 +275,37 @@ export const AtlasPage: React.FC = () => {
     }
   };
 
+  // Interruttore "Visitato" del pannello: acceso = paese sbloccato. Spegnerlo toglie
+  // i segni a mano (paese e regioni); se invece lo sblocca un viaggio non si può.
+  const [visitedWarning, setVisitedWarning] = useState<string[] | null>(null);
+  useEffect(() => setVisitedWarning(null), [selected]);
+
+  const toggleCountryVisited = async (code: string) => {
+    const country = atlas?.countries.get(code);
+    const blockingTrips = (country?.trips ?? []).filter((tr) => tr.started && tr.asDestination);
+    if (country?.status !== 'visited') {
+      await toggleMark(code, '');
+      return;
+    }
+    if (blockingTrips.length > 0) {
+      setVisitedWarning(blockingTrips.map((tr) => tr.name));
+      return;
+    }
+    const prev = marks;
+    setMarks(marks.filter((m) => m.country_code !== code));
+    try {
+      await clearAtlasMarks(code);
+    } catch (err) {
+      setMarks(prev);
+      setError(err instanceof Error ? err.message : t('common.error'));
+    }
+  };
+
   // --------------------------------------------------------------- vista
   const visitedCities = atlas?.cities.filter((c) => c.visited).length ?? 0;
   const worldPercent = Math.round((visitedByKind.sovereign / WORLD_COUNTRY_COUNT) * 1000) / 10;
   const selectedCountry = selected ? atlas?.countries.get(selected) ?? null : null;
-  const countryMarked = !!selected && marks.some((m) => m.country_code === selected && m.region_key === '');
-  // Il segno a mano sul paese serve solo se i viaggi non lo sbloccano già.
-  const canMarkCountry = !!selected && !selectedCountry?.trips.some((tr) => tr.started && tr.asDestination);
+  const countryVisited = selectedCountry?.status === 'visited';
 
   const formatRange = (start: string | null, end: string | null) => {
     const fmt = (d: string) =>
@@ -323,7 +357,7 @@ export const AtlasPage: React.FC = () => {
   ];
 
   const legend = (
-    <ul className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300">
+    <ul className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300">
       {(regionMapVisible ? (['visited', 'transit', 'planned'] as const) : (['visited', 'transit', 'planned', 'home'] as const)).map((s) => (
         <li key={s} className="inline-flex items-center gap-1.5">
           <Swatch status={s} />
@@ -350,9 +384,9 @@ export const AtlasPage: React.FC = () => {
         )
       ) : (
         <div className="space-y-6">
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
             {tiles.map(({ key, icon: Icon, label, value, suffix, hint, progress }) => (
-              <Card key={key} compact className="card-static">
+              <Card key={key} className="card-static !px-6 !py-5">
                 <div className="flex items-center gap-3">
                   <div className="w-[42px] h-[42px] rounded-xl bg-gold/15 border border-gold/40 flex items-center justify-center text-gold shrink-0">
                     <Icon className="w-5 h-5" strokeWidth={2.2} />
@@ -386,17 +420,7 @@ export const AtlasPage: React.FC = () => {
                 className="flex flex-wrap items-center justify-between gap-3 px-5 py-3.5"
                 style={{ borderBottom: '1px solid var(--border-subtle)' }}
               >
-                {regionMapVisible && selected ? (
-                  <button
-                    type="button"
-                    onClick={() => setSelected(null)}
-                    className="inline-flex items-center gap-2 text-sm font-semibold hover:text-gold transition-colors cursor-pointer"
-                  >
-                    <ArrowLeft className="w-5 h-5" />
-                    <CountryFlag code={selected} size="sm" />
-                    {t('atlas.regions.title', { country: countryName(selected) })}
-                  </button>
-                ) : (
+                <div className="flex flex-wrap items-center gap-3">
                   <div className="flex items-center gap-1 bg-slate-900/80 dark:bg-slate-900/85 border border-slate-700/60 dark:border-white/10 p-1 rounded-full shadow-md">
                     {(
                       [
@@ -409,7 +433,7 @@ export const AtlasPage: React.FC = () => {
                         type="button"
                         onClick={() => setView(mode)}
                         aria-pressed={view === mode}
-                        className={`relative flex items-center gap-2 px-4 py-1 rounded-full text-xs font-bold whitespace-nowrap transition-colors duration-200 cursor-pointer ${
+                        className={`relative flex items-center gap-2 px-5 py-1 rounded-full text-xs font-bold whitespace-nowrap transition-colors duration-200 cursor-pointer ${
                           view === mode ? 'text-slate-950' : 'text-slate-400 hover:text-slate-100 hover:bg-white/10'
                         }`}
                       >
@@ -425,7 +449,36 @@ export const AtlasPage: React.FC = () => {
                       </button>
                     ))}
                   </div>
-                )}
+                  {/* Interruttore della vista per regioni: compare solo quando si è su un
+                      paese che ha le regioni; la si apre e chiude a mano. */}
+                  {hasRegions && selected && (
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={regionsOn}
+                      onClick={() => setRegionsOn((v) => !v)}
+                      title={t('atlas.regions.toggleTitle', { country: countryName(selected) })}
+                      className="inline-flex items-center gap-2.5 cursor-pointer select-none"
+                    >
+                      <span
+                        className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${
+                          regionsOn ? 'bg-gold' : 'bg-slate-300 dark:bg-white/15'
+                        }`}
+                      >
+                        <span
+                          className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform duration-200 ${
+                            regionsOn ? 'translate-x-5' : ''
+                          }`}
+                        />
+                      </span>
+                      <span className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-600 dark:text-slate-300">
+                        <Layers className="w-5 h-5" />
+                        {t('atlas.regions.toggle')}
+                        <CountryFlag code={selected} size="xs" />
+                      </span>
+                    </button>
+                  )}
+                </div>
                 {legend}
               </div>
               <div className="p-2 sm:p-4">
@@ -443,6 +496,7 @@ export const AtlasPage: React.FC = () => {
                     onSelect={setSelected}
                     countryName={countryName}
                     onFocusSettled={setSettled}
+                    homeCoords={homeCity?.coords ?? null}
                   />
                   <AnimatePresence>
                     {regionMapVisible && selected && regions && (
@@ -459,13 +513,15 @@ export const AtlasPage: React.FC = () => {
                           regions={regions.features}
                           states={regionStates}
                           cities={atlas.cities}
+                          homeCoords={homeCity?.coords ?? null}
+                          flags={regionFlags}
                           onToggle={(name) => void toggleMark(selected, name)}
                         />
                       </motion.div>
                     )}
                   </AnimatePresence>
                 </div>
-                {regionsLoading && settled === selected && !showRegions && (
+                {regionsLoading && regionsOn && settled === selected && !showRegions && (
                   <p className="mt-2 text-center text-xs text-slate-400 inline-flex w-full justify-center items-center gap-2">
                     <Loader2 className="w-5 h-5 animate-spin text-gold" />
                     {t('atlas.regions.loading')}
@@ -490,7 +546,7 @@ export const AtlasPage: React.FC = () => {
                   </button>
                   <div className="flex items-center gap-3">
                     <CountryFlag code={selected} size="lg" />
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                       <h3 className="font-poppins font-semibold text-lg flex items-center gap-2 min-w-0">
                         <span className="truncate">{countryName(selected)}</span>
                         <KindTag kind={kindOf(selected)} />
@@ -513,21 +569,30 @@ export const AtlasPage: React.FC = () => {
                         {continentOf(selected) && <span>· {t(`atlas.continent.${continentOf(selected)}`)}</span>}
                       </p>
                     </div>
-                  </div>
-
-                  {canMarkCountry && (
+                    {/* Check "visitato": segna/toglie a mano il paese */}
                     <button
                       type="button"
-                      onClick={() => void toggleMark(selected, '')}
-                      className={`w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-colors cursor-pointer ${
-                        countryMarked
-                          ? 'bg-slate-900/5 dark:bg-white/10 hover:bg-slate-900/10 dark:hover:bg-white/15'
-                          : 'bg-gold/15 text-gold-dark dark:text-gold-light ring-1 ring-gold/40 hover:bg-gold/25'
+                      role="checkbox"
+                      aria-checked={countryVisited}
+                      onClick={() => void toggleCountryVisited(selected)}
+                      title={countryVisited ? t('atlas.unmarkVisited') : t('atlas.markVisited')}
+                      aria-label={countryVisited ? t('atlas.unmarkVisited') : t('atlas.markVisited')}
+                      className={`ml-auto w-9 h-9 rounded-full border-2 flex items-center justify-center shrink-0 transition-all cursor-pointer ${
+                        countryVisited
+                          ? 'bg-gold border-gold text-slate-950 shadow-sm shadow-gold/30'
+                          : 'border-slate-300 dark:border-slate-600 text-transparent hover:border-gold hover:text-gold/50'
                       }`}
                     >
-                      <Check className="w-5 h-5" />
-                      {countryMarked ? t('atlas.unmarkCountry') : t('atlas.markCountry')}
+                      <Check className="w-5 h-5" strokeWidth={3} />
                     </button>
+                  </div>
+
+                  {visitedWarning && (
+                    <Alert
+                      type="warning"
+                      message={t('atlas.visitedLocked', { count: visitedWarning.length, trips: visitedWarning.join(', ') })}
+                      onClose={() => setVisitedWarning(null)}
+                    />
                   )}
 
                   {selectedCountry && selectedCountry.trips.length > 0 && (
@@ -589,6 +654,14 @@ export const AtlasPage: React.FC = () => {
                                 >
                                   <Check className="w-3.5 h-3.5" strokeWidth={3} />
                                 </span>
+                                {regionFlags?.[name] && (
+                                  <img
+                                    src={regionFlags[name]}
+                                    alt=""
+                                    loading="lazy"
+                                    className="h-[20px] w-[30px] object-cover rounded-[4px] ring-1 ring-black/10 shrink-0"
+                                  />
+                                )}
                                 <span className="flex-1 min-w-0 truncate">{name}</span>
                                 {state && state.status !== 'visited' && <Swatch status={state.status} />}
                                 {auto && <span className="text-[10px] text-slate-400 shrink-0">{t('atlas.regions.fromTripsShort')}</span>}

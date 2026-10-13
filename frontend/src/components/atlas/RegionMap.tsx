@@ -2,8 +2,10 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { geoAlbersUsa, geoBounds, geoConicEqualArea, geoPath, type GeoProjection } from 'd3-geo';
 import type { FeatureCollection, Geometry } from 'geojson';
+import { House } from 'lucide-react';
 import type { AtlasCity, CountryStatus } from '@/lib/atlas';
-import type { GeoFeature } from '@/lib/atlasGeo';
+import { regionAt, type GeoFeature } from '@/lib/atlasGeo';
+import type { Coordinates } from '@/lib/types';
 
 export interface RegionState {
   status: CountryStatus;
@@ -18,6 +20,10 @@ interface RegionMapProps {
   cities: AtlasCity[];
   /** Segna/toglie a mano una regione; assente = sola lettura. */
   onToggle?: (region: string) => void;
+  /** Città di casa dal profilo: si mostra solo se cade in questo paese. */
+  homeCoords?: Coordinates | null;
+  /** Bandiere delle regioni, se il paese le ha tutte. */
+  flags?: Record<string, string>;
 }
 
 const FILL: Record<CountryStatus, string> = {
@@ -41,7 +47,7 @@ const projectionFor = (code: string, collection: FeatureCollection<Geometry>, w:
     .fitExtent([[pad, pad], [w - pad, h - pad]], collection);
 };
 
-export const RegionMap: React.FC<RegionMapProps> = ({ countryCode, regions, states, cities, onToggle }) => {
+export const RegionMap: React.FC<RegionMapProps> = ({ countryCode, regions, states, cities, onToggle, homeCoords = null, flags }) => {
   const { t } = useTranslation();
   const containerRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ width: 800, height: 500 });
@@ -64,6 +70,11 @@ export const RegionMap: React.FC<RegionMapProps> = ({ countryCode, regions, stat
   const path = useMemo(() => geoPath(projection), [projection]);
 
   const hoverState = hover ? states.get(hover.name) : undefined;
+  const homeInCountry = useMemo(
+    () => !!homeCoords && regionAt(regions, homeCoords.lat, homeCoords.lon) !== null,
+    [homeCoords, regions]
+  );
+  const homePoint = homeInCountry && homeCoords ? projection([homeCoords.lon, homeCoords.lat]) : null;
 
   return (
     <div ref={containerRef} className="absolute inset-0 select-none bg-[var(--surface-1)]">
@@ -103,13 +114,19 @@ export const RegionMap: React.FC<RegionMapProps> = ({ countryCode, regions, stat
             if (!pt) return null;
             return (
               <g key={c.key} className="pointer-events-none">
-                <circle cx={pt[0]} cy={pt[1]} r={3} strokeWidth={1.2} className="fill-deep-blue dark:fill-white" style={{ stroke: 'var(--atlas-border)' }} />
+                <circle cx={pt[0]} cy={pt[1]} r={3.4} strokeWidth={1.2} className="fill-deep-blue dark:fill-white" style={{ stroke: 'var(--atlas-border)' }} />
                 <text x={pt[0] + 6} y={pt[1] + 4} className="text-[11px] font-semibold fill-slate-700 dark:fill-slate-200" style={{ paintOrder: 'stroke', stroke: 'var(--surface-1)', strokeWidth: 3 }}>
                   {c.city}
                 </text>
               </g>
             );
           })}
+        {homePoint && (
+          <g transform={`translate(${homePoint[0]} ${homePoint[1]})`} className="pointer-events-none">
+            <circle r={10} strokeWidth={1.5} style={{ fill: 'var(--atlas-home)', stroke: 'var(--atlas-border)' }} />
+            <House x={-6} y={-6} width={12} height={12} strokeWidth={2.4} className="text-white" />
+          </g>
+        )}
       </svg>
 
       {hover && (
@@ -117,6 +134,9 @@ export const RegionMap: React.FC<RegionMapProps> = ({ countryCode, regions, stat
           className="pointer-events-none absolute z-10 rounded-lg bg-slate-900/90 text-white text-xs px-2.5 py-1.5 shadow-lg whitespace-nowrap"
           style={{ left: hover.x + 12, top: hover.y + 12 }}
         >
+          {flags?.[hover.name] && (
+            <img src={flags[hover.name]} alt="" className="inline-block h-[16px] w-auto mr-1.5 -mt-0.5 rounded-[2px] align-middle" />
+          )}
           <span className="font-semibold">{hover.name}</span>
           <span className="text-white/70">
             {' · '}

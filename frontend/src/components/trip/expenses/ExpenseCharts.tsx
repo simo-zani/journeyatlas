@@ -205,7 +205,7 @@ const PersonBar: React.FC<PersonBarProps> = ({ cents, max, color, label, formatM
         style={{ width: `${(cents / max) * 100}%`, backgroundColor: color, minWidth: cents > 0 ? 4 : 0 }}
       />
     </div>
-    <span className="w-24 shrink-0 text-right text-xs font-semibold tabular-nums text-slate-600 dark:text-slate-300">
+    <span className="w-[96px] shrink-0 text-right text-xs font-semibold tabular-nums text-slate-600 dark:text-slate-300">
       {formatMoney(cents)}
     </span>
   </div>
@@ -336,7 +336,7 @@ const DailyBars: React.FC<Pick<ExpenseChartsProps, 'summary' | 'formatMoney' | '
           <span className="text-slate-400 dark:text-slate-500 text-xs">{t('expenses.chart.dailyHint')}</span>
         )}
       </div>
-      <div className="relative h-48 flex items-end gap-[2px] border-b border-[var(--border-subtle)]">
+      <div className="relative h-[192px] flex items-end gap-[2px] border-b border-[var(--border-subtle)]">
         {/* Griglia: metà e massimo, recessiva */}
         <div className="pointer-events-none absolute inset-x-0 top-0 border-t border-dashed border-[var(--border-subtle)]" />
         <div className="pointer-events-none absolute inset-x-0 top-1/2 border-t border-dashed border-[var(--border-subtle)]" />

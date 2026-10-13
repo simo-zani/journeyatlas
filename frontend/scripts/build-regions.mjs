@@ -26,6 +26,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import mapshaper from 'mapshaper';
+import { fixRegionName } from './region-names.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const OUT_DIR = path.join(here, '..', 'public', 'regions');
@@ -76,7 +77,10 @@ const buildCountry = async (meta) => {
   const iso = meta.boundaryISO;
   const raw = JSON.parse(await cached(`${iso}-${meta.boundaryType}.geojson`, meta.simplifiedGeometryGeoJSON));
   const excluded = new Set(EXCLUDE[iso] ?? []);
-  raw.features = raw.features.filter((f) => f.properties?.shapeName && !excluded.has(f.properties.shapeName));
+  raw.features = raw.features
+    .filter((f) => f.properties?.shapeName)
+    .map((f) => ({ ...f, properties: { ...f.properties, shapeName: fixRegionName(f.properties.shapeName) } }))
+    .filter((f) => !excluded.has(f.properties.shapeName));
   if (raw.features.length < 2) return null; // un'unica "regione" non dice nulla
   const topo = await toTopo(raw, 'shapeName');
   fs.writeFileSync(path.join(OUT_DIR, `${iso}.json`), topo);
@@ -111,7 +115,8 @@ const main = async () => {
   }
 
   const indexFile = path.join(OUT_DIR, 'index.json');
-  const index = only.length && fs.existsSync(indexFile) ? JSON.parse(fs.readFileSync(indexFile, 'utf8')) : {};
+  const previous = fs.existsSync(indexFile) ? JSON.parse(fs.readFileSync(indexFile, 'utf8')) : {};
+  const index = only.length ? previous : {};
   let next = 0;
   const worker = async () => {
     while (next < metas.length) {
@@ -119,7 +124,9 @@ const main = async () => {
       try {
         const info = await buildCountry(meta);
         if (info) {
-          index[meta.boundaryISO] = info;
+          // Le bandiere (build-region-flags.mjs) restano: rigenerare i confini non le perde.
+          const flags = previous[meta.boundaryISO]?.flags;
+          index[meta.boundaryISO] = flags ? { ...info, flags } : info;
           console.log(`${meta.boundaryISO} ${info.level}: ${info.count} regioni, ${(info.bytes / 1024).toFixed(1)} KB`);
         } else {
           delete index[meta.boundaryISO];

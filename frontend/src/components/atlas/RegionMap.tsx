@@ -11,6 +11,8 @@ export interface RegionState {
   status: CountryStatus;
   /** Segnata a mano (e non dai viaggi): si può togliere con un clic. */
   manual: boolean;
+  /** Viaggi (già iniziati) che l'hanno sbloccata. */
+  trips: { id: string; name: string }[];
 }
 
 interface RegionMapProps {
@@ -22,6 +24,8 @@ interface RegionMapProps {
   onToggle?: (region: string) => void;
   /** Città di casa dal profilo: si mostra solo se cade in questo paese. */
   homeCoords?: Coordinates | null;
+  /** Nome della città di casa, accanto all'icona. */
+  homeLabel?: string | null;
   /** Bandiere delle regioni, se il paese le ha tutte. */
   flags?: Record<string, string>;
   /** Nome da mostrare (tradotto) a partire dal nome originale della regione. */
@@ -49,7 +53,7 @@ const projectionFor = (code: string, collection: FeatureCollection<Geometry>, w:
     .fitExtent([[pad, pad], [w - pad, h - pad]], collection);
 };
 
-export const RegionMap: React.FC<RegionMapProps> = ({ countryCode, regions, states, cities, onToggle, homeCoords = null, flags, regionLabel = (n) => n }) => {
+export const RegionMap: React.FC<RegionMapProps> = ({ countryCode, regions, states, cities, onToggle, homeCoords = null, homeLabel = null, flags, regionLabel = (n) => n }) => {
   const { t } = useTranslation();
   const containerRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ width: 800, height: 500 });
@@ -71,7 +75,6 @@ export const RegionMap: React.FC<RegionMapProps> = ({ countryCode, regions, stat
   const projection = useMemo(() => projectionFor(countryCode, collection, width, height), [countryCode, collection, width, height]);
   const path = useMemo(() => geoPath(projection), [projection]);
 
-  const hoverState = hover ? states.get(hover.name) : undefined;
   const homeInCountry = useMemo(
     () => !!homeCoords && regionAt(regions, homeCoords.lat, homeCoords.lon) !== null,
     [homeCoords, regions]
@@ -127,6 +130,16 @@ export const RegionMap: React.FC<RegionMapProps> = ({ countryCode, regions, stat
           <g transform={`translate(${homePoint[0]} ${homePoint[1]})`} className="pointer-events-none">
             <circle r={10} strokeWidth={1.5} style={{ fill: 'var(--atlas-home)', stroke: 'var(--atlas-border)' }} />
             <House x={-6} y={-6} width={12} height={12} strokeWidth={2.4} className="text-white" />
+            {homeLabel && true && (
+              <text
+                x={15}
+                y={4}
+                className="text-[11px] font-semibold fill-slate-700 dark:fill-slate-100"
+                style={{ paintOrder: 'stroke', stroke: 'var(--atlas-land)', strokeWidth: 3 }}
+              >
+                {homeLabel}
+              </text>
+            )}
           </g>
         )}
       </svg>
@@ -134,18 +147,16 @@ export const RegionMap: React.FC<RegionMapProps> = ({ countryCode, regions, stat
       {hover && (
         <div
           className="pointer-events-none absolute z-10 rounded-lg bg-slate-900/90 text-white text-xs px-2.5 py-1.5 shadow-lg whitespace-nowrap"
-          style={{ left: hover.x + 12, top: hover.y + 12 }}
+          style={
+            hover.x > width / 2
+              ? { right: width - hover.x + 12, top: hover.y + 12 }
+              : { left: hover.x + 12, top: hover.y + 12 }
+          }
         >
           {flags?.[hover.name] && (
             <img src={flags[hover.name]} alt="" className="inline-block h-[16px] w-auto mr-1.5 -mt-0.5 rounded-[2px] align-middle" />
           )}
           <span className="font-semibold">{regionLabel(hover.name)}</span>
-          <span className="text-white/70">
-            {' · '}
-            {hoverState
-              ? `${t(`atlas.status.${hoverState.status}`)}${hoverState.manual ? ` (${t('atlas.regions.manual')})` : ''}`
-              : t('atlas.notVisited')}
-          </span>
         </div>
       )}
     </div>

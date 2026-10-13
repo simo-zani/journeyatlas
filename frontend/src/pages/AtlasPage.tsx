@@ -2,12 +2,26 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ArrowLeft, Building2, Check, Compass, Earth, Globe2, Layers, Loader2, Map as MapIcon, Plane } from 'lucide-react';
+import {
+  AlertTriangle,
+  ArrowLeft,
+  Building2,
+  Check,
+  Compass,
+  Earth,
+  Globe2,
+  Layers,
+  Loader2,
+  Map as MapIcon,
+  Plane,
+} from 'lucide-react';
 import { Card } from '@/components/Card';
 import { Alert } from '@/components/Alert';
+import { Modal } from '@/components/Modal';
 import { CountryFlag } from '@/components/CountryFlag';
 import { WorldMap, type MapView } from '@/components/atlas/WorldMap';
 import { RegionMap, type RegionState } from '@/components/atlas/RegionMap';
+import { TripsBadge } from '@/components/atlas/TripsBadge';
 import { useAuth } from '@/auth/AuthContext';
 import {
   clearAtlasMarks,
@@ -23,6 +37,7 @@ import {
   WORLD_COUNTRY_COUNT,
   type AtlasCountry,
   type AtlasTripInput,
+  type AtlasTripRef,
   type CountryStatus,
 } from '@/lib/atlas';
 import {
@@ -46,6 +61,13 @@ import type { AtlasMarkRow, TransportRow } from '@/lib/types';
 
 const CONTINENTS = ['europe', 'asia', 'africa', 'north-america', 'south-america', 'oceania', 'antarctica'] as const;
 const LIST_ORDER: CountryStatus[] = ['visited', 'transit', 'planned'];
+/** Paesi mostrati con il nome completo invece di quello breve del browser. */
+const NAME_OVERRIDES = new Set(['US']);
+/** Regioni mostrate ma escluse dal conteggio "x / N" (nome originale → sigla). Washington D.C.
+ * non è uno stato: gli USA contano 50 stati e il distretto si aggiunge a parte. */
+const UNCOUNTED_REGIONS: Record<string, Record<string, string>> = {
+  US: { 'District of Columbia': 'D.C.' },
+};
 const STATUS_RANK: Record<CountryStatus, number> = { visited: 3, transit: 2, planned: 1 };
 
 const todayIso = () => {
@@ -181,8 +203,13 @@ export const AtlasPage: React.FC = () => {
       return null;
     }
   }, [i18n.language]);
+  // Nomi dal browser (forma breve: "Stati Uniti"); le entità senza ISO e le poche
+  // eccezioni con la forma completa (atlas.entity.*) dalle traduzioni dell'app.
   const countryName = useCallback(
-    (code: string) => (code.startsWith('X-') ? t(`atlas.entity.${code}`) : (regionNames?.of(code) ?? code)),
+    (code: string) =>
+      code.startsWith('X-') || NAME_OVERRIDES.has(code)
+        ? t(`atlas.entity.${code}`)
+        : (regionNames?.of(code) ?? code),
     [regionNames, t]
   );
   const kindOf = useCallback((code: string): CountryKind => (geo ? countryKind(code, geo.index) : 'sovereign'), [geo]);
@@ -245,12 +272,15 @@ export const AtlasPage: React.FC = () => {
       const name = regionAt(regions.features, p.lat, p.lon);
       if (!name) continue;
       const prev = states.get(name);
-      if (!prev || STATUS_RANK[p.status] > STATUS_RANK[prev.status]) states.set(name, { status: p.status, manual: false });
+      const trips = prev?.trips ?? [];
+      if (p.status === 'visited' && !trips.some((tr) => tr.id === p.tripId)) trips.push({ id: p.tripId, name: p.tripName });
+      const status = !prev || STATUS_RANK[p.status] > STATUS_RANK[prev.status] ? p.status : prev.status;
+      states.set(name, { status, manual: false, trips });
     }
     for (const m of marks) {
       if (m.country_code !== selected || !m.region_key) continue;
       const prev = states.get(m.region_key);
-      if (!prev || prev.status !== 'visited') states.set(m.region_key, { status: 'visited', manual: true });
+      if (!prev || prev.status !== 'visited') states.set(m.region_key, { status: 'visited', manual: true, trips: [] });
     }
     return states;
   }, [atlas, regions, selected, marks]);
@@ -265,7 +295,13 @@ export const AtlasPage: React.FC = () => {
         : [],
     [regions, selected, i18n.language, regionLabel]
   );
-  const visitedRegions = regionNamesSorted.filter((n) => regionStates.get(n)?.status === 'visited').length;
+  // Unità che restano sulla mappa ma fuori dal conteggio (Washington D.C.: "x / 50" stati, "+ D.C." a parte).
+  const uncounted = (selected && UNCOUNTED_REGIONS[selected]) || {};
+  const countedRegions = regionNamesSorted.filter((n) => !(n in uncounted));
+  const visitedRegions = countedRegions.filter((n) => regionStates.get(n)?.status === 'visited').length;
+  const visitedExtras = regionNamesSorted
+    .filter((n) => n in uncounted && regionStates.get(n)?.status === 'visited')
+    .map((n) => uncounted[n]);
 
   const toggleMark = async (countryCode: string, regionKey: string) => {
     const has = marks.some((m) => m.country_code === countryCode && m.region_key === regionKey);
@@ -285,7 +321,7 @@ export const AtlasPage: React.FC = () => {
 
   // Interruttore "Visitato" del pannello: acceso = paese sbloccato. Spegnerlo toglie
   // i segni a mano (paese e regioni); se invece lo sblocca un viaggio non si può.
-  const [visitedWarning, setVisitedWarning] = useState<string[] | null>(null);
+  const [visitedWarning, setVisitedWarning] = useState<AtlasTripRef[] | null>(null);
   useEffect(() => setVisitedWarning(null), [selected]);
 
   const toggleCountryVisited = async (code: string) => {
@@ -296,7 +332,7 @@ export const AtlasPage: React.FC = () => {
       return;
     }
     if (blockingTrips.length > 0) {
-      setVisitedWarning(blockingTrips.map((tr) => tr.name));
+      setVisitedWarning(blockingTrips);
       return;
     }
     const prev = marks;
@@ -422,7 +458,7 @@ export const AtlasPage: React.FC = () => {
             ))}
           </div>
 
-          <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 items-start">
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
             <Card noPadding className="card-static xl:col-span-2">
               <div
                 className="flex flex-wrap items-center justify-between gap-3 px-5 py-3.5"
@@ -505,6 +541,7 @@ export const AtlasPage: React.FC = () => {
                     countryName={countryName}
                     onFocusSettled={setSettled}
                     homeCoords={homeCity?.coords ?? null}
+                    homeLabel={homeCity?.city ?? null}
                   />
                   <AnimatePresence>
                     {regionMapVisible && selected && regions && (
@@ -522,6 +559,7 @@ export const AtlasPage: React.FC = () => {
                           states={regionStates}
                           cities={atlas.cities}
                           homeCoords={homeCity?.coords ?? null}
+                          homeLabel={homeCity?.city ?? null}
                           flags={regionFlags}
                           regionLabel={regionLabel}
                           onToggle={(name) => void toggleMark(selected, name)}
@@ -542,9 +580,10 @@ export const AtlasPage: React.FC = () => {
               </div>
             </Card>
 
-            <Card className="card-static">
+            <div className="relative">
+              <Card className="card-static xl:absolute xl:inset-0 flex flex-col">
               {selected ? (
-                <div className="space-y-4">
+                <div className="space-y-4 flex flex-col min-h-0 xl:flex-1">
                   <button
                     type="button"
                     onClick={() => setSelected(null)}
@@ -560,23 +599,11 @@ export const AtlasPage: React.FC = () => {
                         <span className="truncate">{countryName(selected)}</span>
                         <KindTag kind={kindOf(selected)} />
                       </h3>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1.5 flex-wrap">
-                        {selectedCountry ? (
-                          <>
-                            <Swatch status={selectedCountry.status} />
-                            {t(`atlas.status.${selectedCountry.status}`)}
-                            {selectedCountry.manual && ` (${t('atlas.regions.manual')})`}
-                          </>
-                        ) : selected === nationality ? (
-                          <>
-                            <Swatch status="home" />
-                            {t('atlas.status.home')}
-                          </>
-                        ) : (
-                          t('atlas.notVisited')
-                        )}
-                        {continentOf(selected) && <span>· {t(`atlas.continent.${continentOf(selected)}`)}</span>}
-                      </p>
+                      {continentOf(selected) && (
+                        <p className="text-xs text-slate-500 dark:text-slate-400">
+                          {t(`atlas.continent.${continentOf(selected)}`)}
+                        </p>
+                      )}
                     </div>
                     {/* Check "visitato": segna/toglie a mano il paese */}
                     <button
@@ -596,21 +623,15 @@ export const AtlasPage: React.FC = () => {
                     </button>
                   </div>
 
-                  {visitedWarning && (
-                    <Alert
-                      type="warning"
-                      message={t('atlas.visitedLocked', { count: visitedWarning.length, trips: visitedWarning.join(', ') })}
-                      onClose={() => setVisitedWarning(null)}
-                    />
-                  )}
 
                   {selectedCountry && selectedCountry.trips.length > 0 && (
-                    <ul className="space-y-2">
+                    // Al massimo 3 viaggi visibili (righe da 60px + 2 spazi da 8px), gli altri scorrono.
+                    <ul className="space-y-2 shrink-0 max-h-[196px] overflow-y-auto pr-1">
                       {selectedCountry.trips.map((trip) => (
                         <li key={trip.id}>
                           <Link
                             to={`/trips/${trip.id}`}
-                            className="flex items-center justify-between gap-3 rounded-2xl bg-slate-900/5 dark:bg-white/5 hover:bg-slate-900/10 dark:hover:bg-white/10 px-3.5 py-2.5 no-underline hover:no-underline transition-colors"
+                            className="flex items-center justify-between gap-3 h-[60px] rounded-2xl bg-slate-900/5 dark:bg-white/5 hover:bg-slate-900/10 dark:hover:bg-white/10 px-3.5 no-underline hover:no-underline transition-colors"
                           >
                             <div className="min-w-0">
                               <p className="text-sm font-semibold truncate text-slate-800 dark:text-slate-100">{trip.name}</p>
@@ -628,33 +649,41 @@ export const AtlasPage: React.FC = () => {
 
                   {/* Regioni: conteggio ed elenco, con la casella per segnarle a mano */}
                   {showRegions && (
-                    <section className="pt-1">
+                    <section className="pt-1 flex flex-col min-h-0 xl:flex-1">
                       <div className="flex items-center justify-between gap-2 mb-1.5">
                         <h4 className="font-poppins font-semibold text-sm">{t('atlas.regions.listTitle')}</h4>
                         <span className="text-sm font-bold tabular-nums">
                           {visitedRegions}
-                          <span className="text-slate-400 font-semibold"> / {regionNamesSorted.length}</span>
+                          <span className="text-slate-400 font-semibold"> / {countedRegions.length}</span>
+                          {visitedExtras.map((short) => (
+                            <span key={short} className="ml-1.5 text-gold">
+                              + {short}
+                            </span>
+                          ))}
                         </span>
                       </div>
                       <div className="h-1.5 rounded-full bg-slate-900/5 dark:bg-white/10 overflow-hidden mb-3">
                         <div
                           className="h-full rounded-full bg-gold transition-[width] duration-500"
-                          style={{ width: `${regionNamesSorted.length ? (visitedRegions / regionNamesSorted.length) * 100 : 0}%` }}
+                          style={{ width: `${countedRegions.length ? (visitedRegions / countedRegions.length) * 100 : 0}%` }}
                         />
                       </div>
-                      <ul className="max-h-80 overflow-y-auto space-y-0.5 pr-1">
+                      <ul className="max-h-80 xl:max-h-none xl:flex-1 min-h-0 overflow-y-auto space-y-0.5 pr-1">
                         {regionNamesSorted.map((name) => {
                           const state = regionStates.get(name);
                           const auto = !!state && !state.manual && state.status === 'visited';
                           const checked = state?.status === 'visited';
                           return (
-                            <li key={name}>
+                            <li
+                              key={name}
+                              className="flex items-center gap-2 pr-2 rounded-lg hover:bg-slate-900/5 dark:hover:bg-white/5 transition-colors"
+                            >
                               <button
                                 type="button"
                                 disabled={auto}
                                 onClick={() => void toggleMark(selected, name)}
                                 title={auto ? t('atlas.regions.fromTrips') : undefined}
-                                className="w-full flex items-center gap-2.5 px-2 py-1.5 rounded-lg text-left text-sm hover:bg-slate-900/5 dark:hover:bg-white/5 transition-colors cursor-pointer disabled:cursor-default"
+                                className="flex-1 min-w-0 flex items-center gap-2.5 px-2 py-1.5 text-left text-sm cursor-pointer disabled:cursor-default"
                               >
                                 <span
                                   className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 ${
@@ -673,8 +702,9 @@ export const AtlasPage: React.FC = () => {
                                 )}
                                 <span className="flex-1 min-w-0 truncate">{regionLabel(name)}</span>
                                 {state && state.status !== 'visited' && <Swatch status={state.status} />}
-                                {auto && <span className="text-[10px] text-slate-400 shrink-0">{t('atlas.regions.fromTripsShort')}</span>}
                               </button>
+                              {/* Fuori dal pulsante della riga: è cliccabile da solo (link o elenco dei viaggi) */}
+                              {auto && <TripsBadge trips={state.trips} />}
                             </li>
                           );
                         })}
@@ -689,7 +719,7 @@ export const AtlasPage: React.FC = () => {
                   <p className="empty-state-message">{t('atlas.emptySub')}</p>
                 </div>
               ) : (
-                <div className="space-y-5">
+                <div className="space-y-5 min-h-0 xl:flex-1 xl:overflow-y-auto pr-1">
                   {LIST_ORDER.filter((s) => grouped[s].length > 0).map((status) => (
                     <section key={status}>
                       <h3 className="flex items-center gap-2 font-poppins font-semibold text-base mb-2">
@@ -722,9 +752,51 @@ export const AtlasPage: React.FC = () => {
                 </div>
               )}
             </Card>
+            </div>
           </div>
 
           <p className="text-[11px] text-slate-400 dark:text-slate-500 text-center">{t('atlas.credits')}</p>
+
+          <Modal
+            open={visitedWarning !== null}
+            onClose={() => setVisitedWarning(null)}
+            title={t('atlas.visitedLockedTitle')}
+            maxWidth="max-w-md"
+          >
+            <div className="space-y-5">
+              <div className="flex items-start gap-3 px-[18px] py-[14px] rounded-xl bg-warning/10 border border-warning/30">
+                <AlertTriangle className="w-5 h-5 text-warning shrink-0 mt-0.5" />
+                <p className="text-sm text-slate-700 dark:text-slate-200">
+                  {t('atlas.visitedLocked', {
+                    count: visitedWarning?.length ?? 0,
+                    country: selected ? countryName(selected) : '',
+                  })}
+                </p>
+              </div>
+              <ul className="space-y-2">
+                {visitedWarning?.map((trip) => (
+                  <li key={trip.id}>
+                    <Link
+                      to={`/trips/${trip.id}`}
+                      className="flex items-center justify-between gap-3 rounded-2xl bg-slate-900/5 dark:bg-white/5 hover:bg-slate-900/10 dark:hover:bg-white/10 px-[20px] py-3 no-underline hover:no-underline transition-colors"
+                    >
+                      <span className="text-sm font-semibold truncate text-slate-800 dark:text-slate-100">{trip.name}</span>
+                      <span className="text-xs text-slate-500 dark:text-slate-400 shrink-0">
+                        {formatRange(trip.start_date, trip.end_date)}
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+              <button
+                type="button"
+                onClick={() => setVisitedWarning(null)}
+                className="w-full px-6 py-3 rounded-xl text-sm font-bold bg-slate-900/5 dark:bg-white/10 hover:bg-slate-900/10 dark:hover:bg-white/15 cursor-pointer"
+              >
+                {t('share.removeBlockedOk')}
+              </button>
+            </div>
+          </Modal>
         </div>
       )}
     </div>

@@ -637,7 +637,7 @@ export const TripForm: React.FC<TripFormProps> = ({ onSuccess, initial, onDelete
               setDeleteError(null);
               setDeleteOpen(true);
             }}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold text-error hover:bg-error/10 transition-colors cursor-pointer"
+            className="inline-flex items-center gap-2 px-[16px] py-2.5 rounded-xl text-sm font-bold text-error hover:bg-error/10 transition-colors cursor-pointer"
           >
             <Trash2 className={`${MODAL_ICON_SIZE} shrink-0`} />
             {t('trip.delete.button')}
@@ -673,7 +673,7 @@ export const TripForm: React.FC<TripFormProps> = ({ onSuccess, initial, onDelete
           maxWidth="max-w-md"
         >
           <div className="space-y-5">
-            <div className="flex items-start gap-3 p-4 rounded-xl bg-error/10 border border-error/30">
+            <div className="flex items-start gap-3 px-[18px] py-[14px] rounded-xl bg-error/10 border border-error/30">
               <AlertTriangle className="w-6 h-6 text-error shrink-0" />
               <div className="space-y-1">
                 <p className="text-sm font-bold text-error">{t('trip.delete.irreversible')}</p>

@@ -410,7 +410,7 @@ const CurrencyBreakdown: React.FC<Pick<ExpenseChartsProps, 'expenses' | 'baseCur
       {rows.map(([code, r]) => {
         const percent = summary.total > 0 ? (r.base / summary.total) * 100 : 0;
         return (
-          <div key={code} className="rounded-2xl bg-slate-900/5 dark:bg-white/5 px-4 py-3">
+          <div key={code} className="rounded-2xl bg-slate-900/5 dark:bg-white/5 px-[18px] py-3">
             <div className="flex items-center justify-between gap-2">
               <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-gold/15 text-gold ring-1 ring-gold/30">
                 {code}

@@ -52,6 +52,9 @@ export interface AtlasPoint {
   lat: number;
   lon: number;
   status: CountryStatus;
+  /** Viaggio da cui viene il punto (per dire quale viaggio ha sbloccato la regione). */
+  tripId: string;
+  tripName: string;
 }
 
 export interface AtlasData {
@@ -128,7 +131,14 @@ export const buildAtlas = (inputs: AtlasTripInput[], today: string, manualCountr
     for (const d of destinations) {
       touch(d.code, destStatus, ref(true));
       if (!d.coords) continue;
-      points.push({ code: d.code.toUpperCase(), lat: d.coords.lat, lon: d.coords.lon, status: destStatus });
+      points.push({
+        code: d.code.toUpperCase(),
+        lat: d.coords.lat,
+        lon: d.coords.lon,
+        status: destStatus,
+        tripId: trip.id,
+        tripName: trip.name,
+      });
       const key = `${d.city.trim().toLowerCase()}|${d.code.toLowerCase()}`;
       const prev = cities.get(key);
       cities.set(key, {
@@ -147,7 +157,16 @@ export const buildAtlas = (inputs: AtlasTripInput[], today: string, manualCountr
       for (const s of transit) {
         if (dest.has(s.code.toUpperCase())) continue;
         touch(s.code, 'transit', ref(false));
-        if (s.coords) points.push({ code: s.code.toUpperCase(), lat: s.coords.lat, lon: s.coords.lon, status: 'transit' });
+        if (s.coords) {
+          points.push({
+            code: s.code.toUpperCase(),
+            lat: s.coords.lat,
+            lon: s.coords.lon,
+            status: 'transit',
+            tripId: trip.id,
+            tripName: trip.name,
+          });
+        }
       }
     }
   }

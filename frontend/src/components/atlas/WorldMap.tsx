@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useSta
 import { useTranslation } from 'react-i18next';
 import { House, Minus, Pause, Play, Plus, RotateCcw } from 'lucide-react';
 import {
+  geoContains,
   geoDistance,
   geoGraticule10,
   geoNaturalEarth1,
@@ -30,6 +31,8 @@ interface WorldMapProps {
   onFocusSettled?: (code: string) => void;
   /** Città di casa dal profilo: segnata con l'icona di una casa. */
   homeCoords?: Coordinates | null;
+  /** Nome della città di casa, mostrato accanto all'icona dentro il suo paese. */
+  homeLabel?: string | null;
 }
 
 /** Colori del lampeggio del paese selezionato: dal suo colore pieno a una
@@ -125,6 +128,7 @@ export const WorldMap: React.FC<WorldMapProps> = ({
   countryName,
   onFocusSettled,
   homeCoords = null,
+  homeLabel = null,
 }) => {
   const { t } = useTranslation();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -185,6 +189,14 @@ export const WorldMap: React.FC<WorldMapProps> = ({
   }, [geo, countries, homeCode]);
 
   const visitedCities = useMemo(() => cities.filter((c) => c.visited), [cities]);
+  // Paese in cui si trova casa: il suo nome compare (come per le mete) quando ci si entra.
+  const homeCountry = useMemo(
+    () =>
+      homeCoords
+        ? (geo.features.find((f) => f.code && geoContains(f, [homeCoords.lon, homeCoords.lat]))?.code ?? null)
+        : null,
+    [geo, homeCoords]
+  );
   // Entrando in un paese se ne mostrano i nomi delle città visitate.
   const labeledCities = useMemo(
     () => (selected ? visitedCities.filter((c) => c.countryCode === selected) : []),
@@ -396,7 +408,6 @@ export const WorldMap: React.FC<WorldMapProps> = ({
     if (box) setHover({ code, x: e.clientX - box.left, y: e.clientY - box.top });
   };
 
-  const hoverStatus = hover ? statusOf(hover.code) : null;
 
   return (
     <div ref={containerRef} className="relative w-full select-none" style={{ height }}>
@@ -512,6 +523,16 @@ export const WorldMap: React.FC<WorldMapProps> = ({
           <g ref={homeEl} className="pointer-events-none">
             <circle r={10} strokeWidth={1.5} style={{ fill: 'var(--atlas-home)', stroke: 'var(--atlas-border)' }} />
             <House x={-6} y={-6} width={12} height={12} strokeWidth={2.4} className="text-white" />
+            {homeLabel && !!selected && selected === homeCountry && (
+              <text
+                x={15}
+                y={4}
+                className="text-[11px] font-semibold fill-slate-700 dark:fill-slate-100"
+                style={{ paintOrder: 'stroke', stroke: 'var(--atlas-land)', strokeWidth: 3 }}
+              >
+                {homeLabel}
+              </text>
+            )}
           </g>
         )}
 
@@ -521,10 +542,13 @@ export const WorldMap: React.FC<WorldMapProps> = ({
       {hover && (
         <div
           className="pointer-events-none absolute z-10 rounded-lg bg-slate-900/90 text-white text-xs px-2.5 py-1.5 shadow-lg whitespace-nowrap"
-          style={{ left: hover.x + 12, top: hover.y + 12 }}
+          style={
+            hover.x > width / 2
+              ? { right: width - hover.x + 12, top: hover.y + 12 }
+              : { left: hover.x + 12, top: hover.y + 12 }
+          }
         >
           <span className="font-semibold">{countryName(hover.code)}</span>
-          {hoverStatus && <span className="text-white/70"> · {t(`atlas.status.${hoverStatus}`)}</span>}
         </div>
       )}
 

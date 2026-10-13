@@ -981,7 +981,6 @@
     "zoomOut": "Zoom out",
     "resetView": "Reset view",
     "allCountries": "All countries",
-    "notVisited": "Not visited yet",
     "noTripsHere": "No trips in this country, for now.",
     "noDates": "Dates to be set",
     "tripDone": "Done",
@@ -1000,7 +999,8 @@
       "X-SOL": "Somaliland",
       "X-ABK": "Abkhazia",
       "X-SOS": "South Ossetia",
-      "X-TRN": "Transnistria"
+      "X-TRN": "Transnistria",
+      "US": "United States of America"
     },
     "regions": {
       "mapLabel": "Map of the country regions",
@@ -1009,16 +1009,18 @@
       "hint": "Click a region to mark (or unmark) it by hand · those unlocked by trips stay",
       "manual": "marked by hand",
       "fromTrips": "Unlocked by a trip",
-      "fromTripsShort": "trip",
       "toggle": "Regions",
-      "toggleTitle": "Show or hide the regions of {{country}}"
+      "toggleTitle": "Show or hide the regions of {{country}}",
+      "timesVisited_one": "{{count}} time",
+      "timesVisited_other": "{{count}} times"
     },
     "credits": "Borders: Natural Earth · Regions: geoBoundaries (Runfola et al. 2020, CC BY 4.0) · Region flags: Wikidata / Wikimedia Commons · Country counts follow the 193 UN members plus Vatican City and Palestine",
-    "visitedLocked_one": "You cannot remove it: it is visited in the trip “{{trips}}”. Delete the trip first.",
-    "visitedLocked_other": "You cannot remove it: it is visited in the trips {{trips}}. Delete those trips first.",
+    "visitedLocked_one": "{{country}} is visited in the trip below. Delete the trip first to remove it.",
+    "visitedLocked_other": "{{country}} is visited in the trips below. Delete those trips first to remove it.",
     "markVisited": "Mark as visited",
     "unmarkVisited": "Remove visited mark",
     "pauseRotation": "Pause rotation",
-    "resumeRotation": "Resume rotation"
+    "resumeRotation": "Resume rotation",
+    "visitedLockedTitle": "You cannot remove this country"
   }
 }

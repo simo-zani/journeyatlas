@@ -1,23 +1,19 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { AlertTriangle, GripVertical, ImagePlus, Loader2, Lock, LockOpen, Plus, Sparkles, Trash2, Users, X } from 'lucide-react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { Loader2, Lock, LockOpen } from 'lucide-react';
 import { Button } from '@/components/Button';
 import { Input } from '@/components/Input';
 import { Alert } from '@/components/Alert';
-import { DestinationPicker } from '@/components/DestinationPicker';
-import { Modal } from '@/components/Modal';
-import { RemoveTravelerModal } from '@/components/trip/RemoveTravelerModal';
+import { CompanionsSection } from '@/components/CompanionsSection';
+import { CoverPicker } from '@/components/CoverPicker';
+import { ItineraryEditor } from '@/components/ItineraryEditor';
+import { DeleteTripButton } from '@/components/trip/DeleteTripButton';
 import { useAuth } from '@/auth/AuthContext';
 import { MODAL_ICON_SIZE } from '@/lib/ui';
-import { createTrip, deleteTrip, fetchTripParticipants, syncCompanions, updateTrip, type CompanionDraft } from '@/lib/api';
-import { compressImage } from '@/lib/image';
-import { supabase } from '@/lib/supabase';
-import {
-  isUnsplashConfigured,
-  searchUnsplashCovers,
-  trackUnsplashDownload,
-  type UnsplashSuggestion,
-} from '@/lib/unsplash';
+import { createTrip, updateTrip } from '@/lib/api';
+import { initialCover, saveCover, type CoverValue } from '@/lib/tripCover';
+import { useCompanions } from '@/lib/useCompanions';
 import type { Destination, Trip } from '@/lib/types';
 
 interface TripFormProps {
@@ -38,133 +34,18 @@ const isValidIsoDate = (value: string): boolean => {
 export const TripForm: React.FC<TripFormProps> = ({ onSuccess, initial, onDeleted }) => {
   const { t } = useTranslation();
   const { user } = useAuth();
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [name, setName] = useState(initial?.name ?? '');
   const [startDate, setStartDate] = useState(initial?.start_date ?? '');
   const [endDate, setEndDate] = useState(initial?.end_date ?? '');
   const [destinations, setDestinations] = useState<Destination[]>(initial?.destinations ?? []);
-  const [budget, setBudget] = useState(
-    initial?.budget_planned != null ? String(initial.budget_planned) : ''
-  );
   const [isPublic, setIsPublic] = useState<boolean>(initial?.is_public ?? false);
 
-  // Compagni di viaggio senza account (segnaposto a cui gli amici invitati si collegheranno).
-  const [companions, setCompanions] = useState<CompanionDraft[]>([]);
-  const [savedCompanions, setSavedCompanions] = useState<CompanionDraft[]>([]);
-  const [companionsLoading, setCompanionsLoading] = useState(false);
+  // Compagni (amici da invitare e persone senza account): stessa sezione del viaggio rapido.
+  const companionsState = useCompanions(initial?.id ?? null, user?.id ?? null);
 
-  useEffect(() => {
-    if (!initial) return;
-    let cancelled = false;
-    setCompanionsLoading(true);
-    fetchTripParticipants(initial.id)
-      .then((rows) => {
-        if (cancelled) return;
-        const unlinked = rows
-          .filter((r) => r.user_id === null && r.role !== 'owner')
-          .map((r) => ({ id: r.participant_id, name: r.display_name ?? '' }));
-        setSavedCompanions(unlinked);
-        setCompanions(unlinked);
-      })
-      .catch(() => undefined)
-      .finally(() => {
-        if (!cancelled) setCompanionsLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [initial?.id]);
-
-  const addCompanion = () => setCompanions((prev) => [...prev, { name: '' }]);
-  const renameCompanion = (index: number, name: string) =>
-    setCompanions((prev) => prev.map((c, i) => (i === index ? { ...c, name } : c)));
-  const removeCompanion = (index: number) => setCompanions((prev) => prev.filter((_, i) => i !== index));
-  // Compagno già salvato di cui si chiede conferma (quello nuovo, mai salvato, si toglie e basta).
-  const [removingCompanion, setRemovingCompanion] = useState<CompanionDraft | null>(null);
-
-  // Eliminazione del viaggio: conferma scrivendone il nome, perché è irreversibile.
-  const [deleteOpen, setDeleteOpen] = useState(false);
-  const [deleteConfirmText, setDeleteConfirmText] = useState('');
-  const [deleting, setDeleting] = useState(false);
-  const [deleteError, setDeleteError] = useState<string | null>(null);
-  const canDelete = !!initial && deleteConfirmText.trim() === initial.name.trim();
-
-  const handleDeleteTrip = async () => {
-    if (!initial || !canDelete) return;
-    setDeleting(true);
-    setDeleteError(null);
-    try {
-      await deleteTrip(initial);
-      setDeleteOpen(false);
-      onDeleted?.();
-    } catch (err) {
-      setDeleteError(
-        err && typeof err === 'object' && 'message' in err ? String((err as { message: unknown }).message) : t('common.error')
-      );
-      setDeleting(false);
-    }
-  };
-
-  // Cover image state
-  const [coverPreview, setCoverPreview] = useState<string | null>(initial?.cover_image_url ?? null);
-  const [coverFile, setCoverFile] = useState<File | null>(null);
-  const [coverError, setCoverError] = useState<string | null>(null);
-  const [isDragging, setIsDragging] = useState(false);
-
-  // Cover from Unsplash (1.5): URL scelto direttamente, nessun upload su Storage
-  const [coverExternalUrl, setCoverExternalUrl] = useState<string | null>(null);
-  const [unsplashAttribution, setUnsplashAttribution] = useState<{ name: string; profileUrl: string } | null>(
-    null
-  );
-  const [showUnsplashPanel, setShowUnsplashPanel] = useState(false);
-  const [unsplashQuery, setUnsplashQuery] = useState('');
-  const [unsplashResults, setUnsplashResults] = useState<UnsplashSuggestion[]>([]);
-  const [unsplashLoading, setUnsplashLoading] = useState(false);
-  const [unsplashError, setUnsplashError] = useState<string | null>(null);
-
-  // Cover position (0 = top, 100 = bottom)
-  const [coverPositionY, setCoverPositionY] = useState<number>(initial?.cover_position_y ?? 0);
-  const [isDraggingPosition, setIsDraggingPosition] = useState(false);
-  const coverRef = useRef<HTMLDivElement>(null);
-
-  const handlePositionDragStart = useCallback((e: React.MouseEvent | React.TouchEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDraggingPosition(true);
-  }, []);
-
-  // Tracks the pointer on `window` rather than the (small) preview box, so
-  // dragging stays smooth even once the cursor moves outside those bounds —
-  // binding move/up handlers to the box itself made the drag stop dead the
-  // moment the pointer left it, which is what read as "buggy".
-  useEffect(() => {
-    if (!isDraggingPosition) return;
-
-    const updateFromClientY = (clientY: number) => {
-      if (!coverRef.current) return;
-      const rect = coverRef.current.getBoundingClientRect();
-      const relY = Math.max(0, Math.min(1, (clientY - rect.top) / rect.height));
-      setCoverPositionY(Math.round(relY * 100));
-    };
-
-    const onMouseMove = (e: MouseEvent) => updateFromClientY(e.clientY);
-    const onTouchMove = (e: TouchEvent) => {
-      if (e.touches[0]) updateFromClientY(e.touches[0].clientY);
-    };
-    const onDragEnd = () => setIsDraggingPosition(false);
-
-    window.addEventListener('mousemove', onMouseMove);
-    window.addEventListener('mouseup', onDragEnd);
-    window.addEventListener('touchmove', onTouchMove);
-    window.addEventListener('touchend', onDragEnd);
-    return () => {
-      window.removeEventListener('mousemove', onMouseMove);
-      window.removeEventListener('mouseup', onDragEnd);
-      window.removeEventListener('touchmove', onTouchMove);
-      window.removeEventListener('touchend', onDragEnd);
-    };
-  }, [isDraggingPosition]);
+  // Copertina: stato unico gestito da CoverPicker, salvato con saveCover dopo il viaggio.
+  const [cover, setCover] = useState<CoverValue>(() => initialCover(initial));
 
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -172,88 +53,7 @@ export const TripForm: React.FC<TripFormProps> = ({ onSuccess, initial, onDelete
   const canSubmit =
     name.trim().length > 0 &&
     isValidIsoDate(startDate) &&
-    (!endDate || (isValidIsoDate(endDate) && endDate >= startDate)) &&
-    (budget === '' || Number(budget) >= 0);
-
-  const handleFileSelect = (file: File | null) => {
-    setCoverError(null);
-    if (!file) return;
-    if (file.size > 5 * 1024 * 1024) {
-      setCoverError(t('trip.coverTooLarge'));
-      return;
-    }
-    setCoverFile(file);
-    setCoverExternalUrl(null);
-    setUnsplashAttribution(null);
-    const reader = new FileReader();
-    reader.onload = (e) => setCoverPreview(e.target?.result as string);
-    reader.readAsDataURL(file);
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-    const file = e.dataTransfer.files?.[0] ?? null;
-    handleFileSelect(file);
-  };
-
-  const removeCover = () => {
-    setCoverFile(null);
-    setCoverPreview(null);
-    setCoverExternalUrl(null);
-    setUnsplashAttribution(null);
-    setCoverPositionY(0);
-    if (fileInputRef.current) fileInputRef.current.value = '';
-  };
-
-  const runUnsplashSearch = async (query: string) => {
-    if (!query.trim()) return;
-    setUnsplashLoading(true);
-    setUnsplashError(null);
-    try {
-      setUnsplashResults(await searchUnsplashCovers(query));
-    } catch {
-      setUnsplashError(t('trip.coverUnsplashError'));
-    } finally {
-      setUnsplashLoading(false);
-    }
-  };
-
-  const toggleUnsplashPanel = () => {
-    const next = !showUnsplashPanel;
-    setShowUnsplashPanel(next);
-    if (next && unsplashResults.length === 0 && !unsplashQuery) {
-      const first = destinations[0];
-      const defaultQuery = first ? `${first.city}, ${first.country}` : '';
-      setUnsplashQuery(defaultQuery);
-      if (defaultQuery) void runUnsplashSearch(defaultQuery);
-    }
-  };
-
-  const handlePickUnsplash = (photo: UnsplashSuggestion) => {
-    trackUnsplashDownload(photo.downloadLocation);
-    setCoverFile(null);
-    setCoverError(null);
-    setCoverPreview(photo.fullUrl);
-    setCoverExternalUrl(photo.fullUrl);
-    setUnsplashAttribution({ name: photo.authorName, profileUrl: photo.authorProfileUrl });
-    setCoverPositionY(0);
-    setShowUnsplashPanel(false);
-    if (fileInputRef.current) fileInputRef.current.value = '';
-  };
-
-  const uploadCover = async (tripId: string): Promise<string | null> => {
-    if (!coverFile || !user) return null;
-    const compressed = await compressImage(coverFile);
-    const ext = 'jpg';
-    const path = `${user.id}/${tripId}-${Date.now()}.${ext}`;
-    const { error: uploadError } = await supabase.storage
-      .from('trip-covers')
-      .upload(path, compressed, { contentType: 'image/jpeg', upsert: true });
-    if (uploadError) throw uploadError;
-    const { data } = supabase.storage.from('trip-covers').getPublicUrl(path);
-    return data.publicUrl;
-  };
+    (!endDate || (isValidIsoDate(endDate) && endDate >= startDate));
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -267,44 +67,11 @@ export const TripForm: React.FC<TripFormProps> = ({ onSuccess, initial, onDelete
         start_date: startDate || null,
         end_date: endDate || null,
         destinations,
-        budget_planned: budget === '' ? null : Number(budget),
         is_public: isPublic,
       };
-
-      let trip: Trip;
-      // Nome vuoto → "Persona N", così ogni segnaposto è riconoscibile da chi deve sceglierlo.
-      const desiredCompanions = companions.map((c, i) => ({
-        ...c,
-        name: c.name.trim() || t('trip.companionsDefaultName', { n: i + 1 }),
-      }));
-
-      if (initial) {
-        // Update: first save basic fields, then upload image if changed
-        trip = await updateTrip(initial.id, { ...baseInput, cover_position_y: coverPositionY });
-        if (coverFile) {
-          const url = await uploadCover(trip.id);
-          if (url) trip = await updateTrip(trip.id, { cover_image_url: url, cover_position_y: coverPositionY });
-        } else if (coverExternalUrl && coverExternalUrl !== initial.cover_image_url) {
-          // Cover scelta da Unsplash: si salva solo l'URL, nessun upload
-          trip = await updateTrip(trip.id, { cover_image_url: coverExternalUrl, cover_position_y: coverPositionY });
-        } else if (coverPreview === null && initial.cover_image_url) {
-          // User removed the image
-          trip = await updateTrip(trip.id, { cover_image_url: null, cover_position_y: 0 });
-        } else {
-          // Position changed but no new image
-          trip = await updateTrip(trip.id, { cover_position_y: coverPositionY });
-        }
-      } else {
-        // Create: insert trip first to get ID, then upload
-        trip = await createTrip(user.id, { ...baseInput, cover_image_url: coverExternalUrl ?? null });
-        if (coverFile) {
-          const url = await uploadCover(trip.id);
-          if (url) trip = await updateTrip(trip.id, { cover_image_url: url, cover_position_y: coverPositionY });
-        }
-      }
-
-      await syncCompanions(trip.id, savedCompanions, desiredCompanions);
-
+      let trip = initial ? await updateTrip(initial.id, baseInput) : await createTrip(user.id, baseInput);
+      trip = await saveCover(trip, user.id, cover, initial?.cover_image_url ?? null);
+      await companionsState.persist(trip.id);
       onSuccess(trip);
     } catch (err) {
       const message =
@@ -319,397 +86,120 @@ export const TripForm: React.FC<TripFormProps> = ({ onSuccess, initial, onDelete
     }
   };
 
+  const firstCity = destinations.find((d) => d.city);
+
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
       {error && <Alert type="error" message={error} onClose={() => setError(null)} />}
 
       <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
         {/* Left column (7 cols on md+): Main trip info */}
-        <div className="md:col-span-7 flex flex-col justify-between gap-6">
+        <div className="md:col-span-7 flex flex-col gap-6">
           <Input
-            label={t('trip.name')}
+            label={t('memory.name')}
             value={name}
             onChange={(e) => setName(e.target.value)}
             required
             placeholder={t('trip.namePlaceholder')}
           />
 
-          <div className="grid grid-cols-2 gap-3">
+          {/* Date (più compatte) e visibilità sulla stessa riga */}
+          <div className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-3 items-end">
             <Input
-              label={t('trip.startDate')}
+              label={t('memory.startDay')}
               type="date"
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
               required
+              className="!py-2 !text-sm"
             />
 
             <Input
-              label={t('trip.endDate')}
+              label={t('memory.endDay')}
               type="date"
               value={endDate}
               min={isValidIsoDate(startDate) ? startDate : undefined}
               onChange={(e) => setEndDate(e.target.value)}
+              className="!py-2 !text-sm"
             />
-          </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <Input
-              label={t('trip.budget')}
-              type="number"
-              min="0"
-              step="0.01"
-              value={budget}
-              onChange={(e) => setBudget(e.target.value)}
-              placeholder={t('trip.budgetPlaceholder')}
-            />
             <div>
-              <label className="label">
-                {t('trip.visibilityLabel')}
-              </label>
+              <label className="label">{t('trip.visibilityLabel')}</label>
+              {/* Interruttore: il lucchetto si apre e si chiude insieme allo stato */}
               <button
                 type="button"
-                onClick={() => setIsPublic(!isPublic)}
-                className={`w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-bold text-sm transition-all cursor-pointer select-none ${
-                  isPublic
-                    ? 'bg-gold/15 text-gold ring-2 ring-gold/50'
-                    : 'bg-slate-100 dark:bg-white/5 text-slate-500 dark:text-slate-300 ring-2 ring-slate-200 dark:ring-white/10'
-                }`}
+                role="switch"
+                aria-checked={isPublic}
+                onClick={() => setIsPublic((v) => !v)}
+                className="flex items-center gap-2.5 h-[42px] cursor-pointer select-none text-left"
               >
-                {isPublic ? (
-                  <LockOpen className={MODAL_ICON_SIZE} />
-                ) : (
-                  <Lock className={MODAL_ICON_SIZE} />
-                )}
-                {isPublic ? t('trip.publicLabel') : t('trip.privateLabel')}
+                <span className={`relative w-5 h-5 shrink-0 ${isPublic ? 'text-gold' : 'text-slate-400'}`}>
+                  <AnimatePresence initial={false} mode="popLayout">
+                    <motion.span
+                      key={isPublic ? 'open' : 'closed'}
+                      className="absolute inset-0 flex"
+                      initial={{ opacity: 0, scale: 0.6, rotate: isPublic ? -20 : 20 }}
+                      animate={{ opacity: 1, scale: 1, rotate: 0 }}
+                      exit={{ opacity: 0, scale: 0.6 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      {isPublic ? <LockOpen className={MODAL_ICON_SIZE} /> : <Lock className={MODAL_ICON_SIZE} />}
+                    </motion.span>
+                  </AnimatePresence>
+                </span>
+                <span className={`min-w-[64px] text-sm font-semibold ${isPublic ? 'text-gold' : ''}`}>
+                  {isPublic ? t('trip.publicLabel') : t('trip.privateLabel')}
+                </span>
+                <span
+                  className={`relative w-11 h-6 rounded-full transition-colors duration-200 shrink-0 ${
+                    isPublic ? 'bg-gold' : 'bg-slate-300 dark:bg-white/15'
+                  }`}
+                >
+                  <span
+                    className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform duration-200 ${
+                      isPublic ? 'translate-x-5' : ''
+                    }`}
+                  />
+                </span>
               </button>
             </div>
           </div>
         </div>
 
         {/* Right column (5 cols on md+): Cover image picker */}
-        <div className="md:col-span-5 flex flex-col">
-          <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
-            {t('trip.coverImage')}
-          </label>
+        <CoverPicker
+          value={cover}
+          onChange={setCover}
+          defaultUnsplashQuery={firstCity ? `${firstCity.city}, ${firstCity.country}` : ''}
+          className="md:col-span-5 flex flex-col"
+          minHeight={120}
+          inlineUnsplash
+        />
 
-          <div className="flex-1 flex flex-col">
-            {coverPreview ? (
-              <div
-                ref={coverRef}
-                className="relative rounded-xl overflow-hidden flex-1 min-h-[190px] border border-slate-200 dark:border-white/10 shadow-inner select-none"
-                style={{ cursor: isDraggingPosition ? 'grabbing' : 'default' }}
-              >
-                <img
-                  src={coverPreview}
-                  alt="cover preview"
-                  className="absolute inset-0 w-full h-full object-cover transition-all duration-200"
-                  style={{ objectPosition: `50% ${coverPositionY}%` }}
-                  draggable={false}
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/20 pointer-events-none" />
-                {/* Remove button */}
-                <button
-                  type="button"
-                  onClick={removeCover}
-                  className="absolute top-3 right-3 w-10 h-10 rounded-full bg-black/70 hover:bg-black/90 text-white flex items-center justify-center transition-all cursor-pointer shadow-lg hover:scale-105 active:scale-95 z-10"
-                  title={t('common.remove')}
-                >
-                  <X className="w-6 h-6" strokeWidth={2.5} />
-                </button>
-                {/* Drag to reposition handle — no transition on this element: it
-                    tracks the pointer directly, and animating `top` made it visibly
-                    lag behind the cursor instead of following it. */}
-                <div
-                  onMouseDown={handlePositionDragStart}
-                  onTouchStart={handlePositionDragStart}
-                  className="absolute left-1/2 -translate-x-1/2 z-10 flex flex-col items-center gap-1 cursor-grab active:cursor-grabbing select-none"
-                  style={{ top: `clamp(4px, calc(${coverPositionY}% - 20px), calc(100% - 40px))` }}
-                  title={t('trip.coverDragHint')}
-                >
-                  <div className="bg-black/70 hover:bg-black/90 backdrop-blur-sm text-white rounded-full px-3 py-1.5 flex items-center gap-1.5 shadow-lg ring-1 ring-white/20 transition-all hover:scale-105">
-                    <GripVertical className="w-5 h-5 shrink-0" strokeWidth={2} />
-                    <span className="text-[11px] font-semibold whitespace-nowrap">
-                      {coverPositionY === 0 ? t('trip.coverDragHint') : t('trip.coverPosition', { percent: coverPositionY })}
-                    </span>
-                  </div>
-                </div>
-                <div className="absolute bottom-2.5 left-3 text-xs font-medium text-white/90 drop-shadow pointer-events-none">
-                  {coverFile ? (
-                    `${(coverFile.size / 1024).toFixed(0)} KB`
-                  ) : unsplashAttribution ? (
-                    <a
-                      href={unsplashAttribution.profileUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="pointer-events-auto underline decoration-white/40 hover:decoration-white"
-                    >
-                      {t('trip.coverUnsplashCredit', { name: unsplashAttribution.name })}
-                    </a>
-                  ) : (
-                    t('trip.coverSet')
-                  )}
-                </div>
-              </div>
-            ) : (
-              <div
-                onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
-                onDragLeave={() => setIsDragging(false)}
-                onDrop={handleDrop}
-                onClick={() => fileInputRef.current?.click()}
-                className={`flex-1 min-h-[190px] flex flex-col items-center justify-center gap-3 p-4 rounded-xl border-2 border-dashed cursor-pointer transition-all duration-200 text-center ${
-                  isDragging
-                    ? 'border-gold bg-gold/10 scale-[0.99]'
-                    : 'border-slate-300 dark:border-white/15 hover:border-gold/70 hover:bg-slate-900/[0.02] dark:hover:bg-white/[0.02]'
-                }`}
-              >
-                <div className="w-16 h-16 rounded-xl bg-slate-100 dark:bg-white/5 flex items-center justify-center text-slate-400 dark:text-slate-300 ring-1 ring-slate-200/60 dark:ring-white/10">
-                  <ImagePlus className="w-9 h-9 text-gold" strokeWidth={1.8} />
-                </div>
-                <div>
-                  <p className="text-xs font-semibold text-slate-700 dark:text-slate-200">
-                    {t('trip.coverDrop')}
-                  </p>
-                  <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">
-                    JPG, PNG, WEBP, GIF
-                  </p>
-                  <p className="text-xs font-medium text-slate-400 dark:text-slate-500 mt-0.5">
-                    Max 5 MB
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {coverError && (
-              <p className="mt-1.5 text-xs text-red-500 dark:text-red-400">{coverError}</p>
-            )}
-
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={(e) => handleFileSelect(e.target.files?.[0] ?? null)}
-            />
-          </div>
-
-          {isUnsplashConfigured() && (
-            <div className="mt-2">
-              <button
-                type="button"
-                onClick={toggleUnsplashPanel}
-                className="w-full flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-semibold text-slate-500 dark:text-slate-400 hover:text-gold hover:bg-gold/10 transition-colors cursor-pointer"
-              >
-                <Sparkles className="w-3.5 h-3.5" />
-                {t('trip.coverUnsplashButton')}
-              </button>
-
-              {showUnsplashPanel && (
-                <div className="mt-2 p-3 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 space-y-2.5">
-                  {/* Niente <form> qui: è già dentro il <form> del viaggio, e un form
-                      annidato viene "fuso" dal browser con quello esterno — un bottone
-                      type="submit" qui dentro finiva per salvare l'intero viaggio invece
-                      di limitarsi a cercare (chiudeva la modale a ogni ricerca). */}
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={unsplashQuery}
-                      onChange={(e) => setUnsplashQuery(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          void runUnsplashSearch(unsplashQuery);
-                        }
-                      }}
-                      placeholder={t('trip.coverUnsplashSearchPlaceholder')}
-                      className="flex-1 min-w-0 text-xs rounded-lg border border-slate-300 dark:border-white/15 bg-white dark:bg-slate-900 px-3 py-2 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-gold/40"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => void runUnsplashSearch(unsplashQuery)}
-                      disabled={unsplashLoading || !unsplashQuery.trim()}
-                      className="px-3 py-2 rounded-lg text-xs font-semibold bg-gold/15 text-gold hover:bg-gold/25 transition-colors disabled:opacity-50 cursor-pointer"
-                    >
-                      {t('trip.coverUnsplashSearch')}
-                    </button>
-                  </div>
-
-                  {unsplashLoading && (
-                    <p className="text-[11px] text-slate-400 flex items-center gap-1.5">
-                      <Loader2 className="w-3 h-3 animate-spin" /> {t('trip.coverUnsplashLoading')}
-                    </p>
-                  )}
-
-                  {unsplashError && <p className="text-[11px] text-red-500">{unsplashError}</p>}
-
-                  {!unsplashLoading && !unsplashError && unsplashResults.length === 0 && (
-                    <p className="text-[11px] text-slate-400">{t('trip.coverUnsplashEmpty')}</p>
-                  )}
-
-                  {unsplashResults.length > 0 && (
-                    <div className="grid grid-cols-3 gap-1.5">
-                      {unsplashResults.map((photo) => (
-                        <button
-                          key={photo.id}
-                          type="button"
-                          onClick={() => handlePickUnsplash(photo)}
-                          title={t('trip.coverUnsplashCredit', { name: photo.authorName })}
-                          className="relative aspect-square rounded-lg overflow-hidden ring-1 ring-slate-200 dark:ring-white/10 hover:ring-2 hover:ring-gold transition-all cursor-pointer"
-                        >
-                          <img
-                            src={photo.thumbUrl}
-                            alt={t('trip.coverUnsplashCredit', { name: photo.authorName })}
-                            className="absolute inset-0 w-full h-full object-cover"
-                          />
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Full width (12 cols): Destinations */}
-        <div className="md:col-span-12 pt-2 border-t border-slate-200/60 dark:border-white/5">
-          <DestinationPicker value={destinations} onChange={setDestinations} />
+        {/* Full width (12 cols): Destinations, raggruppate per paese come nel viaggio rapido */}
+        <div className="md:col-span-12 pt-[20px]">
+          <ItineraryEditor value={destinations} onChange={setDestinations} mode="full" />
         </div>
 
         {/* Full width (12 cols): Travel companions */}
-        <div className="md:col-span-12 pt-2 border-t border-slate-200/60 dark:border-white/5 space-y-3">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <label className="label !flex items-center gap-2">
-                <Users className={`${MODAL_ICON_SIZE} shrink-0`} />
-                {t('trip.companionsLabel')}
-                {companions.length > 0 && (
-                  <span className="text-xs font-medium text-slate-400">
-                    · {t('trip.companionsCount', { count: companions.length })}
-                  </span>
-                )}
-              </label>
-              <p className="text-xs text-slate-400 dark:text-slate-500">{t('trip.companionsHint')}</p>
-            </div>
-            <button
-              type="button"
-              onClick={addCompanion}
-              className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-gold hover:bg-gold/10 transition-colors cursor-pointer"
-            >
-              <Plus className={`${MODAL_ICON_SIZE} shrink-0`} strokeWidth={2.5} />
-              {t('trip.companionsAdd')}
-            </button>
+        {user && (
+          <div className="md:col-span-12 pt-[20px]">
+            <CompanionsSection
+              state={companionsState}
+              currentUserId={user.id}
+              isOwner={!initial || initial.owner_id === user.id}
+            />
           </div>
-
-          {companionsLoading && <Loader2 className="w-4 h-4 text-gold animate-spin" />}
-
-          {companions.length > 0 && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {companions.map((c, index) => (
-                <div key={c.id ?? `new-${index}`} className="flex items-center gap-2">
-                  <input
-                    value={c.name}
-                    onChange={(e) => renameCompanion(index, e.target.value)}
-                    placeholder={t('trip.companionsNamePlaceholder')}
-                    maxLength={40}
-                    className="input-field flex-1 min-w-0"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => (c.id ? setRemovingCompanion(c) : removeCompanion(index))}
-                    className="shrink-0 p-2 rounded-lg text-slate-400 hover:text-error hover:bg-error/10 transition-colors cursor-pointer"
-                    title={t('common.remove')}
-                  >
-                    <X className={`${MODAL_ICON_SIZE} shrink-0`} strokeWidth={2.5} />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+        )}
       </div>
 
       <div className="flex items-center justify-between gap-3 pt-2">
-        {initial && onDeleted ? (
-          <button
-            type="button"
-            onClick={() => {
-              setDeleteConfirmText('');
-              setDeleteError(null);
-              setDeleteOpen(true);
-            }}
-            className="inline-flex items-center gap-2 px-[16px] py-2.5 rounded-xl text-sm font-bold text-error hover:bg-error/10 transition-colors cursor-pointer"
-          >
-            <Trash2 className={`${MODAL_ICON_SIZE} shrink-0`} />
-            {t('trip.delete.button')}
-          </button>
-        ) : (
-          <span />
-        )}
+        {initial && onDeleted ? <DeleteTripButton trip={initial} onDeleted={onDeleted} /> : <span />}
         <Button type="submit" disabled={!canSubmit || submitting}>
           {submitting && <Loader2 className="w-5 h-5 animate-spin" />}
           {t('common.save')}
         </Button>
       </div>
-
-      <RemoveTravelerModal
-        traveler={
-          removingCompanion
-            ? { participantId: removingCompanion.id, name: removingCompanion.name || '—', hasAccount: false }
-            : null
-        }
-        body={t('trip.companionsRemoveBody', { name: removingCompanion?.name || '—' })}
-        onClose={() => setRemovingCompanion(null)}
-        onConfirm={async () => {
-          const id = removingCompanion?.id;
-          setCompanions((prev) => prev.filter((c) => c.id !== id));
-        }}
-      />
-
-      {initial && onDeleted && (
-        <Modal
-          open={deleteOpen}
-          onClose={() => !deleting && setDeleteOpen(false)}
-          title={t('trip.delete.title')}
-          maxWidth="max-w-md"
-        >
-          <div className="space-y-5">
-            <div className="flex items-start gap-3 px-[18px] py-[14px] rounded-xl bg-error/10 border border-error/30">
-              <AlertTriangle className="w-6 h-6 text-error shrink-0" />
-              <div className="space-y-1">
-                <p className="text-sm font-bold text-error">{t('trip.delete.irreversible')}</p>
-                <p className="text-sm text-slate-700 dark:text-slate-200">{t('trip.delete.body', { name: initial.name })}</p>
-              </div>
-            </div>
-            <ul className="text-sm text-slate-600 dark:text-slate-300 list-disc pl-5 space-y-1">
-              {(['plan', 'expenses', 'people', 'files'] as const).map((k) => (
-                <li key={k}>{t(`trip.delete.what.${k}`)}</li>
-              ))}
-            </ul>
-            <Input
-              label={t('trip.delete.typeName', { name: initial.name })}
-              value={deleteConfirmText}
-              onChange={(e) => setDeleteConfirmText(e.target.value)}
-              placeholder={initial.name}
-              autoComplete="off"
-            />
-            {deleteError && <Alert type="error" message={deleteError} onClose={() => setDeleteError(null)} />}
-            <div className="flex justify-end gap-3">
-              <Button type="button" variant="tertiary" onClick={() => setDeleteOpen(false)} disabled={deleting}>
-                {t('common.cancel')}
-              </Button>
-              <button
-                type="button"
-                onClick={() => void handleDeleteTrip()}
-                disabled={!canDelete || deleting}
-                className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-sm font-bold text-white bg-error hover:bg-red-600 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {deleting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Trash2 className="w-5 h-5" />}
-                {t('trip.delete.confirm')}
-              </button>
-            </div>
-          </div>
-        </Modal>
-      )}
     </form>
   );
 };

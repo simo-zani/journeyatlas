@@ -22,6 +22,10 @@ export interface AtlasTripRef {
   name: string;
   start_date: string | null;
   end_date: string | null;
+  /** 'month' per i viaggi-ricordo di cui si sa solo il mese. */
+  date_precision?: 'day' | 'month';
+  /** Viaggio-ricordo: non ha il gestionale, quindi non è un link. */
+  is_memory?: boolean;
   started: boolean;
   /** Il paese era una meta di questo viaggio (false = solo scalo). */
   asDestination: boolean;
@@ -55,6 +59,7 @@ export interface AtlasPoint {
   /** Viaggio da cui viene il punto (per dire quale viaggio ha sbloccato la regione). */
   tripId: string;
   tripName: string;
+  tripIsMemory?: boolean;
 }
 
 export interface AtlasData {
@@ -72,7 +77,7 @@ export interface AtlasPlace {
 }
 
 export interface AtlasTripInput {
-  trip: Pick<Trip, 'id' | 'name' | 'start_date' | 'end_date'>;
+  trip: Pick<Trip, 'id' | 'name' | 'start_date' | 'end_date'> & Partial<Pick<Trip, 'date_precision' | 'is_memory'>>;
   destinations: (AtlasPlace & { city: string })[];
   /** Scali; quelli che coincidono con una meta vengono ignorati. */
   transit: AtlasPlace[];
@@ -123,6 +128,8 @@ export const buildAtlas = (inputs: AtlasTripInput[], today: string, manualCountr
       name: trip.name,
       start_date: trip.start_date,
       end_date: trip.end_date,
+      date_precision: trip.date_precision,
+      is_memory: trip.is_memory,
       started,
       asDestination,
     });
@@ -138,6 +145,7 @@ export const buildAtlas = (inputs: AtlasTripInput[], today: string, manualCountr
         status: destStatus,
         tripId: trip.id,
         tripName: trip.name,
+        tripIsMemory: trip.is_memory,
       });
       const key = `${d.city.trim().toLowerCase()}|${d.code.toLowerCase()}`;
       const prev = cities.get(key);
@@ -165,6 +173,7 @@ export const buildAtlas = (inputs: AtlasTripInput[], today: string, manualCountr
             status: 'transit',
             tripId: trip.id,
             tripName: trip.name,
+            tripIsMemory: trip.is_memory,
           });
         }
       }

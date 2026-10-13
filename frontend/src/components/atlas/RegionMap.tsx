@@ -12,7 +12,7 @@ export interface RegionState {
   /** Segnata a mano (e non dai viaggi): si può togliere con un clic. */
   manual: boolean;
   /** Viaggi (già iniziati) che l'hanno sbloccata. */
-  trips: { id: string; name: string }[];
+  trips: { id: string; name: string; isMemory?: boolean }[];
 }
 
 interface RegionMapProps {

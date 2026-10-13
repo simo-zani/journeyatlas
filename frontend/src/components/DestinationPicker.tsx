@@ -13,9 +13,13 @@ import {
 interface DestinationPickerProps {
   value: Destination[];
   onChange: (destinations: Destination[]) => void;
+  /** Etichetta del campo (predefinita: "Mete"). */
+  label?: React.ReactNode;
+  /** Solo ricerca e aggiunta: l'elenco delle mete lo disegna il chiamante. */
+  hideList?: boolean;
 }
 
-export const DestinationPicker: React.FC<DestinationPickerProps> = ({ value, onChange }) => {
+export const DestinationPicker: React.FC<DestinationPickerProps> = ({ value, onChange, label, hideList = false }) => {
   const { t, i18n } = useTranslation();
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
@@ -122,7 +126,7 @@ export const DestinationPicker: React.FC<DestinationPickerProps> = ({ value, onC
 
   return (
     <div className="w-full">
-      <label className="label">{t('trip.destinations')}</label>
+      <label className="label !flex items-center gap-2">{label ?? t('trip.destinations')}</label>
       <div ref={ref} className="relative">
         <div className="flex items-center gap-2 input-field focus-within:border-deep-blue dark:focus-within:border-gold">
           <MapPin className="w-5 h-5 text-slate-400 shrink-0" />
@@ -207,7 +211,7 @@ export const DestinationPicker: React.FC<DestinationPickerProps> = ({ value, onC
         )}
       </div>
 
-      {value.length > 0 && (
+      {!hideList && value.length > 0 && (
         <div className="flex flex-wrap gap-2 mt-3">
           {value.map((destination, index) => (
             <span

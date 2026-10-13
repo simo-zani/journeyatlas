@@ -57,6 +57,7 @@ import { resolveCountryFlags } from '@/lib/flags';
 import { loadTransportPlaces, transitPlacesFromRows } from '@/lib/tripCountries';
 import { useHomeCity } from '@/lib/useHomeCity';
 import { useNationality } from '@/lib/useNationality';
+import { formatMonthRange } from '@/lib/tripDates';
 import type { AtlasMarkRow, TransportRow } from '@/lib/types';
 
 const CONTINENTS = ['europe', 'asia', 'africa', 'north-america', 'south-america', 'oceania', 'antarctica'] as const;
@@ -75,6 +76,20 @@ const todayIso = () => {
   const pad = (v: number) => String(v).padStart(2, '0');
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 };
+
+/** Riga di un viaggio negli elenchi: link al viaggio, tranne per i ricordi (non hanno il gestionale). */
+const TripLink: React.FC<{ trip: { id: string; is_memory?: boolean }; className: string; children: React.ReactNode }> = ({
+  trip,
+  className,
+  children,
+}) =>
+  trip.is_memory ? (
+    <div className={className.replace(/hover:\S+/g, '')}>{children}</div>
+  ) : (
+    <Link to={`/trips/${trip.id}`} className={className}>
+      {children}
+    </Link>
+  );
 
 /** Campione di colore della legenda, con lo stesso trattamento della mappa (tratteggio per gli scali). */
 const Swatch: React.FC<{ status: CountryStatus | 'home' }> = ({ status }) => (
@@ -166,6 +181,9 @@ export const AtlasPage: React.FC = () => {
                     places
                   ).map((p) => ({ code: placeCode(p.code, p), coords: { lat: p.lat, lon: p.lon } }))
                 : [];
+            for (const s of trip.stopovers ?? []) {
+              transit.push({ code: placeCode(s.countryCode, s), coords: { lat: s.lat, lon: s.lon } });
+            }
             return { trip, destinations, transit };
           })
         );
@@ -273,7 +291,9 @@ export const AtlasPage: React.FC = () => {
       if (!name) continue;
       const prev = states.get(name);
       const trips = prev?.trips ?? [];
-      if (p.status === 'visited' && !trips.some((tr) => tr.id === p.tripId)) trips.push({ id: p.tripId, name: p.tripName });
+      if (p.status === 'visited' && !trips.some((tr) => tr.id === p.tripId)) {
+        trips.push({ id: p.tripId, name: p.tripName, isMemory: p.tripIsMemory });
+      }
       const status = !prev || STATUS_RANK[p.status] > STATUS_RANK[prev.status] ? p.status : prev.status;
       states.set(name, { status, manual: false, trips });
     }
@@ -351,7 +371,9 @@ export const AtlasPage: React.FC = () => {
   const selectedCountry = selected ? atlas?.countries.get(selected) ?? null : null;
   const countryVisited = selectedCountry?.status === 'visited';
 
-  const formatRange = (start: string | null, end: string | null) => {
+  const formatRange = (start: string | null, end: string | null, precision?: 'day' | 'month') => {
+    const byMonth = formatMonthRange({ start_date: start, end_date: end, date_precision: precision ?? 'day' }, i18n.language);
+    if (byMonth) return byMonth;
     const fmt = (d: string) =>
       new Date(`${d}T00:00:00`).toLocaleDateString(i18n.language, { day: 'numeric', month: 'short', year: 'numeric' });
     if (!start) return t('atlas.noDates');
@@ -629,18 +651,18 @@ export const AtlasPage: React.FC = () => {
                     <ul className="space-y-2 shrink-0 max-h-[196px] overflow-y-auto pr-1">
                       {selectedCountry.trips.map((trip) => (
                         <li key={trip.id}>
-                          <Link
-                            to={`/trips/${trip.id}`}
+                          <TripLink
+                            trip={trip}
                             className="flex items-center justify-between gap-3 h-[60px] rounded-2xl bg-slate-900/5 dark:bg-white/5 hover:bg-slate-900/10 dark:hover:bg-white/10 px-3.5 no-underline hover:no-underline transition-colors"
                           >
                             <div className="min-w-0">
                               <p className="text-sm font-semibold truncate text-slate-800 dark:text-slate-100">{trip.name}</p>
-                              <p className="text-xs text-slate-500 dark:text-slate-400">{formatRange(trip.start_date, trip.end_date)}</p>
+                              <p className="text-xs text-slate-500 dark:text-slate-400">{formatRange(trip.start_date, trip.end_date, trip.date_precision)}</p>
                             </div>
                             <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-slate-900/5 dark:bg-white/10 text-slate-500 dark:text-slate-300 shrink-0">
                               {!trip.asDestination ? t('atlas.tripStopover') : trip.started ? t('atlas.tripDone') : t('atlas.tripPlanned')}
                             </span>
-                          </Link>
+                          </TripLink>
                         </li>
                       ))}
                     </ul>
@@ -776,15 +798,15 @@ export const AtlasPage: React.FC = () => {
               <ul className="space-y-2">
                 {visitedWarning?.map((trip) => (
                   <li key={trip.id}>
-                    <Link
-                      to={`/trips/${trip.id}`}
+                    <TripLink
+                      trip={trip}
                       className="flex items-center justify-between gap-3 rounded-2xl bg-slate-900/5 dark:bg-white/5 hover:bg-slate-900/10 dark:hover:bg-white/10 px-[20px] py-3 no-underline hover:no-underline transition-colors"
                     >
                       <span className="text-sm font-semibold truncate text-slate-800 dark:text-slate-100">{trip.name}</span>
                       <span className="text-xs text-slate-500 dark:text-slate-400 shrink-0">
-                        {formatRange(trip.start_date, trip.end_date)}
+                        {formatRange(trip.start_date, trip.end_date, trip.date_precision)}
                       </span>
-                    </Link>
+                    </TripLink>
                   </li>
                 ))}
               </ul>

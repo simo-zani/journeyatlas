@@ -6,6 +6,8 @@ import { Link } from 'react-router-dom';
 export interface TripRef {
   id: string;
   name: string;
+  /** Viaggio-ricordo: non ha il gestionale, quindi niente link. */
+  isMemory?: boolean;
 }
 
 /**
@@ -70,12 +72,16 @@ export const TripsBadge: React.FC<{ trips: TripRef[] }> = ({ trips }) => {
             <ul className="space-y-0.5">
               {trips.map((trip) => (
                 <li key={trip.id}>
-                  <Link
-                    to={`/trips/${trip.id}`}
-                    className="block truncate rounded-lg px-3 py-2 text-xs font-semibold text-white hover:bg-white/10 no-underline hover:no-underline"
-                  >
-                    {trip.name}
-                  </Link>
+                  {trip.isMemory ? (
+                    <span className="block truncate rounded-lg px-3 py-2 text-xs font-semibold text-white/80">{trip.name}</span>
+                  ) : (
+                    <Link
+                      to={`/trips/${trip.id}`}
+                      className="block truncate rounded-lg px-3 py-2 text-xs font-semibold text-white hover:bg-white/10 no-underline hover:no-underline"
+                    >
+                      {trip.name}
+                    </Link>
+                  )}
                 </li>
               ))}
             </ul>

@@ -1,5 +1,15 @@
 export type Role = 'owner' | 'editor' | 'viewer';
 
+/** Aeroporto di scalo di un viaggio-ricordo. */
+export type Stopover = {
+  iata: string;
+  name: string;
+  city: string;
+  countryCode: string;
+  lat: number;
+  lon: number;
+};
+
 export type Destination = {
   city: string;
   country: string;
@@ -23,6 +33,12 @@ export type TripRow = {
   is_public: boolean;
   /** Valuta in cui si calcolano totali e saldi delle spese. */
   expense_currency: string;
+  /** Viaggio-ricordo: passato, registrato con il modulo rapido (solo paesi e date). */
+  is_memory: boolean;
+  /** 'month': si conoscono solo i mesi (start_date = primo giorno, end_date = ultimo). */
+  date_precision: 'day' | 'month';
+  /** Scali dei viaggi-ricordo (quelli completi li ricavano dai mezzi). */
+  stopovers: Stopover[] | null;
   created_at: string;
   updated_at: string;
   archived_at: string | null;

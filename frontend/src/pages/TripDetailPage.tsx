@@ -19,6 +19,8 @@ import {
 } from 'lucide-react';
 import { Modal } from '@/components/Modal';
 import { TripForm } from '@/components/TripForm';
+import { MemoryTripForm } from '@/components/MemoryTripForm';
+import { formatMonthRange } from '@/lib/tripDates';
 import { TripFlags } from '@/components/TripFlags';
 import { CalendarSection } from '@/components/trip/CalendarSection';
 import { ActivitySection } from '@/components/trip/ActivitySection';
@@ -60,7 +62,7 @@ const SECTION_ICONS: Record<TripSection, LucideIcon> = {
 export const TripDetailPage: React.FC = () => {
   const { tripId } = useParams<{ tripId: string }>();
   const { user } = useAuth();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
 
   const [trip, setTrip] = useState<Trip | null>(null);
@@ -109,7 +111,8 @@ export const TripDetailPage: React.FC = () => {
     date ? new Date(`${date}T00:00:00`).toLocaleDateString() : '';
 
   const duration = useMemo(() => {
-    if (!trip?.start_date || !trip?.end_date) return null;
+    // Con le sole date al mese il numero di notti non significherebbe nulla.
+    if (!trip?.start_date || !trip?.end_date || trip.date_precision === 'month') return null;
     const start = new Date(`${trip.start_date}T00:00:00`).getTime();
     const end = new Date(`${trip.end_date}T00:00:00`).getTime();
     if (Number.isNaN(start) || Number.isNaN(end) || end < start) return null;
@@ -186,7 +189,8 @@ export const TripDetailPage: React.FC = () => {
                     'text-slate-600 dark:text-slate-400'
                   )}`}
                 >
-                  {trip.destinations.map((d) => d.city).filter(Boolean).join(' → ')}
+                  {/* le mete "solo paese" dei viaggi-ricordo mostrano il paese */}
+                  {trip.destinations.map((d) => d.city || d.country).filter(Boolean).join(' → ')}
                 </p>
               )}
 
@@ -200,8 +204,12 @@ export const TripDetailPage: React.FC = () => {
                     )}`}
                   >
                     <span>
-                      {formatDate(trip.start_date)}
-                      {trip.end_date ? ` – ${formatDate(trip.end_date)}` : ''}
+                      {formatMonthRange(trip, i18n.language) ?? (
+                        <>
+                          {formatDate(trip.start_date)}
+                          {trip.end_date ? ` – ${formatDate(trip.end_date)}` : ''}
+                        </>
+                      )}
                     </span>
                     {duration && (
                       <span
@@ -281,10 +289,20 @@ export const TripDetailPage: React.FC = () => {
           <Modal
             open={editOpen}
             onClose={() => setEditOpen(false)}
-            title={t('trip.editTitle')}
-            maxWidth="max-w-5xl"
+            title={trip.is_memory ? t('memory.edit') : t('trip.editTitle')}
+            maxWidth={trip.is_memory ? 'max-w-2xl' : 'max-w-5xl'}
             tall
           >
+            {trip.is_memory ? (
+              <MemoryTripForm
+                initial={trip}
+                onSuccess={(updated) => {
+                  setTrip(updated);
+                  setEditOpen(false);
+                }}
+                onDeleted={isOwner ? () => navigate('/', { replace: true }) : undefined}
+              />
+            ) : (
             <TripForm
               initial={trip}
               onSuccess={(updated) => {
@@ -294,6 +312,7 @@ export const TripDetailPage: React.FC = () => {
               }}
               onDeleted={isOwner ? () => navigate('/', { replace: true }) : undefined}
             />
+            )}
           </Modal>
 
           {user && (

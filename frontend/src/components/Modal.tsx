@@ -80,14 +80,15 @@ export const Modal: React.FC<ModalProps> = ({ open, onClose, title, maxWidth = '
           <motion.div
             ref={panelRef}
             tabIndex={-1}
-            className={`outline-none surface-panel w-full overscroll-contain ${maxWidth} ${tall ? 'max-h-[95vh] overflow-y-auto' : 'max-h-[90vh] overflow-y-auto'}`}
+            // Intestazione fissa: scorre solo il corpo, che le passa sotto.
+            className={`outline-none surface-panel w-full flex flex-col overflow-hidden ${maxWidth} ${tall ? 'max-h-[95vh]' : 'max-h-[90vh]'}`}
             initial={{ opacity: 0, y: 16, scale: 0.97 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 10, scale: 0.98 }}
             transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between p-5" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+            <div className="shrink-0 flex items-center justify-between p-5" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
               <h3>{title}</h3>
               <button
                 onClick={onClose}
@@ -97,7 +98,7 @@ export const Modal: React.FC<ModalProps> = ({ open, onClose, title, maxWidth = '
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <div className="p-5">{children}</div>
+            <div className="p-5 flex-1 min-h-0 overflow-y-auto overscroll-contain">{children}</div>
           </motion.div>
         </motion.div>
       )}

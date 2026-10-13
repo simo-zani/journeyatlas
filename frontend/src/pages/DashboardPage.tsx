@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Plus, Loader2 } from 'lucide-react';
+import { History, Pencil, Plus, Loader2 } from 'lucide-react';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 
@@ -10,9 +10,11 @@ import { Modal } from '@/components/Modal';
 import { PendingInvites } from '@/components/PendingInvites';
 import { TripNotices } from '@/components/TripNotices';
 import { TripForm } from '@/components/TripForm';
+import { MemoryTripForm } from '@/components/MemoryTripForm';
 import { TripFlags } from '@/components/TripFlags';
 import { useAuth } from '@/auth/AuthContext';
 import { fetchMyTrips } from '@/lib/api';
+import { formatMonthRange } from '@/lib/tripDates';
 import type { Trip } from '@/lib/types';
 
 type TravelStatus = 'ongoing' | 'planned' | 'completed';
@@ -53,7 +55,7 @@ const cardVariants = {
 };
 
 export const DashboardPage: React.FC = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -61,6 +63,9 @@ export const DashboardPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
+  const [memoryOpen, setMemoryOpen] = useState(false);
+  // Viaggio in modifica dalla matita della scheda (completo o rapido).
+  const [editingTrip, setEditingTrip] = useState<Trip | null>(null);
 
   const loadTrips = useCallback(async () => {
     if (!user) return;
@@ -103,23 +108,43 @@ export const DashboardPage: React.FC = () => {
     navigate(`/trips/${trip.id}`);
   };
 
+  // Un ricordo resta in dashboard (tra i conclusi): di solito se ne aggiungono più di fila.
+  const handleMemoryCreated = () => {
+    setMemoryOpen(false);
+    void loadTrips();
+  };
+
   const renderTripCard = (trip: Trip) => {
-    const dateStr = [
-      trip.start_date ? formatDate(trip.start_date) : null,
-      trip.end_date ? formatDate(trip.end_date) : null,
-    ]
-      .filter(Boolean)
-      .join('  ·  ');
+    const dateStr =
+      formatMonthRange(trip, i18n.language) ??
+      [trip.start_date ? formatDate(trip.start_date) : null, trip.end_date ? formatDate(trip.end_date) : null]
+        .filter(Boolean)
+        .join('  ·  ');
 
     return (
       <motion.div key={trip.id} variants={cardVariants} className="h-full">
         <Card
           noPadding
-          onClick={() => navigate(`/trips/${trip.id}`)}
-          className="h-full overflow-hidden"
+          onClick={trip.is_memory ? undefined : () => navigate(`/trips/${trip.id}`)}
+          className={`h-full overflow-hidden ${trip.is_memory ? 'card-static' : ''}`}
         >
           {/* Cover area */}
           <div className="relative flex-shrink-0" style={{ height: '176px' }}>
+            {trip.owner_id === user?.id && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation(); // la scheda (viaggio completo) aprirebbe il viaggio
+                  setEditingTrip(trip);
+                }}
+                onKeyDown={(e) => e.stopPropagation()}
+                aria-label={trip.is_memory ? t('memory.edit') : t('trip.editTitle')}
+                title={trip.is_memory ? t('memory.edit') : t('trip.editTitle')}
+                className="absolute top-2.5 right-2.5 z-10 w-[32px] h-[32px] rounded-lg flex items-center justify-center bg-black/50 hover:bg-black/70 backdrop-blur-md ring-1 ring-gold/40 hover:ring-gold transition-all cursor-pointer"
+              >
+                <Pencil className="w-[16px] h-[16px] text-gold" />
+              </button>
+            )}
             {trip.cover_image_url ? (
               <img
                 src={trip.cover_image_url}
@@ -166,9 +191,7 @@ export const DashboardPage: React.FC = () => {
               </div>
 
               {/* Date */}
-              {dateStr && (
-                <p className="text-white/60 text-xs tracking-wide">{dateStr}</p>
-              )}
+              {dateStr && <p className="text-white/60 text-xs tracking-wide">{dateStr}</p>}
             </div>
           </div>
         </Card>
@@ -218,10 +241,21 @@ export const DashboardPage: React.FC = () => {
         <div>
           <h1>{t('dashboard.title')}</h1>
         </div>
-        <Button onClick={() => setCreateOpen(true)}>
-          <Plus className="w-5 h-5" />
-          {t('dashboard.createTrip')}
-        </Button>
+        {/* Viaggio completo in evidenza; il viaggio rapido, più piccolo, sotto */}
+        <div className="flex flex-col items-stretch sm:items-end gap-2">
+          <Button onClick={() => setCreateOpen(true)}>
+            <Plus className="w-5 h-5" />
+            {t('dashboard.createTrip')}
+          </Button>
+          <Button
+            variant="secondary"
+            onClick={() => setMemoryOpen(true)}
+            className="!min-h-0 !h-[34px] !py-0 !px-[14px] !text-xs !gap-1.5"
+          >
+            <History className="w-[16px] h-[16px]" />
+            {t('memory.add')}
+          </Button>
+        </div>
       </div>
 
       <TripNotices />
@@ -265,6 +299,47 @@ export const DashboardPage: React.FC = () => {
 
       <Modal open={createOpen} onClose={() => setCreateOpen(false)} title={t('dashboard.createTrip')} maxWidth="max-w-5xl" tall>
         <TripForm onSuccess={handleTripCreated} />
+      </Modal>
+
+      <Modal open={memoryOpen} onClose={() => setMemoryOpen(false)} title={t('memory.add')} maxWidth="max-w-2xl">
+        <MemoryTripForm onSuccess={handleMemoryCreated} />
+      </Modal>
+
+      <Modal
+        open={editingTrip !== null}
+        onClose={() => setEditingTrip(null)}
+        title={editingTrip?.is_memory ? t('memory.edit') : t('trip.editTitle')}
+        maxWidth={editingTrip?.is_memory ? 'max-w-2xl' : 'max-w-5xl'}
+        tall={!editingTrip?.is_memory}
+      >
+        {editingTrip &&
+          (editingTrip.is_memory ? (
+            <MemoryTripForm
+              key={editingTrip.id}
+              initial={editingTrip}
+              onSuccess={() => {
+                setEditingTrip(null);
+                void loadTrips();
+              }}
+              onDeleted={() => {
+                setEditingTrip(null);
+                void loadTrips();
+              }}
+            />
+          ) : (
+            <TripForm
+              key={editingTrip.id}
+              initial={editingTrip}
+              onSuccess={() => {
+                setEditingTrip(null);
+                void loadTrips();
+              }}
+              onDeleted={() => {
+                setEditingTrip(null);
+                void loadTrips();
+              }}
+            />
+          ))}
       </Modal>
     </div>
   );

@@ -22,6 +22,11 @@ export interface AirportPickerProps {
   tripDestinations: Destination[];
   placeholder?: string;
   ariaLabel?: string;
+  /** Chiamata solo quando si sceglie un aeroporto dall'elenco (non digitando). */
+  onSelect?: (airport: Airport) => void;
+  /** Uso "a elenco" (es. scali): il campo serve solo a cercare, quindi un testo
+   *  che coincide con un codice IATA ("Doh") non va trattato come già scelto. */
+  searchOnly?: boolean;
 }
 
 interface AirportOption {
@@ -38,6 +43,8 @@ export const AirportPicker: React.FC<AirportPickerProps> = ({
   tripDestinations,
   placeholder,
   ariaLabel,
+  onSelect,
+  searchOnly = false,
 }) => {
   const { t } = useTranslation();
   const homeCity = useHomeCity();
@@ -86,8 +93,8 @@ export const AirportPicker: React.FC<AirportPickerProps> = ({
    *  è un aeroporto del nostro elenco: senza questo, cercando "Milano" il
    *  badge mostrerebbe MXP nonostante l'utente non abbia ancora scelto nulla. */
   const selected = useMemo(
-    () => (airports && /^[A-Za-z]{3}$/.test(value.trim()) ? airportByIata(airports, value) : null),
-    [airports, value]
+    () => (!searchOnly && airports && /^[A-Za-z]{3}$/.test(value.trim()) ? airportByIata(airports, value) : null),
+    [airports, value, searchOnly]
   );
 
   const options = useMemo<AirportOption[]>(() => {
@@ -129,6 +136,7 @@ export const AirportPicker: React.FC<AirportPickerProps> = ({
     // scelta deve poter distinguere questo caso da una digitazione.
     skipReopen.current = true;
     onChange(option.airport.iata);
+    onSelect?.(option.airport);
     setOpen(false);
     setActiveIndex(-1);
     inputRef.current?.blur();

@@ -9,6 +9,7 @@ import type {
   ChecklistItemRow,
   Coordinates,
   Destination,
+  Stopover,
   ExpenseCategoryRow,
   ExpenseKind,
   ExpenseSplitMode,
@@ -70,6 +71,9 @@ export interface CreateTripInput {
   cover_image_url?: string | null;
   cover_position_y?: number;
   is_public?: boolean;
+  is_memory?: boolean;
+  date_precision?: 'day' | 'month';
+  stopovers?: Stopover[];
 }
 
 /** True if the username is already taken (case-insensitive), checked via
@@ -125,6 +129,9 @@ export const updateTrip = async (id: string, input: Partial<CreateTripInput>): P
   if (input.cover_image_url !== undefined) patch.cover_image_url = input.cover_image_url;
   if (input.cover_position_y !== undefined) patch.cover_position_y = input.cover_position_y;
   if (input.is_public !== undefined) patch.is_public = input.is_public;
+  if (input.is_memory !== undefined) patch.is_memory = input.is_memory;
+  if (input.date_precision !== undefined) patch.date_precision = input.date_precision;
+  if (input.stopovers !== undefined) patch.stopovers = input.stopovers;
 
   const { data, error } = await supabase
     .from('trips')
@@ -149,6 +156,9 @@ export const createTrip = async (userId: string, input: CreateTripInput): Promis
       budget_planned: input.budget_planned ?? null,
       cover_image_url: input.cover_image_url ?? null,
       is_public: input.is_public ?? false,
+      is_memory: input.is_memory ?? false,
+      date_precision: input.date_precision ?? 'day',
+      stopovers: input.stopovers ?? [],
     })
     .select()
     .single();
@@ -1046,6 +1056,30 @@ export const recordProfileView = async (targetUserId: string): Promise<boolean> 
 };
 
 /** Elenco amici (amicizie accettate) dell'utente corrente. */
+/** Per ogni altro utente, in quanti viaggi (con invito accettato) è stato insieme a `userId`. */
+export const fetchSharedTripCounts = async (userId: string): Promise<Map<string, number>> => {
+  const { data: mine, error } = await supabase
+    .from('trip_participants')
+    .select('trip_id')
+    .eq('user_id', userId)
+    .eq('status', 'accepted');
+  if (error) throw error;
+  const tripIds = (mine ?? []).map((r) => r.trip_id);
+  if (tripIds.length === 0) return new Map();
+  const { data: others, error: othersError } = await supabase
+    .from('trip_participants')
+    .select('trip_id, user_id')
+    .in('trip_id', tripIds)
+    .eq('status', 'accepted')
+    .neq('user_id', userId);
+  if (othersError) throw othersError;
+  const counts = new Map<string, number>();
+  for (const r of others ?? []) {
+    if (r.user_id) counts.set(r.user_id, (counts.get(r.user_id) ?? 0) + 1);
+  }
+  return counts;
+};
+
 export const fetchFriends = async (): Promise<TravelerSearchResult[]> => {
   const { data, error } = await supabase.rpc('get_friends', {});
   if (error) throw error;

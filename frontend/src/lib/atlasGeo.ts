@@ -6,7 +6,7 @@
 // (Cipro del Nord, Somaliland, Abcasia, Ossezia del Sud, Transnistria).
 // ===========================================================================
 
-import { geoCentroid, geoContains, geoDistance } from 'd3-geo';
+import { geoArea, geoCentroid, geoContains, geoDistance } from 'd3-geo';
 import { feature } from 'topojson-client';
 import type { Feature, FeatureCollection, Geometry } from 'geojson';
 import type { GeometryCollection, Topology } from 'topojson-specification';
@@ -96,10 +96,22 @@ export const limitedEntityAt = (geo: WorldGeo, lat: number, lon: number): string
   return null;
 };
 
-/** Centro di un paese: dal poligono se c'è, altrimenti dal dataset dei paesi. */
+/** Parte principale di un paese: il poligono più grande. Francia con la Guyana,
+ * USA con Alaska e Hawaii: centrare e zoomare sull'insieme finirebbe in mezzo
+ * all'oceano. */
+export const mainPart = (f: GeoFeature): GeoFeature => {
+  if (f.geometry.type !== 'MultiPolygon') return f;
+  const parts = f.geometry.coordinates.map((coordinates) => ({
+    ...f,
+    geometry: { type: 'Polygon' as const, coordinates },
+  }));
+  return parts.reduce((best, p) => (geoArea(p) > geoArea(best) ? p : best), parts[0]);
+};
+
+/** Centro di un paese: dal poligono principale se c'è, altrimenti dal dataset dei paesi. */
 export const countryCenter = (geo: WorldGeo, code: string): [number, number] | null => {
   const f = geo.features.find((x) => x.code === code);
-  if (f) return geoCentroid(f) as [number, number];
+  if (f) return geoCentroid(mainPart(f)) as [number, number];
   const ll = geo.index.find((c) => c.code === code)?.latlng;
   return ll ? [ll[1], ll[0]] : null;
 };

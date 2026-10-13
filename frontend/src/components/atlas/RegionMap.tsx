@@ -44,19 +44,21 @@ const projectionFor = (code: string, collection: FeatureCollection<Geometry>, w:
 export const RegionMap: React.FC<RegionMapProps> = ({ countryCode, regions, states, cities, onToggle }) => {
   const { t } = useTranslation();
   const containerRef = useRef<HTMLDivElement>(null);
-  const [width, setWidth] = useState(800);
+  const [size, setSize] = useState({ width: 800, height: 500 });
   const [hover, setHover] = useState<{ name: string; x: number; y: number } | null>(null);
 
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
-    const ro = new ResizeObserver(() => setWidth(el.clientWidth));
+    // Occupa lo stesso riquadro della mappa del mondo (vi si sovrappone in dissolvenza).
+    const measure = () => setSize({ width: el.clientWidth, height: el.clientHeight });
+    const ro = new ResizeObserver(measure);
     ro.observe(el);
-    setWidth(el.clientWidth);
+    measure();
     return () => ro.disconnect();
   }, []);
 
-  const height = Math.max(320, Math.min(620, Math.round(width * 0.62)));
+  const { width, height } = size;
   const collection = useMemo<FeatureCollection<Geometry>>(() => ({ type: 'FeatureCollection', features: regions }), [regions]);
   const projection = useMemo(() => projectionFor(countryCode, collection, width, height), [countryCode, collection, width, height]);
   const path = useMemo(() => geoPath(projection), [projection]);
@@ -64,7 +66,7 @@ export const RegionMap: React.FC<RegionMapProps> = ({ countryCode, regions, stat
   const hoverState = hover ? states.get(hover.name) : undefined;
 
   return (
-    <div ref={containerRef} className="relative w-full select-none" style={{ height }}>
+    <div ref={containerRef} className="absolute inset-0 select-none bg-[var(--surface-1)]">
       <svg width={width} height={height} role="img" aria-label={t('atlas.regions.mapLabel')} onPointerLeave={() => setHover(null)}>
         <defs>
           <pattern id="region-transit" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">

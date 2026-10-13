@@ -9,7 +9,7 @@ import {
   geoPath,
   type GeoProjection,
 } from 'd3-geo';
-import { countryCenter, type WorldGeo } from '@/lib/atlasGeo';
+import { countryCenter, mainPart, type GeoFeature, type WorldGeo } from '@/lib/atlasGeo';
 import type { AtlasCity, AtlasCountry, CountryStatus } from '@/lib/atlas';
 
 export type MapView = 'globe' | 'flat';
@@ -25,6 +25,8 @@ interface WorldMapProps {
   selected: string | null;
   onSelect: (code: string | null) => void;
   countryName: (code: string) => string;
+  /** Chiamata quando l'animazione verso il paese selezionato è finita. */
+  onFocusSettled?: (code: string) => void;
 }
 
 const MIN_ZOOM = 1;
@@ -36,6 +38,15 @@ const FILL: Record<MapStatus, string> = {
   transit: 'url(#atlas-transit)',
   planned: 'var(--atlas-planned)',
   home: 'var(--atlas-home)',
+};
+
+const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v));
+
+/** Distanza angolare (radianti) del vertice più lontano dal centro del paese. */
+const angularRadius = (f: GeoFeature, center: [number, number]): number => {
+  const g = f.geometry;
+  const pts = g.type === 'Polygon' ? g.coordinates.flat() : g.type === 'MultiPolygon' ? g.coordinates.flat(2) : [];
+  return pts.reduce((m, p) => Math.max(m, geoDistance(center, [p[0], p[1]])), 0) || 0.03;
 };
 
 const prefersReducedMotion = () =>
@@ -50,6 +61,7 @@ export const WorldMap: React.FC<WorldMapProps> = ({
   selected,
   onSelect,
   countryName,
+  onFocusSettled,
 }) => {
   const { t } = useTranslation();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -130,24 +142,60 @@ export const WorldMap: React.FC<WorldMapProps> = ({
     return () => cancelAnimationFrame(frame);
   }, [view, spinning]);
 
-  // Selezionando un paese (anche dall'elenco) il globo ruota fino a mostrarlo.
+  // Selezionando un paese (dalla mappa o dall'elenco) la vista vola fino a lui:
+  // sul globo rotazione + zoom insieme, sul planisfero zoom + spostamento.
+  // Deselezionando si torna alla vista d'insieme con la stessa animazione.
+  // A fine corsa `onFocusSettled` avvisa la pagina (che poi mostra le regioni).
+  const onFocusSettledRef = useRef(onFocusSettled);
+  onFocusSettledRef.current = onFocusSettled;
   useEffect(() => {
-    if (!selected || view !== 'globe') return;
-    const target = countryCenter(geo, selected);
-    if (!target) return;
-    setSpinning(false);
-    const from = rotation;
-    const to: [number, number] = [-target[0], Math.max(-70, Math.min(70, -target[1]))];
+    const fromRot = rotation;
+    const fromZoom = zoom;
+    const fromPan = pan;
+    let toRot: [number, number] = fromRot;
+    let toZoom = 1;
+    let toPan: [number, number] = [0, 0];
+
+    if (selected) {
+      setSpinning(false);
+      const found = geo.features.find((x) => x.code === selected);
+      const f = found ? mainPart(found) : null;
+      const c = countryCenter(geo, selected);
+      if (!c) return;
+      if (view === 'globe') {
+        toRot = [-c[0], Math.max(-70, Math.min(70, -c[1]))];
+        // Raggio angolare del paese: il più lontano dei suoi vertici dal centro.
+        const a = f ? angularRadius(f, c) : 0.03;
+        toZoom = clamp(0.85 / Math.sin(Math.min(a, Math.PI / 2)), MIN_ZOOM, MAX_ZOOM);
+      } else {
+        const base = geoNaturalEarth1().fitSize([width, height], SPHERE);
+        const pt = base(c) ?? [width / 2, height / 2];
+        const b = f ? geoPath(base).bounds(f) : [[pt[0] - 4, pt[1] - 4], [pt[0] + 4, pt[1] + 4]];
+        const bw = Math.max(b[1][0] - b[0][0], 1);
+        const bh = Math.max(b[1][1] - b[0][1], 1);
+        toZoom = clamp(Math.min((0.7 * width) / bw, (0.7 * height) / bh), MIN_ZOOM, MAX_ZOOM);
+        const cx = (b[0][0] + b[1][0]) / 2;
+        const cy = (b[0][1] + b[1][1]) / 2;
+        toPan = [-(cx - width / 2) * toZoom, -(cy - height / 2) * toZoom];
+      }
+    } else if (fromZoom === 1 && fromPan[0] === 0 && fromPan[1] === 0) {
+      return;
+    }
+
     // percorso più breve in longitudine
-    const dl = ((to[0] - from[0] + 540) % 360) - 180;
+    const dl = ((toRot[0] - fromRot[0] + 540) % 360) - 180;
+    const duration = prefersReducedMotion() ? 0 : 900;
     const start = performance.now();
-    const duration = prefersReducedMotion() ? 0 : 700;
     let frame = 0;
     const step = (now: number) => {
       const k = duration === 0 ? 1 : Math.min(1, (now - start) / duration);
-      const e = 1 - Math.pow(1 - k, 3);
-      setRotation([from[0] + dl * e, from[1] + (to[1] - from[1]) * e]);
+      const e = k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2; // ease-in-out cubica
+      setRotation([fromRot[0] + dl * e, fromRot[1] + (toRot[1] - fromRot[1]) * e]);
+      // zoom interpolato in scala logaritmica: la velocità percepita resta costante
+      setZoom(fromZoom * Math.pow(toZoom / fromZoom, e));
+      setPan([fromPan[0] + (toPan[0] - fromPan[0]) * e, fromPan[1] + (toPan[1] - fromPan[1]) * e]);
       if (k < 1) frame = requestAnimationFrame(step);
+      else if (selected) onFocusSettledRef.current?.(selected);
     };
     frame = requestAnimationFrame(step);
     return () => cancelAnimationFrame(frame);

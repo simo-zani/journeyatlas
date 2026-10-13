@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import { ArrowLeft, Building2, Check, Compass, Earth, Globe2, Loader2, Map as MapIcon, Plane } from 'lucide-react';
 import { Card } from '@/components/Card';
 import { Alert } from '@/components/Alert';
@@ -86,6 +86,10 @@ export const AtlasPage: React.FC = () => {
   const [selected, setSelected] = useState<string | null>(null);
   const [regions, setRegions] = useState<{ code: string; features: GeoFeature[] } | null>(null);
   const [regionsLoading, setRegionsLoading] = useState(false);
+  // Paese su cui l'animazione del mondo è arrivata: solo allora compaiono le regioni.
+  const [settled, setSettled] = useState<string | null>(null);
+  // Ogni nuova selezione riparte da capo: le regioni aspettano la fine del nuovo volo.
+  useEffect(() => setSettled(null), [selected]);
 
   const homeKey = homeCity?.coords ? `${homeCity.coords.lat},${homeCity.coords.lon}` : '';
   const today = todayIso();
@@ -213,7 +217,10 @@ export const AtlasPage: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selected, selectedCca3, hasRegions]);
 
+  // Le regioni sono "aperte" appena caricate (barra e pannello si aggiornano subito);
+  // la mappa delle regioni compare però solo quando il volo verso il paese è finito.
   const showRegions = hasRegions && regions?.code === selected;
+  const regionMapVisible = showRegions && settled === selected;
 
   const regionStates = useMemo(() => {
     const states = new Map<string, RegionState>();
@@ -317,7 +324,7 @@ export const AtlasPage: React.FC = () => {
 
   const legend = (
     <ul className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300">
-      {(showRegions ? (['visited', 'transit', 'planned'] as const) : (['visited', 'transit', 'planned', 'home'] as const)).map((s) => (
+      {(regionMapVisible ? (['visited', 'transit', 'planned'] as const) : (['visited', 'transit', 'planned', 'home'] as const)).map((s) => (
         <li key={s} className="inline-flex items-center gap-1.5">
           <Swatch status={s} />
           {t(`atlas.status.${s}`)}
@@ -379,7 +386,7 @@ export const AtlasPage: React.FC = () => {
                 className="flex flex-wrap items-center justify-between gap-3 px-5 py-3.5"
                 style={{ borderBottom: '1px solid var(--border-subtle)' }}
               >
-                {showRegions && selected ? (
+                {regionMapVisible && selected ? (
                   <button
                     type="button"
                     onClick={() => setSelected(null)}
@@ -422,9 +429,10 @@ export const AtlasPage: React.FC = () => {
                 {legend}
               </div>
               <div className="p-2 sm:p-4">
-                {/* Il mondo resta montato (nascosto) mentre si guardano le regioni: al ritorno
-                    globo e zoom sono dove li si era lasciati. */}
-                <div className={showRegions ? 'hidden' : ''}>
+                {/* Transizione: il mondo vola sul paese (rotazione + zoom), poi le regioni
+                    compaiono sopra in dissolvenza. Al ritorno le regioni svaniscono mentre il
+                    mondo si riallarga. Il mondo resta sempre montato sotto. */}
+                <div className="relative">
                   <WorldMap
                     geo={geo}
                     view={view}
@@ -434,25 +442,37 @@ export const AtlasPage: React.FC = () => {
                     selected={selected}
                     onSelect={setSelected}
                     countryName={countryName}
+                    onFocusSettled={setSettled}
                   />
+                  <AnimatePresence>
+                    {regionMapVisible && selected && regions && (
+                      <motion.div
+                        key={selected}
+                        className="absolute inset-0"
+                        initial={{ opacity: 0, scale: 0.94 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.94 }}
+                        transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+                      >
+                        <RegionMap
+                          countryCode={selected}
+                          regions={regions.features}
+                          states={regionStates}
+                          cities={atlas.cities}
+                          onToggle={(name) => void toggleMark(selected, name)}
+                        />
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
-                {showRegions && selected && regions && (
-                  <RegionMap
-                    countryCode={selected}
-                    regions={regions.features}
-                    states={regionStates}
-                    cities={atlas.cities}
-                    onToggle={(name) => void toggleMark(selected, name)}
-                  />
-                )}
-                {regionsLoading && !showRegions && (
+                {regionsLoading && settled === selected && !showRegions && (
                   <p className="mt-2 text-center text-xs text-slate-400 inline-flex w-full justify-center items-center gap-2">
                     <Loader2 className="w-5 h-5 animate-spin text-gold" />
                     {t('atlas.regions.loading')}
                   </p>
                 )}
                 <p className="mt-2 text-center text-xs text-slate-400 dark:text-slate-500">
-                  {showRegions ? t('atlas.regions.hint') : view === 'globe' ? t('atlas.hintGlobe') : t('atlas.hintFlat')}
+                  {regionMapVisible ? t('atlas.regions.hint') : view === 'globe' ? t('atlas.hintGlobe') : t('atlas.hintFlat')}
                 </p>
               </div>
             </Card>

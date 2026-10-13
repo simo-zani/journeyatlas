@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   BarChart3,
@@ -27,6 +27,7 @@ import { AccommodationSection } from '@/components/trip/AccommodationSection';
 import { TransportSection } from '@/components/trip/TransportSection';
 import { ChecklistSection } from '@/components/trip/ChecklistSection';
 import { CountryInfoSection } from '@/components/trip/CountryInfoSection';
+import { ExpenseSection } from '@/components/trip/expenses/ExpenseSection';
 import { ShareTripModal } from '@/components/trip/ShareTripModal';
 import { TripParticipantAvatars } from '@/components/trip/TripParticipantAvatars';
 import { useAuth } from '@/auth/AuthContext';
@@ -48,8 +49,8 @@ type TripSection =
   | 'chat'
   | 'report';
 
-const ACTIVE_SECTIONS: TripSection[] = ['calendar', 'activities', 'accommodations', 'transport', 'packing', 'info'];
-const INACTIVE_SECTIONS: TripSection[] = ['expenses', 'documents'];
+const ACTIVE_SECTIONS: TripSection[] = ['calendar', 'activities', 'accommodations', 'transport', 'packing', 'expenses', 'info'];
+const INACTIVE_SECTIONS: TripSection[] = ['documents'];
 
 const SECTION_ICONS: Record<TripSection, LucideIcon> = {
   calendar: CalendarDays,
@@ -68,6 +69,7 @@ export const TripDetailPage: React.FC = () => {
   const { tripId } = useParams<{ tripId: string }>();
   const { user } = useAuth();
   const { t } = useTranslation();
+  const navigate = useNavigate();
 
   const [trip, setTrip] = useState<Trip | null>(null);
   const [loading, setLoading] = useState(true);
@@ -298,6 +300,7 @@ export const TripDetailPage: React.FC = () => {
                 setEditOpen(false);
                 void loadParticipants();
               }}
+              onDeleted={isOwner ? () => navigate('/', { replace: true }) : undefined}
             />
           </Modal>
 
@@ -389,6 +392,16 @@ export const TripDetailPage: React.FC = () => {
           )}
           {activeSection === 'packing' && user && (
             <ChecklistSection readOnly={readOnly} tripId={trip.id} userId={user.id} />
+          )}
+          {activeSection === 'expenses' && user && (
+            <ExpenseSection
+              trip={trip}
+              userId={user.id}
+              participants={participants}
+              canEditTrip={!readOnly}
+              isOwner={isOwner}
+              onTripChange={setTrip}
+            />
           )}
           {activeSection === 'info' && (
             <CountryInfoSection tripId={trip.id} tripStart={trip.start_date} tripEnd={trip.end_date} tripDestinations={trip.destinations ?? []} />

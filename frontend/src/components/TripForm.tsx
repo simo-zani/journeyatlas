@@ -1,13 +1,15 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { GripVertical, ImagePlus, Loader2, Lock, LockOpen, Plus, Sparkles, Users, X } from 'lucide-react';
+import { AlertTriangle, GripVertical, ImagePlus, Loader2, Lock, LockOpen, Plus, Sparkles, Trash2, Users, X } from 'lucide-react';
 import { Button } from '@/components/Button';
 import { Input } from '@/components/Input';
 import { Alert } from '@/components/Alert';
 import { DestinationPicker } from '@/components/DestinationPicker';
+import { Modal } from '@/components/Modal';
+import { RemoveTravelerModal } from '@/components/trip/RemoveTravelerModal';
 import { useAuth } from '@/auth/AuthContext';
 import { MODAL_ICON_SIZE } from '@/lib/ui';
-import { createTrip, fetchTripParticipants, syncCompanions, updateTrip, type CompanionDraft } from '@/lib/api';
+import { createTrip, deleteTrip, fetchTripParticipants, syncCompanions, updateTrip, type CompanionDraft } from '@/lib/api';
 import { compressImage } from '@/lib/image';
 import { supabase } from '@/lib/supabase';
 import {
@@ -21,6 +23,8 @@ import type { Destination, Trip } from '@/lib/types';
 interface TripFormProps {
   onSuccess: (trip: Trip) => void;
   initial?: Trip | null;
+  /** Se presente (modifica di un viaggio, solo proprietario) mostra "Elimina viaggio". */
+  onDeleted?: () => void;
 }
 
 const isValidIsoDate = (value: string): boolean => {
@@ -31,7 +35,7 @@ const isValidIsoDate = (value: string): boolean => {
   return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day;
 };
 
-export const TripForm: React.FC<TripFormProps> = ({ onSuccess, initial }) => {
+export const TripForm: React.FC<TripFormProps> = ({ onSuccess, initial, onDeleted }) => {
   const { t } = useTranslation();
   const { user } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -76,6 +80,31 @@ export const TripForm: React.FC<TripFormProps> = ({ onSuccess, initial }) => {
   const renameCompanion = (index: number, name: string) =>
     setCompanions((prev) => prev.map((c, i) => (i === index ? { ...c, name } : c)));
   const removeCompanion = (index: number) => setCompanions((prev) => prev.filter((_, i) => i !== index));
+  // Compagno già salvato di cui si chiede conferma (quello nuovo, mai salvato, si toglie e basta).
+  const [removingCompanion, setRemovingCompanion] = useState<CompanionDraft | null>(null);
+
+  // Eliminazione del viaggio: conferma scrivendone il nome, perché è irreversibile.
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const canDelete = !!initial && deleteConfirmText.trim() === initial.name.trim();
+
+  const handleDeleteTrip = async () => {
+    if (!initial || !canDelete) return;
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      await deleteTrip(initial);
+      setDeleteOpen(false);
+      onDeleted?.();
+    } catch (err) {
+      setDeleteError(
+        err && typeof err === 'object' && 'message' in err ? String((err as { message: unknown }).message) : t('common.error')
+      );
+      setDeleting(false);
+    }
+  };
 
   // Cover image state
   const [coverPreview, setCoverPreview] = useState<string | null>(initial?.cover_image_url ?? null);
@@ -586,7 +615,7 @@ export const TripForm: React.FC<TripFormProps> = ({ onSuccess, initial }) => {
                   />
                   <button
                     type="button"
-                    onClick={() => removeCompanion(index)}
+                    onClick={() => (c.id ? setRemovingCompanion(c) : removeCompanion(index))}
                     className="shrink-0 p-2 rounded-lg text-slate-400 hover:text-error hover:bg-error/10 transition-colors cursor-pointer"
                     title={t('common.remove')}
                   >
@@ -599,12 +628,88 @@ export const TripForm: React.FC<TripFormProps> = ({ onSuccess, initial }) => {
         </div>
       </div>
 
-      <div className="flex justify-end gap-3 pt-2">
+      <div className="flex items-center justify-between gap-3 pt-2">
+        {initial && onDeleted ? (
+          <button
+            type="button"
+            onClick={() => {
+              setDeleteConfirmText('');
+              setDeleteError(null);
+              setDeleteOpen(true);
+            }}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold text-error hover:bg-error/10 transition-colors cursor-pointer"
+          >
+            <Trash2 className={`${MODAL_ICON_SIZE} shrink-0`} />
+            {t('trip.delete.button')}
+          </button>
+        ) : (
+          <span />
+        )}
         <Button type="submit" disabled={!canSubmit || submitting}>
           {submitting && <Loader2 className="w-5 h-5 animate-spin" />}
           {t('common.save')}
         </Button>
       </div>
+
+      <RemoveTravelerModal
+        traveler={
+          removingCompanion
+            ? { participantId: removingCompanion.id, name: removingCompanion.name || '—', hasAccount: false }
+            : null
+        }
+        body={t('trip.companionsRemoveBody', { name: removingCompanion?.name || '—' })}
+        onClose={() => setRemovingCompanion(null)}
+        onConfirm={async () => {
+          const id = removingCompanion?.id;
+          setCompanions((prev) => prev.filter((c) => c.id !== id));
+        }}
+      />
+
+      {initial && onDeleted && (
+        <Modal
+          open={deleteOpen}
+          onClose={() => !deleting && setDeleteOpen(false)}
+          title={t('trip.delete.title')}
+          maxWidth="max-w-md"
+        >
+          <div className="space-y-5">
+            <div className="flex items-start gap-3 p-4 rounded-xl bg-error/10 border border-error/30">
+              <AlertTriangle className="w-6 h-6 text-error shrink-0" />
+              <div className="space-y-1">
+                <p className="text-sm font-bold text-error">{t('trip.delete.irreversible')}</p>
+                <p className="text-sm text-slate-700 dark:text-slate-200">{t('trip.delete.body', { name: initial.name })}</p>
+              </div>
+            </div>
+            <ul className="text-sm text-slate-600 dark:text-slate-300 list-disc pl-5 space-y-1">
+              {(['plan', 'expenses', 'people', 'files'] as const).map((k) => (
+                <li key={k}>{t(`trip.delete.what.${k}`)}</li>
+              ))}
+            </ul>
+            <Input
+              label={t('trip.delete.typeName', { name: initial.name })}
+              value={deleteConfirmText}
+              onChange={(e) => setDeleteConfirmText(e.target.value)}
+              placeholder={initial.name}
+              autoComplete="off"
+            />
+            {deleteError && <Alert type="error" message={deleteError} onClose={() => setDeleteError(null)} />}
+            <div className="flex justify-end gap-3">
+              <Button type="button" variant="tertiary" onClick={() => setDeleteOpen(false)} disabled={deleting}>
+                {t('common.cancel')}
+              </Button>
+              <button
+                type="button"
+                onClick={() => void handleDeleteTrip()}
+                disabled={!canDelete || deleting}
+                className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-sm font-bold text-white bg-error hover:bg-red-600 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {deleting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Trash2 className="w-5 h-5" />}
+                {t('trip.delete.confirm')}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </form>
   );
 };

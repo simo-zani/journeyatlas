@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Loader2, Search, Send, Trash2 } from 'lucide-react';
 import { Modal } from '@/components/Modal';
+import { RemoveTravelerModal } from '@/components/trip/RemoveTravelerModal';
 import { Alert } from '@/components/Alert';
 import {
   fetchFriends,
@@ -148,18 +149,6 @@ export const ShareTripModal: React.FC<ShareTripModalProps> = ({
     try {
       await updateParticipantRole(participantId, role);
       setParticipants((prev) => prev.map((p) => (p.participant_id === participantId ? { ...p, role } : p)));
-    } catch (err) {
-      setParticipantsError(err instanceof Error ? err.message : t('common.error'));
-    } finally {
-      setBusyParticipantId(null);
-    }
-  };
-
-  const handleRemove = async (participantId: string) => {
-    setBusyParticipantId(participantId);
-    try {
-      await removeParticipant(participantId);
-      setParticipants((prev) => prev.filter((p) => p.participant_id !== participantId));
     } catch (err) {
       setParticipantsError(err instanceof Error ? err.message : t('common.error'));
     } finally {
@@ -339,35 +328,19 @@ export const ShareTripModal: React.FC<ShareTripModalProps> = ({
       </div>
     </Modal>
 
-    <Modal
-      open={removing !== null}
+    <RemoveTravelerModal
+      traveler={
+        removing
+          ? { participantId: removing.participant_id, name: removingName, hasAccount: !!removing.user_id }
+          : null
+      }
       onClose={() => setRemoving(null)}
-      title={t('share.removeTitle')}
-      maxWidth="max-w-sm"
-    >
-      <div className="space-y-5">
-        <p className="text-sm text-slate-600 dark:text-slate-300">
-          {removing?.user_id
-            ? t('share.removeBodyAccount', { name: removingName })
-            : t('share.removeBodyCompanion', { name: removingName })}
-        </p>
-        <button
-          type="button"
-          onClick={async () => {
-            if (!removing) return;
-            await handleRemove(removing.participant_id);
-            setRemoving(null);
-          }}
-          disabled={removing !== null && busyParticipantId === removing.participant_id}
-          className="w-full px-6 py-3 rounded-xl text-sm font-bold text-white bg-error hover:bg-red-600 cursor-pointer disabled:opacity-50 inline-flex items-center justify-center gap-2"
-        >
-          {removing !== null && busyParticipantId === removing.participant_id && (
-            <Loader2 className="w-5 h-5 animate-spin" />
-          )}
-          {t('share.removeConfirm')}
-        </button>
-      </div>
-    </Modal>
+      onConfirm={async () => {
+        if (!removing) return;
+        await removeParticipant(removing.participant_id);
+        setParticipants((prev) => prev.filter((p) => p.participant_id !== removing.participant_id));
+      }}
+    />
     </>
   );
 };

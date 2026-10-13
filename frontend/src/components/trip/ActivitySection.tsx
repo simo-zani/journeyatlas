@@ -40,8 +40,9 @@ const NEW_CATEGORY = '__new__';
 const FILTER_SELECT =
   'input-field !h-[38px] !w-full !py-0 !pl-[18px] !pr-10 !text-xs !font-bold !rounded-xl !bg-slate-900/80 !border-slate-700/60 !text-slate-300 !shadow-md backdrop-blur-xl cursor-pointer appearance-none';
 
-/** Selettore filtro: larghezza fissa uguale per tutti, freccia staccata dal bordo. */
-const FilterSelect: React.FC<{ children: React.ReactNode; icon?: React.ReactNode } & React.SelectHTMLAttributes<HTMLSelectElement>> = ({
+/** Selettore filtro: larghezza fissa uguale per tutti, freccia staccata dal bordo.
+ * Esportato per gli altri tab con la stessa barra filtri (es. Spese). */
+export const FilterSelect: React.FC<{ children: React.ReactNode; icon?: React.ReactNode } & React.SelectHTMLAttributes<HTMLSelectElement>> = ({
   children,
   icon,
   className = '',

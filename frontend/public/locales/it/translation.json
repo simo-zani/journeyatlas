@@ -111,7 +111,22 @@
     "companionsLinked": "Collegato a @{{username}}",
     "companionsDefaultName": "Persona {{n}}",
     "companionsCount_one": "{{count}} persona oltre a te",
-    "companionsCount_other": "{{count}} persone oltre a te"
+    "companionsCount_other": "{{count}} persone oltre a te",
+    "companionsRemoveBody": "{{name}} verrà tolto dai compagni di viaggio quando salvi le modifiche.",
+    "delete": {
+      "button": "Elimina viaggio",
+      "title": "Eliminare il viaggio?",
+      "irreversible": "Questa operazione è irreversibile.",
+      "body": "Il viaggio «{{name}}» verrà eliminato definitivamente per tutti i partecipanti, insieme a tutto ciò che contiene:",
+      "what": {
+        "plan": "calendario, attività, alloggi, spostamenti e check list",
+        "expenses": "tutte le spese, le categorie personalizzate e i saldi",
+        "people": "compagni di viaggio e inviti (chi partecipava riceverà un avviso)",
+        "files": "la foto di copertina e le foto degli alloggi"
+      },
+      "typeName": "Per confermare scrivi il nome del viaggio: {{name}}",
+      "confirm": "Elimina definitivamente"
+    }
   },
   "profile": {
     "title": "Profilo",
@@ -609,7 +624,141 @@
   },
   "expenses": {
     "youOwe": "Devi {{amount}} {{currency}} a {{person}}",
-    "owesYou": "{{person}} ti deve {{amount}} {{currency}}"
+    "owesYou": "{{person}} ti deve {{amount}} {{currency}}",
+    "add": "Aggiungi spesa",
+    "edit": "Modifica spesa",
+    "empty": "Nessuna spesa registrata",
+    "emptySub": "Aggiungi la prima spesa: chi ha pagato, per chi, e i conti si fanno da soli.",
+    "noMatches": "Nessuna spesa corrisponde ai filtri",
+    "filterAllCategory": "Tutte le categorie",
+    "filterAllPeople": "Tutte le persone",
+    "currencyLabel": "Valuta del viaggio",
+    "currencyLocked": "La valuta del viaggio si può cambiare solo finché non ci sono spese",
+    "participantHasExpenses": "Questo viaggiatore compare in alcune spese: eliminale o riassegnale prima di rimuoverlo.",
+    "unknownParticipant": "Viaggiatore rimosso",
+    "transferDefaultTitle": "Rimborso",
+    "view": {
+      "list": "Elenco spese",
+      "listShort": "Elenco",
+      "charts": "Grafici delle spese",
+      "chartsShort": "Grafici",
+      "balances": "Saldi e rimborsi",
+      "balancesShort": "Saldi"
+    },
+    "tiles": {
+      "total": "Totale viaggio",
+      "average": "Media {{amount}} a persona",
+      "myShare": "La mia spesa",
+      "myShareHint": "Solo le quote a mio carico",
+      "myPaid": "Ho pagato",
+      "myPaidHint": "Anticipato di tasca mia",
+      "myBalance": "Il mio saldo",
+      "owedToYou": "Devi ricevere",
+      "youOwe": "Devi dare",
+      "settled": "Sei in pari"
+    },
+    "list": {
+      "transfer": "{{from}} → {{to}}",
+      "paidBy": "Pagato da {{name}}",
+      "forEveryone": "per tutti",
+      "forOne": "per {{name}}",
+      "forMany": "per {{count}} persone",
+      "youLent": "Hai prestato {{amount}}",
+      "youBorrowed": "Devi {{amount}}",
+      "rate": "1 {{from}} = {{rate}} {{to}}"
+    },
+    "kind": {
+      "expense": "Spesa",
+      "transfer": "Rimborso"
+    },
+    "splitMode": {
+      "equal": "In parti uguali",
+      "amounts": "Importi",
+      "shares": "Quote"
+    },
+    "form": {
+      "title": "Descrizione",
+      "titlePlaceholder": "Es. Cena al ristorante",
+      "transferTitle": "Descrizione (facoltativa)",
+      "amount": "Importo",
+      "currency": "Valuta",
+      "exchangeRate": "Tasso di cambio",
+      "rateUnavailable": "Tasso di cambio non disponibile: inseriscilo a mano.",
+      "date": "Data",
+      "category": "Categoria",
+      "newCategory": "Nuova categoria...",
+      "newCategoryPlaceholder": "Nome nuova categoria",
+      "icon": "Icona",
+      "paidBy": "Pagato da",
+      "from": "Da",
+      "to": "A",
+      "forWhom": "Per chi",
+      "selectAll": "Seleziona tutti",
+      "selectNone": "Deseleziona tutti",
+      "amountFor": "Importo per {{name}}",
+      "sharesFor": "Quote di {{name}}",
+      "remaining": "Mancano {{amount}} da assegnare",
+      "exceeding": "Hai assegnato {{amount}} in più del totale",
+      "nobodySelected": "Seleziona almeno una persona",
+      "notes": "Note",
+      "tripCurrencies": "Valute del viaggio",
+      "otherCurrencies": "Altre valute"
+    },
+    "category": {
+      "cibo": "Cibo e bevande",
+      "alloggi": "Alloggi",
+      "trasporti": "Trasporti",
+      "auto": "Auto",
+      "attrazioni": "Attrazioni e musei",
+      "escursioni": "Escursioni e tour",
+      "shopping": "Shopping",
+      "souvenir": "Souvenir",
+      "divertimento": "Divertimento",
+      "salute": "Salute",
+      "altro": "Altro"
+    },
+    "chart": {
+      "byCategory": "Spese per categoria",
+      "byPerson": "Pagato e speso per persona",
+      "byDay": "Spese per giorno",
+      "total": "Totale",
+      "other": "Altro",
+      "uncategorized": "Senza categoria",
+      "paid": "Ha pagato",
+      "share": "Sua spesa",
+      "before": "Prima",
+      "beforeTitle": "Prima del viaggio",
+      "after": "Dopo",
+      "afterTitle": "Dopo il viaggio",
+      "dailyHint": "Passa sopra una barra per vedere il dettaglio",
+      "empty": "Nessuna spesa da mostrare nei grafici",
+      "byCurrency": "Spese per valuta",
+      "currencyCount_one": "{{count}} spesa",
+      "currencyCount_other": "{{count}} spese"
+    },
+    "balances": {
+      "title": "Saldi",
+      "subtitle": "Quanto ognuno ha pagato rispetto a quanto ha speso",
+      "paidAndShare": "Pagato {{paid}} · Speso {{share}}",
+      "settled": "In pari",
+      "toReceive": "deve ricevere",
+      "toGive": "deve dare"
+    },
+    "settle": {
+      "title": "Come pareggiare i conti",
+      "subtitle": "Il minor numero di rimborsi per azzerare tutti i saldi",
+      "allSettled": "Tutti i conti sono in pari!",
+      "owes": "deve a",
+      "sentence": "{{from}} deve dare {{amount}} a {{to}}",
+      "markPaid": "Segna come rimborsato",
+      "transferTitle": "Rimborso"
+    },
+    "currencySource": {
+      "base": "valuta del viaggio",
+      "home": "la tua valuta",
+      "destination": "{{countries}}",
+      "transit": "scalo: {{countries}}"
+    }
   },
   "share": {
     "title": "Condividi viaggio",
@@ -648,12 +797,17 @@
     "pickWhoTitle": "Chi sei tra i partecipanti?",
     "pickWhoHint": "Collega il tuo account a uno dei partecipanti del viaggio. Se non ci sei, verrai aggiunto come persona in più.",
     "pickNone": "Non sono in elenco: aggiungimi",
-    "confirmAccept": "Conferma e unisciti"
+    "confirmAccept": "Conferma e unisciti",
+    "removeBlockedTitle": "Impossibile rimuovere",
+    "removeBlockedBody": "{{name}} compare in alcune spese del viaggio (come pagatore o tra chi le divide). Eliminale o assegnale a qualcun altro nel tab Spese, poi potrai rimuoverlo.",
+    "removeBlockedOk": "Ho capito"
   },
   "notices": {
     "removedBy": "@{{username}} ti ha rimosso dal viaggio “{{trip}}”",
     "removed": "Sei stato rimosso dal viaggio “{{trip}}”",
-    "dismiss": "Chiudi"
+    "dismiss": "Chiudi",
+    "tripDeletedBy": "@{{username}} ha eliminato il viaggio «{{trip}}»",
+    "tripDeleted": "Il viaggio «{{trip}}» è stato eliminato"
   },
   "travelers": {
     "title": "Viaggiatori",

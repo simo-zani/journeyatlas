@@ -21,6 +21,8 @@ export type TripRow = {
   cover_image_url: string | null;
   cover_position_y: number;
   is_public: boolean;
+  /** Valuta in cui si calcolano totali e saldi delle spese. */
+  expense_currency: string;
   created_at: string;
   updated_at: string;
   archived_at: string | null;
@@ -58,11 +60,11 @@ export type TripParticipantRow = {
   created_at: string;
 };
 
-/** Avviso per l'utente (per ora solo: rimosso da un viaggio). */
+/** Avviso per l'utente: rimosso da un viaggio, oppure viaggio eliminato dal proprietario. */
 export type TripNotification = {
   id: string;
   user_id: string;
-  kind: 'removed';
+  kind: 'removed' | 'trip_deleted';
   trip_name: string;
   actor_username: string | null;
   created_at: string;
@@ -233,6 +235,47 @@ export type ChecklistCategoryRow = {
   created_at: string;
 };
 
+export type ExpenseKind = 'expense' | 'transfer';
+export type ExpenseSplitMode = 'equal' | 'amounts' | 'shares';
+
+export type ExpenseSplitRow = {
+  expense_id: string;
+  participant_id: string;
+  /** Quota nella valuta della spesa. */
+  amount: number;
+  shares: number;
+};
+
+export type ExpenseRow = {
+  id: string;
+  trip_id: string;
+  /** 'transfer' = rimborso tra viaggiatori: non è un costo del viaggio. */
+  kind: ExpenseKind;
+  title: string;
+  amount: number;
+  currency: string;
+  /** 1 unità di `currency` = exchange_rate unità della valuta del viaggio. */
+  exchange_rate: number;
+  category: string | null;
+  expense_date: string;
+  payer_participant_id: string;
+  split_mode: ExpenseSplitMode;
+  notes: string | null;
+  created_by_user_id: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ExpenseWithSplits = ExpenseRow & { expense_splits: ExpenseSplitRow[] };
+
+export type ExpenseCategoryRow = {
+  id: string;
+  trip_id: string;
+  name: string;
+  icon: string;
+  created_at: string;
+};
+
 export type Trip = TripRow & { participants?: TripParticipantRow[] };
 
 export type FriendStatus = 'friends' | 'outgoing' | 'incoming' | 'self' | null;
@@ -369,6 +412,32 @@ export type Database = {
         Update: Partial<ChecklistCategoryRow>;
         Relationships: [];
       };
+      expenses: {
+        Row: ExpenseRow;
+        Insert: Partial<ExpenseRow>;
+        Update: Partial<ExpenseRow>;
+        Relationships: [];
+      };
+      expense_splits: {
+        Row: ExpenseSplitRow;
+        Insert: Partial<ExpenseSplitRow>;
+        Update: Partial<ExpenseSplitRow>;
+        Relationships: [
+          {
+            foreignKeyName: 'expense_splits_expense_id_fkey';
+            columns: ['expense_id'];
+            isOneToOne: false;
+            referencedRelation: 'expenses';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      expense_categories: {
+        Row: ExpenseCategoryRow;
+        Insert: Partial<ExpenseCategoryRow>;
+        Update: Partial<ExpenseCategoryRow>;
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: {
@@ -439,6 +508,14 @@ export type Database = {
       respond_to_friend_request: {
         Args: { friendship_id: string; accept: boolean };
         Returns: void;
+      };
+      delete_trip: {
+        Args: { p_trip_id: string };
+        Returns: void;
+      };
+      save_expense: {
+        Args: { p_expense: Record<string, unknown>; p_splits: Record<string, unknown>[] };
+        Returns: string;
       };
       set_trip_public: {
         Args: { trip_id: string; is_public: boolean };

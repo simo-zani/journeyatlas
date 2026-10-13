@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { UserMinus, X } from 'lucide-react';
+import { Trash2, UserMinus, X } from 'lucide-react';
 import { Card } from '@/components/Card';
 import { dismissTripNotification, fetchMyTripNotifications } from '@/lib/api';
 import type { TripNotification } from '@/lib/types';
@@ -32,12 +32,16 @@ export const TripNotices: React.FC = () => {
       {notices.map((n) => (
         <Card key={n.id} compact className="flex items-center gap-4">
           <div className="w-10 h-10 rounded-xl bg-error/10 text-error flex items-center justify-center shrink-0">
-            <UserMinus className="w-5 h-5" />
+            {n.kind === 'trip_deleted' ? <Trash2 className="w-5 h-5" /> : <UserMinus className="w-5 h-5" />}
           </div>
           <p className="flex-1 min-w-0 text-sm">
-            {n.actor_username
-              ? t('notices.removedBy', { trip: n.trip_name, username: n.actor_username })
-              : t('notices.removed', { trip: n.trip_name })}
+            {n.kind === 'trip_deleted'
+              ? n.actor_username
+                ? t('notices.tripDeletedBy', { trip: n.trip_name, username: n.actor_username })
+                : t('notices.tripDeleted', { trip: n.trip_name })
+              : n.actor_username
+                ? t('notices.removedBy', { trip: n.trip_name, username: n.actor_username })
+                : t('notices.removed', { trip: n.trip_name })}
           </p>
           <button
             type="button"

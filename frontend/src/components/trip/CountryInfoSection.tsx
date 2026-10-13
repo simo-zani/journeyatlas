@@ -37,10 +37,7 @@ import {
   type CountryInfo,
 } from '@/lib/countryInfo';
 import { PLUGS, PLUG_DESCRIPTIONS } from '@/lib/plugs';
-import { fetchTransports } from '@/lib/api';
-import { airportByIata, distanceKm, loadAirports } from '@/lib/airports';
-import { loadTrainStations, stationByNameOrCode } from '@/lib/trainStations';
-import { loadFerryPorts, portByNameOrCode } from '@/lib/ferryPorts';
+import { findTransitCountryCodes } from '@/lib/tripCountries';
 import { useHomeCity } from '@/lib/useHomeCity';
 import { useNationality } from '@/lib/useNationality';
 import { useIsStuck } from '@/lib/useIsStuck';
@@ -306,49 +303,13 @@ export const CountryInfoSection: React.FC<CountryInfoSectionProps> = ({ tripId, 
     let cancelled = false;
     const run = async () => {
       try {
-        const [rows, airports, stations, ports] = await Promise.all([
-          fetchTransports(tripId),
-          loadAirports(),
-          loadTrainStations(),
-          loadFerryPorts(),
-        ]);
-        const countryOf = (type: string, value: string): string | null => {
-          const code =
-            type === 'flight'
-              ? airportByIata(airports, value)?.country
-              : type === 'train'
-                ? stationByNameOrCode(stations, value)?.country
-                : type === 'ferry'
-                  ? portByNameOrCode(ports, value)?.country
-                  : undefined;
-          return code ? code.toUpperCase() : null;
-        };
+        const found = await findTransitCountryCodes(
+          tripId,
+          countries.map((c) => c.code),
+          homeCity?.coords
+        );
 
-        // paese di casa: quello dell'aeroporto più vicino alla città di casa, altrimenti la partenza del primo mezzo
-        let home: string | null = null;
-        if (homeCity?.coords) {
-          let best = Infinity;
-          for (const a of airports) {
-            const km = distanceKm(homeCity.coords, a);
-            if (km < best) {
-              best = km;
-              home = a.country.toUpperCase();
-            }
-          }
-        } else if (rows[0]) {
-          home = countryOf(rows[0].transport_type, rows[0].departure_airport);
-        }
-
-        const known = new Set(countries.map((c) => c.code.toUpperCase()));
-        const found = new Set<string>();
-        for (const r of rows) {
-          for (const v of [r.departure_airport, r.arrival_airport]) {
-            const code = countryOf(r.transport_type, v);
-            if (code && code !== home && !known.has(code)) found.add(code);
-          }
-        }
-
-        const settled = await Promise.allSettled([...found].map((code) => fetchCountryInfo(code)));
+        const settled = await Promise.allSettled(found.map((code) => fetchCountryInfo(code)));
         const infos = settled.flatMap((r) => (r.status === 'fulfilled' ? [r.value] : []));
         if (cancelled) return;
         setTransit(infos);

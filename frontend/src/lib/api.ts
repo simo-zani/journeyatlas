@@ -1,3 +1,4 @@
+import i18n from '@/i18n/config';
 import { supabase } from '@/lib/supabase';
 import type {
   AccommodationRow,
@@ -7,6 +8,10 @@ import type {
   ChecklistItemRow,
   Coordinates,
   Destination,
+  ExpenseCategoryRow,
+  ExpenseKind,
+  ExpenseSplitMode,
+  ExpenseWithSplits,
   IncomingFriendRequest,
   PendingInvite,
   ProfileRow,
@@ -164,6 +169,33 @@ export const createTrip = async (userId: string, input: CreateTripInput): Promis
   }
 
   return data as Trip;
+};
+
+/** Path di un oggetto di un bucket pubblico a partire dal suo URL pubblico (null se è altrove, es. Unsplash). */
+const storagePathFromPublicUrl = (url: string | null, bucket: string): string | null => {
+  if (!url) return null;
+  const marker = `/storage/v1/object/public/${bucket}/`;
+  const i = url.indexOf(marker);
+  return i === -1 ? null : decodeURIComponent(url.slice(i + marker.length).split('?')[0]);
+};
+
+/** Elimina definitivamente un viaggio (solo il proprietario).
+ * Prima rimuove, per quanto possibile, i file su storage (copertina e foto
+ * degli alloggi: le policy permettono di cancellare solo i propri, gli altri
+ * restano orfani ma non visibili da nessuna parte), poi l'RPC delete_trip
+ * avvisa i partecipanti e cancella il viaggio con tutto ciò che vi è legato. */
+export const deleteTrip = async (trip: Pick<Trip, 'id' | 'cover_image_url'>): Promise<void> => {
+  try {
+    const { data: photos } = await supabase.from('accommodations').select('photo_path').eq('trip_id', trip.id);
+    const photoPaths = (photos ?? []).map((p) => p.photo_path).filter((p): p is string => !!p);
+    if (photoPaths.length > 0) await supabase.storage.from('accommodation-photos').remove(photoPaths);
+    const coverPath = storagePathFromPublicUrl(trip.cover_image_url, 'trip-covers');
+    if (coverPath) await supabase.storage.from('trip-covers').remove([coverPath]);
+  } catch {
+    // la pulizia dei file non deve impedire l'eliminazione del viaggio
+  }
+  const { error } = await supabase.rpc('delete_trip', { p_trip_id: trip.id });
+  if (error) throw error;
 };
 
 // ----------------------------------------------------------------------------
@@ -658,6 +690,132 @@ export const createChecklistCategory = async (
 };
 
 // ----------------------------------------------------------------------------
+// Expenses (stile Tricount): spese, ripartizioni e categorie personalizzate
+// ----------------------------------------------------------------------------
+
+// Ordine di visualizzazione delle categorie predefinite; le personalizzate
+// (con icona) stanno in expense_categories.
+export const EXPENSE_CATEGORIES = [
+  'cibo',
+  'alloggi',
+  'trasporti',
+  'auto',
+  'attrazioni',
+  'escursioni',
+  'shopping',
+  'souvenir',
+  'divertimento',
+  'salute',
+  'altro',
+] as const;
+
+export interface ExpenseSplitInput {
+  participant_id: string;
+  amount: number;
+  shares: number;
+}
+
+export interface ExpenseInput {
+  kind: ExpenseKind;
+  title: string;
+  amount: number;
+  currency: string;
+  exchange_rate: number;
+  category: string | null;
+  expense_date: string;
+  payer_participant_id: string;
+  split_mode: ExpenseSplitMode;
+  notes: string | null;
+  splits: ExpenseSplitInput[];
+}
+
+export const fetchExpenses = async (tripId: string): Promise<ExpenseWithSplits[]> => {
+  const { data, error } = await supabase
+    .from('expenses')
+    .select('*, expense_splits(*)')
+    .eq('trip_id', tripId)
+    .order('expense_date', { ascending: false })
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  // numeric arriva come stringa da PostgREST quando supera la precisione di JS:
+  // si normalizza tutto a number una volta sola, qui.
+  return ((data ?? []) as ExpenseWithSplits[]).map((e) => ({
+    ...e,
+    amount: Number(e.amount),
+    exchange_rate: Number(e.exchange_rate),
+    expense_splits: (e.expense_splits ?? []).map((s) => ({
+      ...s,
+      amount: Number(s.amount),
+      shares: Number(s.shares),
+    })),
+  }));
+};
+
+/** Crea (id assente) o aggiorna una spesa insieme alla sua ripartizione, in
+ * un'unica transazione lato DB (RPC save_expense). */
+export const saveExpense = async (tripId: string, input: ExpenseInput, id?: string): Promise<string> => {
+  const { splits, ...expense } = input;
+  const { data, error } = await supabase.rpc('save_expense', {
+    p_expense: { ...expense, id: id ?? null, trip_id: tripId },
+    p_splits: splits.map((s) => ({ ...s })),
+  });
+  if (error) throw error;
+  return data as string;
+};
+
+export const deleteExpense = async (id: string): Promise<void> => {
+  const { error } = await supabase.from('expenses').delete().eq('id', id);
+  if (error) throw error;
+};
+
+export const fetchExpenseCategories = async (tripId: string): Promise<ExpenseCategoryRow[]> => {
+  const { data, error } = await supabase
+    .from('expense_categories')
+    .select('*')
+    .eq('trip_id', tripId)
+    .order('created_at', { ascending: true });
+  if (error) throw error;
+  return (data ?? []) as ExpenseCategoryRow[];
+};
+
+export const createExpenseCategory = async (
+  tripId: string,
+  name: string,
+  icon: string
+): Promise<ExpenseCategoryRow> => {
+  const { data, error } = await supabase
+    .from('expense_categories')
+    .insert({ trip_id: tripId, name, icon })
+    .select()
+    .single();
+  if (error) throw error;
+  return data as ExpenseCategoryRow;
+};
+
+export const updateTripExpenseCurrency = async (tripId: string, currency: string): Promise<void> => {
+  const { error } = await supabase.from('trips').update({ expense_currency: currency }).eq('id', tripId);
+  if (error) throw error;
+};
+
+/** True se il partecipante ha pagato o condiviso almeno una spesa del viaggio:
+ * in quel caso non si può rimuovere (vedi explainParticipantFkError). */
+export const participantHasExpenses = async (participantId: string): Promise<boolean> => {
+  const [paid, shared] = await Promise.all([
+    supabase.from('expenses').select('id', { count: 'exact', head: true }).eq('payer_participant_id', participantId),
+    supabase.from('expense_splits').select('expense_id', { count: 'exact', head: true }).eq('participant_id', participantId),
+  ]);
+  if (paid.error) throw paid.error;
+  if (shared.error) throw shared.error;
+  return (paid.count ?? 0) + (shared.count ?? 0) > 0;
+};
+
+/** Un partecipante che compare in una spesa non si può rimuovere (FK su
+ * trip_participants, vedi migration 0038): il codice 23503 diventa un
+ * messaggio comprensibile invece dell'errore grezzo di Postgres. */
+const explainParticipantFkError = (error: { code?: string }) =>
+  error.code === '23503' ? new Error(i18n.t('expenses.participantHasExpenses')) : error;
+
+// ----------------------------------------------------------------------------
 // Condivisione viaggio: inviti e partecipanti
 // ----------------------------------------------------------------------------
 
@@ -737,7 +895,7 @@ export const syncCompanions = async (
       .delete()
       .in('id', toDelete.map((d) => d.id as string))
       .is('user_id', null);
-    if (error) throw error;
+    if (error) throw explainParticipantFkError(error);
   }
   for (const d of toRename) {
     const { error } = await supabase
@@ -778,7 +936,7 @@ export const updateParticipantRole = async (participantId: string, role: Role): 
  * era già dentro, la funzione gli lascia anche una notifica di rimozione. */
 export const removeParticipant = async (participantId: string): Promise<void> => {
   const { error } = await supabase.rpc('remove_trip_participant', { participant_id: participantId });
-  if (error) throw error;
+  if (error) throw explainParticipantFkError(error);
 };
 
 export const fetchMyTripNotifications = async (): Promise<TripNotification[]> => {

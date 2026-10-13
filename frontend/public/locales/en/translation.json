@@ -111,7 +111,22 @@
     "companionsLinked": "Linked to @{{username}}",
     "companionsDefaultName": "Person {{n}}",
     "companionsCount_one": "{{count}} person besides you",
-    "companionsCount_other": "{{count}} people besides you"
+    "companionsCount_other": "{{count}} people besides you",
+    "companionsRemoveBody": "{{name}} will be removed from the travel companions when you save your changes.",
+    "delete": {
+      "button": "Delete trip",
+      "title": "Delete the trip?",
+      "irreversible": "This cannot be undone.",
+      "body": "The trip “{{name}}” will be permanently deleted for every participant, together with everything in it:",
+      "what": {
+        "plan": "calendar, activities, accommodation, transport and check list",
+        "expenses": "all expenses, custom categories and balances",
+        "people": "travel companions and invites (participants will be notified)",
+        "files": "the cover photo and the accommodation photos"
+      },
+      "typeName": "To confirm, type the trip name: {{name}}",
+      "confirm": "Delete permanently"
+    }
   },
   "profile": {
     "title": "Profile",
@@ -609,7 +624,141 @@
   },
   "expenses": {
     "youOwe": "You owe {{amount}} {{currency}} to {{person}}",
-    "owesYou": "{{person}} owes you {{amount}} {{currency}}"
+    "owesYou": "{{person}} owes you {{amount}} {{currency}}",
+    "add": "Add expense",
+    "edit": "Edit expense",
+    "empty": "No expenses yet",
+    "emptySub": "Add the first expense: who paid and for whom, and the maths does itself.",
+    "noMatches": "No expenses match the filters",
+    "filterAllCategory": "All categories",
+    "filterAllPeople": "Everyone",
+    "currencyLabel": "Trip currency",
+    "currencyLocked": "The trip currency can only be changed while there are no expenses",
+    "participantHasExpenses": "This traveler appears in some expenses: delete or reassign them before removing them.",
+    "unknownParticipant": "Removed traveler",
+    "transferDefaultTitle": "Reimbursement",
+    "view": {
+      "list": "Expense list",
+      "listShort": "List",
+      "charts": "Expense charts",
+      "chartsShort": "Charts",
+      "balances": "Balances and reimbursements",
+      "balancesShort": "Balances"
+    },
+    "tiles": {
+      "total": "Trip total",
+      "average": "Average {{amount}} per person",
+      "myShare": "My spending",
+      "myShareHint": "Only the shares charged to me",
+      "myPaid": "I paid",
+      "myPaidHint": "Out of my own pocket",
+      "myBalance": "My balance",
+      "owedToYou": "You are owed",
+      "youOwe": "You owe",
+      "settled": "You are settled up"
+    },
+    "list": {
+      "transfer": "{{from}} → {{to}}",
+      "paidBy": "Paid by {{name}}",
+      "forEveryone": "for everyone",
+      "forOne": "for {{name}}",
+      "forMany": "for {{count}} people",
+      "youLent": "You lent {{amount}}",
+      "youBorrowed": "You owe {{amount}}",
+      "rate": "1 {{from}} = {{rate}} {{to}}"
+    },
+    "kind": {
+      "expense": "Expense",
+      "transfer": "Reimbursement"
+    },
+    "splitMode": {
+      "equal": "Equally",
+      "amounts": "Amounts",
+      "shares": "Shares"
+    },
+    "form": {
+      "title": "Description",
+      "titlePlaceholder": "E.g. Dinner at the restaurant",
+      "transferTitle": "Description (optional)",
+      "amount": "Amount",
+      "currency": "Currency",
+      "exchangeRate": "Exchange rate",
+      "rateUnavailable": "Exchange rate unavailable: enter it manually.",
+      "date": "Date",
+      "category": "Category",
+      "newCategory": "New category...",
+      "newCategoryPlaceholder": "New category name",
+      "icon": "Icon",
+      "paidBy": "Paid by",
+      "from": "From",
+      "to": "To",
+      "forWhom": "For whom",
+      "selectAll": "Select all",
+      "selectNone": "Deselect all",
+      "amountFor": "Amount for {{name}}",
+      "sharesFor": "Shares for {{name}}",
+      "remaining": "{{amount}} left to assign",
+      "exceeding": "You assigned {{amount}} more than the total",
+      "nobodySelected": "Select at least one person",
+      "notes": "Notes",
+      "tripCurrencies": "Trip currencies",
+      "otherCurrencies": "Other currencies"
+    },
+    "category": {
+      "cibo": "Food & drinks",
+      "alloggi": "Accommodation",
+      "trasporti": "Transport",
+      "auto": "Car",
+      "attrazioni": "Attractions & museums",
+      "escursioni": "Excursions & tours",
+      "shopping": "Shopping",
+      "souvenir": "Souvenirs",
+      "divertimento": "Entertainment",
+      "salute": "Health",
+      "altro": "Other"
+    },
+    "chart": {
+      "byCategory": "Expenses by category",
+      "byPerson": "Paid and spent per person",
+      "byDay": "Expenses per day",
+      "total": "Total",
+      "other": "Other",
+      "uncategorized": "Uncategorized",
+      "paid": "Paid",
+      "share": "Spent",
+      "before": "Before",
+      "beforeTitle": "Before the trip",
+      "after": "After",
+      "afterTitle": "After the trip",
+      "dailyHint": "Hover a bar to see the details",
+      "empty": "No expenses to chart",
+      "byCurrency": "Expenses by currency",
+      "currencyCount_one": "{{count}} expense",
+      "currencyCount_other": "{{count}} expenses"
+    },
+    "balances": {
+      "title": "Balances",
+      "subtitle": "How much each person paid compared to what they spent",
+      "paidAndShare": "Paid {{paid}} · Spent {{share}}",
+      "settled": "Settled",
+      "toReceive": "is owed",
+      "toGive": "owes"
+    },
+    "settle": {
+      "title": "How to settle up",
+      "subtitle": "The fewest reimbursements that clear every balance",
+      "allSettled": "Everyone is settled up!",
+      "owes": "owes",
+      "sentence": "{{from}} owes {{amount}} to {{to}}",
+      "markPaid": "Mark as reimbursed",
+      "transferTitle": "Reimbursement"
+    },
+    "currencySource": {
+      "base": "trip currency",
+      "home": "your currency",
+      "destination": "{{countries}}",
+      "transit": "stopover: {{countries}}"
+    }
   },
   "share": {
     "title": "Share trip",
@@ -648,12 +797,17 @@
     "pickWhoTitle": "Which participant are you?",
     "pickWhoHint": "Link your account to one of the trip participants. If you are not listed, you will be added as an extra person.",
     "pickNone": "I am not listed: add me",
-    "confirmAccept": "Confirm and join"
+    "confirmAccept": "Confirm and join",
+    "removeBlockedTitle": "Cannot remove",
+    "removeBlockedBody": "{{name}} appears in some trip expenses (as payer or among those sharing them). Delete them or assign them to someone else in the Expenses tab, then you can remove them.",
+    "removeBlockedOk": "Got it"
   },
   "notices": {
     "removedBy": "@{{username}} removed you from the trip “{{trip}}”",
     "removed": "You have been removed from the trip “{{trip}}”",
-    "dismiss": "Dismiss"
+    "dismiss": "Dismiss",
+    "tripDeletedBy": "@{{username}} deleted the trip “{{trip}}”",
+    "tripDeleted": "The trip “{{trip}}” was deleted"
   },
   "travelers": {
     "title": "Travelers",

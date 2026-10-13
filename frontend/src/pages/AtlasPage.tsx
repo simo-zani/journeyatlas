@@ -35,6 +35,7 @@ import {
   buildAtlas,
   isTripStarted,
   WORLD_COUNTRY_COUNT,
+  type AtlasCity,
   type AtlasCountry,
   type AtlasTripInput,
   type AtlasTripRef,
@@ -58,9 +59,11 @@ import { loadTransportPlaces, transitPlacesFromRows } from '@/lib/tripCountries'
 import { useHomeCity } from '@/lib/useHomeCity';
 import { useNationality } from '@/lib/useNationality';
 import { formatMonthRange } from '@/lib/tripDates';
+import { useLocalizedCityNames } from '@/lib/cityNames';
 import type { AtlasMarkRow, TransportRow } from '@/lib/types';
 
 const CONTINENTS = ['europe', 'asia', 'africa', 'north-america', 'south-america', 'oceania', 'antarctica'] as const;
+const NO_CITIES: AtlasCity[] = [];
 const LIST_ORDER: CountryStatus[] = ['visited', 'transit', 'planned'];
 /** Paesi mostrati con il nome completo invece di quello breve del browser. */
 const NAME_OVERRIDES = new Set(['US']);
@@ -179,10 +182,10 @@ export const AtlasPage: React.FC = () => {
                     destinations.map((d) => d.code),
                     homeCity?.coords,
                     places
-                  ).map((p) => ({ code: placeCode(p.code, p), coords: { lat: p.lat, lon: p.lon } }))
+                  ).map((p) => ({ code: placeCode(p.code, p), city: p.city, coords: { lat: p.lat, lon: p.lon } }))
                 : [];
             for (const s of trip.stopovers ?? []) {
-              transit.push({ code: placeCode(s.countryCode, s), coords: { lat: s.lat, lon: s.lon } });
+              transit.push({ code: placeCode(s.countryCode, s), city: s.city, coords: { lat: s.lat, lon: s.lon } });
             }
             return { trip, destinations, transit };
           })
@@ -367,6 +370,12 @@ export const AtlasPage: React.FC = () => {
 
   // --------------------------------------------------------------- vista
   const visitedCities = atlas?.cities.filter((c) => c.visited).length ?? 0;
+  // Etichette delle città del paese aperto nella lingua dell'interfaccia (gli scali arrivano in inglese).
+  const localizedCityNames = useLocalizedCityNames(atlas?.cities ?? NO_CITIES, selected, i18n.language);
+  const shownCities = useMemo(
+    () => (atlas?.cities ?? NO_CITIES).map((c) => (localizedCityNames.has(c.key) ? { ...c, city: localizedCityNames.get(c.key)! } : c)),
+    [atlas, localizedCityNames]
+  );
   const worldPercent = Math.round((visitedByKind.sovereign / WORLD_COUNTRY_COUNT) * 1000) / 10;
   const selectedCountry = selected ? atlas?.countries.get(selected) ?? null : null;
   const countryVisited = selectedCountry?.status === 'visited';
@@ -556,7 +565,7 @@ export const AtlasPage: React.FC = () => {
                     geo={geo}
                     view={view}
                     countries={atlas.countries}
-                    cities={atlas.cities}
+                    cities={shownCities}
                     homeCode={nationality}
                     selected={selected}
                     onSelect={setSelected}
@@ -579,7 +588,7 @@ export const AtlasPage: React.FC = () => {
                           countryCode={selected}
                           regions={regions.features}
                           states={regionStates}
-                          cities={atlas.cities}
+                          cities={shownCities}
                           homeCoords={homeCity?.coords ?? null}
                           homeLabel={homeCity?.city ?? null}
                           flags={regionFlags}

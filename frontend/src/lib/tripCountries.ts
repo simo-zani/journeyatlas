@@ -21,6 +21,7 @@ export interface TransitPlace {
   code: string;
   lat: number;
   lon: number;
+  city: string;
 }
 
 /** Scali (con coordinate) di un insieme di mezzi già caricati, esclusi casa e
@@ -40,7 +41,7 @@ export const transitPlacesFromRows = (
           : type === 'ferry'
             ? portByNameOrCode(ports, value)
             : undefined;
-    return p ? { code: p.country.toUpperCase(), lat: p.lat, lon: p.lon } : null;
+    return p ? { code: p.country.toUpperCase(), lat: p.lat, lon: p.lon, city: p.city } : null;
   };
 
   let home: string | null = null;

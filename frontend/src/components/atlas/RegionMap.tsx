@@ -113,7 +113,7 @@ export const RegionMap: React.FC<RegionMapProps> = ({ countryCode, regions, stat
           );
         })}
         {cities
-          .filter((c) => c.visited && c.countryCode === countryCode)
+          .filter((c) => (c.visited || c.transit) && c.countryCode === countryCode)
           .map((c) => {
             const pt = projection([c.lon, c.lat]);
             if (!pt) return null;

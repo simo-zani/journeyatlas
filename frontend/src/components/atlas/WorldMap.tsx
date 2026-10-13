@@ -188,7 +188,8 @@ export const WorldMap: React.FC<WorldMapProps> = ({
       .filter((c): c is { code: string; latlng: [number, number] } => !!c.latlng);
   }, [geo, countries, homeCode]);
 
-  const visitedCities = useMemo(() => cities.filter((c) => c.visited), [cities]);
+  // Città visitate e di scalo (queste solo come pallino sulla mappa)
+  const visitedCities = useMemo(() => cities.filter((c) => c.visited || c.transit), [cities]);
   // Paese in cui si trova casa: il suo nome compare (come per le mete) quando ci si entra.
   const homeCountry = useMemo(
     () =>

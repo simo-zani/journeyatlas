@@ -48,6 +48,8 @@ export interface AtlasCity {
   lat: number;
   lon: number;
   visited: boolean;
+  /** Solo scalo: si mostra sulla mappa ma non conta tra le città visitate. */
+  transit?: boolean;
 }
 
 /** Luogo con coordinate (meta o scalo): serve a colorare le regioni. */
@@ -80,7 +82,7 @@ export interface AtlasTripInput {
   trip: Pick<Trip, 'id' | 'name' | 'start_date' | 'end_date'> & Partial<Pick<Trip, 'date_precision' | 'is_memory'>>;
   destinations: (AtlasPlace & { city: string })[];
   /** Scali; quelli che coincidono con una meta vengono ignorati. */
-  transit: AtlasPlace[];
+  transit: (AtlasPlace & { city?: string })[];
 }
 
 const STATUS_RANK: Record<CountryStatus, number> = { visited: 3, transit: 2, planned: 1 };
@@ -156,6 +158,7 @@ export const buildAtlas = (inputs: AtlasTripInput[], today: string, manualCountr
         lat: d.coords.lat,
         lon: d.coords.lon,
         visited: (prev?.visited ?? false) || started,
+        transit: prev?.transit,
       });
     }
 
@@ -175,6 +178,20 @@ export const buildAtlas = (inputs: AtlasTripInput[], today: string, manualCountr
             tripName: trip.name,
             tripIsMemory: trip.is_memory,
           });
+          // Pallino della città di scalo (una meta nella stessa città ha la precedenza).
+          const name = s.city?.trim();
+          const key = name ? `${name.toLowerCase()}|${s.code.toLowerCase()}` : '';
+          if (name && !cities.has(key)) {
+            cities.set(key, {
+              key,
+              city: name,
+              countryCode: s.code.toUpperCase(),
+              lat: s.coords.lat,
+              lon: s.coords.lon,
+              visited: false,
+              transit: true,
+            });
+          }
         }
       }
     }

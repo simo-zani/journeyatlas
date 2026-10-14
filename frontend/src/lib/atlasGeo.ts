@@ -13,7 +13,13 @@ import type { GeometryCollection, Topology } from 'topojson-specification';
 import worldUrl from 'world-atlas/countries-110m.json?url';
 import { loadCountryIndex, type CountryIndexEntry } from '@/lib/countryInfo';
 
-export type GeoFeature = Feature<Geometry, { name: string }> & { code: string | null };
+export type GeoFeature = Feature<Geometry, { name: string }> & {
+  code: string | null;
+  /** Paese piccolo (da islands.json): da lontano si segna anche con un puntino. */
+  small?: boolean;
+  /** Isole lontane dalla costa di un paese già disegnato (Canarie, Azzorre...). */
+  islets?: boolean;
+};
 export type CountryKind = 'sovereign' | 'limited' | 'territory';
 
 export interface WorldGeo {
@@ -37,6 +43,32 @@ export const BREAKAWAY_PARENT: Record<string, string> = {
   'X-TRN': 'MD',
 };
 
+/** Stato da cui dipende ogni territorio (dipendenze, territori d'oltremare, regioni
+ * d'oltremare, stati in libera associazione). L'Antartide non dipende da nessuno. */
+export const SOVEREIGN_OF: Record<string, string> = {
+  // Regno Unito
+  AI: 'GB', BM: 'GB', FK: 'GB', GG: 'GB', GI: 'GB', GS: 'GB', IM: 'GB', IO: 'GB', JE: 'GB',
+  KY: 'GB', MS: 'GB', PN: 'GB', SH: 'GB', TC: 'GB', VG: 'GB',
+  // Francia
+  BL: 'FR', GF: 'FR', GP: 'FR', MF: 'FR', MQ: 'FR', NC: 'FR', PF: 'FR', PM: 'FR', RE: 'FR', TF: 'FR', WF: 'FR', YT: 'FR',
+  // Stati Uniti
+  AS: 'US', GU: 'US', MP: 'US', PR: 'US', UM: 'US', VI: 'US',
+  // Paesi Bassi (Regno dei Paesi Bassi)
+  AW: 'NL', BQ: 'NL', CW: 'NL', SX: 'NL',
+  // Danimarca (Regno di Danimarca)
+  FO: 'DK', GL: 'DK',
+  // Australia
+  CC: 'AU', CX: 'AU', HM: 'AU', NF: 'AU',
+  // Nuova Zelanda (Isole Cook e Niue in libera associazione)
+  CK: 'NZ', NU: 'NZ', TK: 'NZ',
+  // Norvegia
+  BV: 'NO', SJ: 'NO',
+  // Cina (regioni amministrative speciali)
+  HK: 'CN', MO: 'CN',
+  // Finlandia
+  AX: 'FI',
+};
+
 /** Osservatori ONU contati tra i paesi sovrani: 193 membri + questi due = 195. */
 const UN_OBSERVERS = new Set(['VA', 'PS']);
 
@@ -44,6 +76,9 @@ const asCollection = <P extends Record<string, unknown>>(topology: Topology, key
   const name = key ?? Object.keys(topology.objects)[0];
   return feature(topology, topology.objects[name] as GeometryCollection<P>) as unknown as FeatureCollection<Geometry, P>;
 };
+
+/** Da cambiare quando si rigenera islands.json, così il browser non usa la copia vecchia. */
+const ISLANDS_VERSION = 3;
 
 let worldRequest: Promise<WorldGeo> | null = null;
 
@@ -53,9 +88,13 @@ export const loadWorldGeo = (): Promise<WorldGeo> => {
     fetch('/regions/breakaway.json')
       .then((r) => (r.ok ? (r.json() as Promise<Topology>) : null))
       .catch(() => null),
+    // Paesi senza poligono a 110m (Maldive, Seychelles, Malta...), presi dai 10m.
+    fetch(`/regions/islands.json?v=${ISLANDS_VERSION}`)
+      .then((r) => (r.ok ? (r.json() as Promise<Topology>) : null))
+      .catch(() => null),
     loadCountryIndex(),
   ])
-    .then(([world, breakaway, index]) => {
+    .then(([world, breakaway, islands, index]) => {
       const byNumeric = new Map(index.filter((c) => c.numeric).map((c) => [c.numeric.padStart(3, '0'), c.code]));
       const countries: GeoFeature[] = asCollection<{ name: string }>(world, 'countries').features.map((f) => ({
         ...f,
@@ -64,6 +103,14 @@ export const loadWorldGeo = (): Promise<WorldGeo> => {
           (f.id != null ? byNumeric.get(String(f.id).padStart(3, '0')) : undefined) ??
           null,
       }));
+      const small: GeoFeature[] = islands
+        ? asCollection<{ id: string; name: string; kind: 'country' | 'islets' }>(islands).features.map((f) => ({
+            ...f,
+            properties: { name: f.properties.name },
+            code: byNumeric.get(f.properties.id) ?? null,
+            ...(f.properties.kind === 'islets' ? { islets: true } : { small: true }),
+          }))
+        : [];
       const extra: GeoFeature[] = breakaway
         ? asCollection<{ code: string }>(breakaway).features.map((f) => ({
             ...f,
@@ -71,7 +118,7 @@ export const loadWorldGeo = (): Promise<WorldGeo> => {
             code: f.properties.code,
           }))
         : [];
-      return { features: [...countries, ...extra], index };
+      return { features: [...countries, ...small, ...extra], index };
     })
     .catch((err) => {
       worldRequest = null;

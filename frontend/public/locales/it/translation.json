@@ -988,7 +988,6 @@
     "zoomOut": "Riduci",
     "resetView": "Vista iniziale",
     "allCountries": "Tutti i paesi",
-    "noTripsHere": "Nessun viaggio in questo paese, per ora.",
     "noDates": "Date da definire",
     "tripDone": "Fatto",
     "tripPlanned": "In programma",
@@ -1031,7 +1030,8 @@
     "visitedLockedTitle": "Non puoi togliere questo paese",
     "flags": {
       "otherContinent": "Altro"
-    }
+    },
+    "dependsOn": "Dipende da"
   },
   "memory": {
     "add": "Crea Viaggio Rapido",

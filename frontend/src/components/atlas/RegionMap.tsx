@@ -4,9 +4,11 @@ import { geoAlbersUsa, geoBounds, geoConicEqualArea, geoPath, type GeoProjection
 import type { FeatureCollection, Geometry } from 'geojson';
 import { House } from 'lucide-react';
 import { CapitalMarker } from '@/components/atlas/CapitalMarker';
+import type { TripRef } from '@/components/atlas/TripsBadge';
 import type { AtlasCity, CountryStatus } from '@/lib/atlas';
 import { nearCapital, type Capital } from '@/lib/capitals';
 import { regionAt, type GeoFeature } from '@/lib/atlasGeo';
+import { isShapedRegionFlag } from '@/lib/flags';
 import type { Coordinates } from '@/lib/types';
 
 export interface RegionState {
@@ -14,7 +16,7 @@ export interface RegionState {
   /** Segnata a mano (e non dai viaggi): si può togliere con un clic. */
   manual: boolean;
   /** Viaggi (già iniziati) che l'hanno sbloccata. */
-  trips: { id: string; name: string; isMemory?: boolean }[];
+  trips: TripRef[];
 }
 
 interface RegionMapProps {
@@ -167,7 +169,11 @@ export const RegionMap: React.FC<RegionMapProps> = ({ countryCode, regions, stat
           }
         >
           {flags?.[hover.name] && (
-            <img src={flags[hover.name]} alt="" className="inline-block h-[16px] w-auto mr-1.5 -mt-0.5 rounded-[2px] align-middle" />
+            <img
+              src={flags[hover.name]}
+              alt=""
+              className={`inline-block h-[16px] w-auto mr-1.5 -mt-0.5 align-middle ${isShapedRegionFlag(hover.name) ? '' : 'rounded-[2px]'}`}
+            />
           )}
           <span className="font-semibold">{regionLabel(hover.name)}</span>
         </div>

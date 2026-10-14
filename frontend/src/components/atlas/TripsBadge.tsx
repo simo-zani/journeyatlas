@@ -1,22 +1,25 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
-import { Link } from 'react-router-dom';
 
 export interface TripRef {
   id: string;
   name: string;
   /** Viaggio-ricordo: non ha il gestionale, quindi niente link. */
   isMemory?: boolean;
+  startDate?: string | null;
+  endDate?: string | null;
+  datePrecision?: 'day' | 'month';
 }
 
 /**
  * Viaggi che hanno sbloccato una regione, accanto al suo nome nell'elenco:
  * sempre "N volte" (anche "1 volta"), e passandoci sopra (o toccandolo, su
- * smartphone) si apre l'elenco dei viaggi. Il riquadro è in un portale
+ * smartphone) si apre l'elenco dei viaggi, in sola lettura. Il riquadro è in un portale
  * con posizione fissa: dentro l'elenco scorrevole verrebbe tagliato.
+ * I viaggi sono in ordine dal più recente, ognuno con le sue date.
  */
-export const TripsBadge: React.FC<{ trips: TripRef[] }> = ({ trips }) => {
+export const TripsBadge: React.FC<{ trips: TripRef[]; formatDates?: (trip: TripRef) => string }> = ({ trips, formatDates }) => {
   const { t } = useTranslation();
   const anchorRef = useRef<HTMLButtonElement>(null);
   const popRef = useRef<HTMLDivElement>(null);
@@ -44,6 +47,7 @@ export const TripsBadge: React.FC<{ trips: TripRef[] }> = ({ trips }) => {
   }, [pos]);
 
   if (trips.length === 0) return null;
+  const sorted = [...trips].sort((a, b) => (b.startDate ?? '').localeCompare(a.startDate ?? ''));
 
   return (
     <>
@@ -51,10 +55,7 @@ export const TripsBadge: React.FC<{ trips: TripRef[] }> = ({ trips }) => {
         ref={anchorRef}
         type="button"
         onMouseEnter={open}
-        onMouseLeave={(e) => {
-          // si resta aperti se il puntatore passa sul riquadro
-          if (!popRef.current?.contains(e.relatedTarget as Node)) close();
-        }}
+        onMouseLeave={close}
         onClick={() => (pos ? close() : open())}
         aria-expanded={!!pos}
         className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-gold/15 text-gold-dark dark:text-gold-light ring-1 ring-gold/30 hover:bg-gold/25 cursor-pointer shrink-0"
@@ -65,25 +66,23 @@ export const TripsBadge: React.FC<{ trips: TripRef[] }> = ({ trips }) => {
         createPortal(
           <div
             ref={popRef}
-            onMouseLeave={close}
-            className="fixed z-[60] min-w-[200px] max-w-[280px] rounded-xl bg-slate-900/95 text-white shadow-xl ring-1 ring-white/10 p-1.5"
+            className="pointer-events-none fixed z-[60] min-w-[200px] max-w-[280px] rounded-xl bg-slate-900/95 text-white shadow-xl ring-1 ring-white/10 p-1.5"
             style={{ top: pos.top, right: pos.right }}
           >
             <ul className="space-y-0.5">
-              {trips.map((trip) => (
-                <li key={trip.id}>
-                  {trip.isMemory ? (
-                    <span className="block truncate rounded-lg px-3 py-2 text-xs font-semibold text-white/80">{trip.name}</span>
-                  ) : (
-                    <Link
-                      to={`/trips/${trip.id}`}
-                      className="block truncate rounded-lg px-3 py-2 text-xs font-semibold text-white hover:bg-white/10 no-underline hover:no-underline"
-                    >
-                      {trip.name}
-                    </Link>
-                  )}
-                </li>
-              ))}
+              {sorted.map((trip) => {
+                const content = (
+                  <>
+                    <span className="block truncate text-xs font-semibold">{trip.name}</span>
+                    {formatDates && <span className="block truncate text-[11px] font-medium text-white/55 mt-0.5">{formatDates(trip)}</span>}
+                  </>
+                );
+                return (
+                  <li key={trip.id} className="rounded-lg px-3 py-2 text-white">
+                    {content}
+                  </li>
+                );
+              })}
             </ul>
           </div>,
           document.body

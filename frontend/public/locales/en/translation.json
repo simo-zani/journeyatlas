@@ -988,7 +988,6 @@
     "zoomOut": "Zoom out",
     "resetView": "Reset view",
     "allCountries": "All countries",
-    "noTripsHere": "No trips in this country, for now.",
     "noDates": "Dates to be set",
     "tripDone": "Done",
     "tripPlanned": "Planned",
@@ -1031,7 +1030,8 @@
     "visitedLockedTitle": "You cannot remove this country",
     "flags": {
       "otherContinent": "Other"
-    }
+    },
+    "dependsOn": "Belongs to"
   },
   "memory": {
     "add": "Create Quick Trip",

@@ -65,3 +65,8 @@ export const resolveCountryFlags = async (sources: FlagSource[]): Promise<string
   }
   return [...codes];
 };
+/** Bandiere di regioni non rettangolari (l'Ohio, a coda di rondine): si mostrano
+ * senza angoli arrotondati né cornice, con l'ombra che segue la sagoma. */
+const SHAPED_REGION_FLAGS = new Set(['Ohio']);
+
+export const isShapedRegionFlag = (regionName: string): boolean => SHAPED_REGION_FLAGS.has(regionName);

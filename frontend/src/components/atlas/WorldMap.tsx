@@ -13,7 +13,7 @@ import {
 import { CountryFlag } from '@/components/CountryFlag';
 import { CapitalMarker } from '@/components/atlas/CapitalMarker';
 import { nearCapital, type Capital } from '@/lib/capitals';
-import { countryCenter, mainPart, type GeoFeature, type WorldGeo } from '@/lib/atlasGeo';
+import { countryCenter, countryKind, mainPart, type GeoFeature, type WorldGeo } from '@/lib/atlasGeo';
 import type { AtlasCity, AtlasCountry, CountryStatus } from '@/lib/atlas';
 import type { Coordinates } from '@/lib/types';
 
@@ -62,6 +62,8 @@ interface Camera {
 
 const MIN_ZOOM = 1;
 const MAX_ZOOM = 8;
+/** Zoom massimo quando è aperto un paese piccolo (Maldive, Seychelles...): le isole si vedono. */
+const MAX_ZOOM_SMALL = 28;
 const SPHERE = { type: 'Sphere' } as const;
 const GRATICULE = geoGraticule10();
 const INITIAL_ROTATION: [number, number] = [-12, -30];
@@ -70,6 +72,11 @@ const INITIAL_ROTATION: [number, number] = [-12, -30];
  * secondi e un giro completo in 4 minuti. Il verso è quello reale, da ovest verso est. */
 const SECONDS_PER_TIME_ZONE = 10;
 const SPIN_DEG_PER_MS = 15 / (SECONDS_PER_TIME_ZONE * 1000);
+
+/** Sotto questo ingombro (px) la forma di un paese piccolo si segna anche con un puntino. */
+const TINY_SHAPE_PX = 10;
+/** Contorno (px) dei paesi piccoli nel loro stesso colore: le isole minuscole restano visibili. */
+const SMALL_OUTLINE_PX = 2.5;
 
 const FILL: Record<MapStatus, string> = {
   visited: 'var(--atlas-visited)',
@@ -184,15 +191,24 @@ export const WorldMap: React.FC<WorldMapProps> = ({
     [countries, homeCode]
   );
 
-  // Paesi senza poligono a questa risoluzione (Malta, Singapore, Andorra...):
-  // un puntino nel loro centro, solo se hanno uno stato da mostrare.
+  // Paesi piccoli (Malta, Maldive, Seychelles, Capo Verde...): da lontano la loro forma
+  // è più piccola di un pixel, quindi un puntino nel loro centro, che sparisce quando,
+  // zoomando, la forma si vede (draw). Chi non ha proprio una forma tiene sempre il puntino.
+  // Gli stati sovrani si segnano sempre, i territori minori solo se hanno uno stato.
   const tinyCountries = useMemo(() => {
-    const withShape = new Set(geo.features.map((f) => f.code).filter(Boolean));
-    const codes = new Set([...countries.keys(), ...(homeCode ? [homeCode] : [])]);
+    const withShape = new Set(geo.features.filter((f) => !f.small).map((f) => f.code).filter(Boolean));
+    const smallShape = new Map<string, number>();
+    geo.features.forEach((f, i) => f.small && f.code && smallShape.set(f.code, i));
+    const sovereign = geo.index.filter((c) => countryKind(c.code, geo.index) === 'sovereign').map((c) => c.code);
+    const codes = new Set([...sovereign, ...countries.keys(), ...(homeCode ? [homeCode] : [])]);
     return [...codes]
       .filter((code) => !withShape.has(code))
-      .map((code) => ({ code, latlng: geo.index.find((c) => c.code === code)?.latlng ?? null }))
-      .filter((c): c is { code: string; latlng: [number, number] } => !!c.latlng);
+      .map((code) => ({
+        code,
+        latlng: geo.index.find((c) => c.code === code)?.latlng ?? null,
+        shape: smallShape.get(code) ?? null,
+      }))
+      .filter((c): c is { code: string; latlng: [number, number]; shape: number | null } => !!c.latlng);
   }, [geo, countries, homeCode]);
 
   // Città visitate e di scalo (queste solo come pallino sulla mappa)
@@ -243,7 +259,19 @@ export const WorldMap: React.FC<WorldMapProps> = ({
       el.setAttribute('cx', String(pt[0]));
       el.setAttribute('cy', String(pt[1]));
     };
-    tiny.forEach(({ code, latlng }) => place(tinyEls.current.get(code), latlng[1], latlng[0]));
+    tiny.forEach(({ code, latlng, shape }) => {
+      const el = tinyEls.current.get(code);
+      if (!el) return;
+      if (shape !== null) {
+        // La forma si vede già (le isole hanno un contorno che le ingrandisce): il puntino non serve più.
+        const [[x0, y0], [x1, y1]] = path.bounds(features[shape]);
+        if (Math.max(x1 - x0, y1 - y0) >= TINY_SHAPE_PX) {
+          el.style.display = 'none';
+          return;
+        }
+      }
+      place(el, latlng[1], latlng[0]);
+    });
     vc.forEach((c) => place(cityEls.current.get(c.key), c.lon, c.lat));
     lc.forEach((c) => {
       const el = labelEls.current.get(c.key);
@@ -302,6 +330,9 @@ export const WorldMap: React.FC<WorldMapProps> = ({
   // sul globo rotazione + zoom insieme, sul planisfero zoom + spostamento.
   // Deselezionando si torna alla vista d'insieme con la stessa animazione.
   // A fine corsa `onFocusSettled` avvisa la pagina.
+  const selectedSmall = !!selected && geo.features.some((f) => f.small && f.code === selected);
+  const maxZoom = useRef(MAX_ZOOM);
+  maxZoom.current = selectedSmall ? MAX_ZOOM_SMALL : MAX_ZOOM;
   const onFocusSettledRef = useRef(onFocusSettled);
   onFocusSettledRef.current = onFocusSettled;
   useEffect(() => {
@@ -320,14 +351,14 @@ export const WorldMap: React.FC<WorldMapProps> = ({
       if (view === 'globe') {
         toRot = [-c[0], clamp(-c[1], -70, 70)];
         const a = f ? angularRadius(f, c) : 0.03;
-        toZoom = clamp(0.85 / Math.sin(Math.min(a, Math.PI / 2)), MIN_ZOOM, MAX_ZOOM);
+        toZoom = clamp(0.85 / Math.sin(Math.min(a, Math.PI / 2)), MIN_ZOOM, maxZoom.current);
       } else {
         const base = geoNaturalEarth1().fitSize([w, h], SPHERE);
         const pt = base(c) ?? [w / 2, h / 2];
         const b = f ? geoPath(base).bounds(f) : [[pt[0] - 4, pt[1] - 4], [pt[0] + 4, pt[1] + 4]];
         const bw = Math.max(b[1][0] - b[0][0], 1);
         const bh = Math.max(b[1][1] - b[0][1], 1);
-        toZoom = clamp(Math.min((0.7 * w) / bw, (0.7 * h) / bh), MIN_ZOOM, MAX_ZOOM);
+        toZoom = clamp(Math.min((0.7 * w) / bw, (0.7 * h) / bh), MIN_ZOOM, maxZoom.current);
         const cx = (b[0][0] + b[1][0]) / 2;
         const cy = (b[0][1] + b[1][1]) / 2;
         toPan = [-(cx - w / 2) * toZoom, -(cy - h / 2) * toZoom];
@@ -360,7 +391,7 @@ export const WorldMap: React.FC<WorldMapProps> = ({
 
   const zoomBy = useCallback(
     (factor: number) => {
-      cam.current = { ...cam.current, zoom: clamp(cam.current.zoom * factor, MIN_ZOOM, MAX_ZOOM) };
+      cam.current = { ...cam.current, zoom: clamp(cam.current.zoom * factor, MIN_ZOOM, maxZoom.current) };
       draw();
     },
     [draw]
@@ -470,10 +501,18 @@ export const WorldMap: React.FC<WorldMapProps> = ({
               onPointerMove={f.code ? showHover(f.code) : undefined}
               onPointerLeave={() => setHover(null)}
               className={`transition-[filter] duration-150 hover:brightness-110 cursor-pointer ${isSelected ? 'atlas-pulse' : ''}`}
-              strokeWidth={isSelected ? 1.5 : 0.5}
+              strokeWidth={isSelected ? (f.small || f.islets ? 2 : 1.5) : f.small || f.islets ? SMALL_OUTLINE_PX : 0.5}
+              strokeLinejoin="round"
               style={{
                 fill: status ? FILL[status] : 'var(--atlas-land)',
-                stroke: isSelected ? 'var(--atlas-selected-stroke)' : 'var(--atlas-border)',
+                // Paesi piccoli e isole: contorno nel loro colore, così anche gli atolli si vedono.
+                stroke: isSelected
+                  ? 'var(--atlas-selected-stroke)'
+                  : f.small || f.islets
+                    ? status
+                      ? FILL[status]
+                      : 'var(--atlas-land)'
+                    : 'var(--atlas-border)',
                 ...(isSelected ? pulseStyle(status) : null),
               }}
             />
@@ -483,7 +522,6 @@ export const WorldMap: React.FC<WorldMapProps> = ({
         {/* Paesi piccoli: pallino nel colore del loro stato */}
         {tinyCountries.map(({ code }) => {
           const status = statusOf(code);
-          if (!status) return null;
           return (
             <circle
               key={code}
@@ -491,13 +529,17 @@ export const WorldMap: React.FC<WorldMapProps> = ({
                 if (el) tinyEls.current.set(code, el);
                 else tinyEls.current.delete(code);
               }}
-              r={code === selected ? 6 : 4.5}
+              r={code === selected ? 6 : status ? 4.5 : 3.5}
               strokeWidth={1.5}
               onClick={() => handleCountryClick(code)}
               onPointerMove={showHover(code)}
               onPointerLeave={() => setHover(null)}
               className={`cursor-pointer ${code === selected ? 'atlas-pulse' : ''}`}
-              style={{ fill: FILL[status], stroke: 'var(--atlas-border)', ...(code === selected ? pulseStyle(status) : null) }}
+              style={{
+                fill: status ? FILL[status] : 'var(--atlas-land)',
+                stroke: 'var(--atlas-border)',
+                ...(code === selected ? pulseStyle(status) : null),
+              }}
             />
           );
         })}

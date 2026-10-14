@@ -62,6 +62,9 @@ export interface AtlasPoint {
   tripId: string;
   tripName: string;
   tripIsMemory?: boolean;
+  tripStart: string | null;
+  tripEnd: string | null;
+  tripPrecision?: 'day' | 'month';
 }
 
 export interface AtlasData {
@@ -148,6 +151,9 @@ export const buildAtlas = (inputs: AtlasTripInput[], today: string, manualCountr
         tripId: trip.id,
         tripName: trip.name,
         tripIsMemory: trip.is_memory,
+        tripStart: trip.start_date,
+        tripEnd: trip.end_date,
+        tripPrecision: trip.date_precision,
       });
       const key = `${d.city.trim().toLowerCase()}|${d.code.toLowerCase()}`;
       const prev = cities.get(key);
@@ -177,6 +183,9 @@ export const buildAtlas = (inputs: AtlasTripInput[], today: string, manualCountr
             tripId: trip.id,
             tripName: trip.name,
             tripIsMemory: trip.is_memory,
+        tripStart: trip.start_date,
+        tripEnd: trip.end_date,
+        tripPrecision: trip.date_precision,
           });
           // Pallino della città di scalo (una meta nella stessa città ha la precedenza).
           const name = s.city?.trim();

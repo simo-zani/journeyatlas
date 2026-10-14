@@ -8,6 +8,10 @@ const SIZES = {
   lg: { w: 40, h: 28 },
 } as const;
 
+/** Bandiere non rettangolari (il Nepal): niente angoli arrotondati né cornice, che
+ * disegnerebbero un riquadro attorno allo sfondo trasparente; l'ombra segue la sagoma. */
+const SHAPED_FLAGS = new Set(['NP']);
+
 export type CountryFlagSize = keyof typeof SIZES;
 
 interface CountryFlagProps {
@@ -43,6 +47,7 @@ export const CountryFlag: React.FC<CountryFlagProps> = ({
   // tranne con `tight`, per le bandiere affiancate tra loro.
   const square = ratio !== null && ratio < 1.2;
   const width = square ? h : w;
+  const shaped = !src && SHAPED_FLAGS.has(code.toUpperCase());
   return (
     <img
       src={src ?? flagUrl(code)}
@@ -50,8 +55,14 @@ export const CountryFlag: React.FC<CountryFlagProps> = ({
       aria-hidden={label ? undefined : true}
       width={width}
       height={h}
-      style={{ width, height: h, borderRadius: Math.round(h * 0.4), marginInline: square && !tight ? (w - h) / 2 : undefined }}
-      className={`shrink-0 object-cover ${className}`}
+      style={{
+        width,
+        height: h,
+        borderRadius: shaped ? 0 : Math.round(h * 0.4),
+        marginInline: square && !tight ? (w - h) / 2 : undefined,
+        filter: shaped ? 'drop-shadow(0 1px 1px rgb(0 0 0 / 0.25))' : undefined,
+      }}
+      className={`shrink-0 ${shaped ? 'object-contain' : 'object-cover'} ${className} ${shaped ? '!ring-0 !shadow-none' : ''}`}
       loading="lazy"
       onLoad={(e) => {
         const { naturalWidth, naturalHeight } = e.currentTarget;

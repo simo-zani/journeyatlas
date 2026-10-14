@@ -50,12 +50,13 @@ import {
   loadRegions,
   loadWorldGeo,
   regionAt,
+  SOVEREIGN_OF,
   type CountryKind,
   type GeoFeature,
   type RegionIndexEntry,
   type WorldGeo,
 } from '@/lib/atlasGeo';
-import { resolveCountryFlags } from '@/lib/flags';
+import { isShapedRegionFlag, resolveCountryFlags } from '@/lib/flags';
 import { loadTransportPlaces, transitPlacesFromRows } from '@/lib/tripCountries';
 import { useHomeCity } from '@/lib/useHomeCity';
 import { useNationality } from '@/lib/useNationality';
@@ -306,7 +307,14 @@ export const AtlasPage: React.FC = () => {
       const prev = states.get(name);
       const trips = prev?.trips ?? [];
       if (p.status === 'visited' && !trips.some((tr) => tr.id === p.tripId)) {
-        trips.push({ id: p.tripId, name: p.tripName, isMemory: p.tripIsMemory });
+        trips.push({
+          id: p.tripId,
+          name: p.tripName,
+          isMemory: p.tripIsMemory,
+          startDate: p.tripStart,
+          endDate: p.tripEnd,
+          datePrecision: p.tripPrecision,
+        });
       }
       const status = !prev || STATUS_RANK[p.status] > STATUS_RANK[prev.status] ? p.status : prev.status;
       states.set(name, { status, manual: false, trips });
@@ -698,6 +706,14 @@ export const AtlasPage: React.FC = () => {
                             {t(`atlas.continent.${continentOf(selected)}`)}
                           </p>
                         )}
+                        {/* Territorio: lo stato da cui dipende */}
+                        {SOVEREIGN_OF[selected] && (
+                          <p className="mt-1 inline-flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
+                            {t('atlas.dependsOn')}
+                            <CountryFlag code={SOVEREIGN_OF[selected]} size="xs" tight />
+                            <span className="font-semibold text-slate-700 dark:text-slate-200">{countryName(SOVEREIGN_OF[selected])}</span>
+                          </p>
+                        )}
                       </div>
                       {/* Check "visitato": segna/toglie a mano il paese */}
                       <button
@@ -739,11 +755,10 @@ export const AtlasPage: React.FC = () => {
                         ))}
                       </ul>
                     )}
-                    {!selectedCountry?.trips.length && <p className="text-sm text-slate-500 dark:text-slate-400">{t('atlas.noTripsHere')}</p>}
 
                     {/* Regioni: conteggio ed elenco, con la casella per segnarle a mano */}
                     {showRegions && (
-                      <section className="pt-1 flex flex-col min-h-0 xl:flex-1">
+                      <section className="pt-[20px] flex flex-col min-h-0 xl:flex-1">
                         <div className="flex items-center justify-between gap-2 mb-1.5">
                           <h4 className="font-poppins font-semibold text-sm">{t('atlas.regions.listTitle')}</h4>
                           <span className="text-sm font-bold tabular-nums">
@@ -791,14 +806,23 @@ export const AtlasPage: React.FC = () => {
                                       src={regionFlags[name]}
                                       alt=""
                                       loading="lazy"
-                                      className="h-[20px] w-[30px] object-cover rounded-[4px] ring-1 ring-black/10 shrink-0"
+                                      className={`h-[20px] w-[30px] shrink-0 ${
+                                        isShapedRegionFlag(name)
+                                          ? 'object-contain drop-shadow-[0_1px_1px_rgb(0_0_0/0.25)]'
+                                          : 'object-cover rounded-[4px] ring-1 ring-black/10'
+                                      }`}
                                     />
                                   )}
                                   <span className="flex-1 min-w-0 truncate">{regionLabel(name)}</span>
                                   {state && state.status !== 'visited' && <Swatch status={state.status} />}
                                 </button>
                                 {/* Fuori dal pulsante della riga: è cliccabile da solo (link o elenco dei viaggi) */}
-                                {auto && <TripsBadge trips={state.trips} />}
+                                {auto && (
+                                  <TripsBadge
+                                    trips={state.trips}
+                                    formatDates={(tr) => formatRange(tr.startDate ?? null, tr.endDate ?? null, tr.datePrecision)}
+                                  />
+                                )}
                               </li>
                             );
                           })}

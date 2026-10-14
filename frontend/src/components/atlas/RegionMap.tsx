@@ -3,7 +3,9 @@ import { useTranslation } from 'react-i18next';
 import { geoAlbersUsa, geoBounds, geoConicEqualArea, geoPath, type GeoProjection } from 'd3-geo';
 import type { FeatureCollection, Geometry } from 'geojson';
 import { House } from 'lucide-react';
+import { CapitalMarker } from '@/components/atlas/CapitalMarker';
 import type { AtlasCity, CountryStatus } from '@/lib/atlas';
+import { nearCapital, type Capital } from '@/lib/capitals';
 import { regionAt, type GeoFeature } from '@/lib/atlasGeo';
 import type { Coordinates } from '@/lib/types';
 
@@ -30,6 +32,8 @@ interface RegionMapProps {
   flags?: Record<string, string>;
   /** Nome da mostrare (tradotto) a partire dal nome originale della regione. */
   regionLabel?: (name: string) => string;
+  /** Capitale del paese: segnata con una stella. */
+  capital?: Capital | null;
 }
 
 const FILL: Record<CountryStatus, string> = {
@@ -53,7 +57,7 @@ const projectionFor = (code: string, collection: FeatureCollection<Geometry>, w:
     .fitExtent([[pad, pad], [w - pad, h - pad]], collection);
 };
 
-export const RegionMap: React.FC<RegionMapProps> = ({ countryCode, regions, states, cities, onToggle, homeCoords = null, homeLabel = null, flags, regionLabel = (n) => n }) => {
+export const RegionMap: React.FC<RegionMapProps> = ({ countryCode, regions, states, cities, onToggle, homeCoords = null, homeLabel = null, flags, regionLabel = (n) => n, capital = null }) => {
   const { t } = useTranslation();
   const containerRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ width: 800, height: 500 });
@@ -80,6 +84,7 @@ export const RegionMap: React.FC<RegionMapProps> = ({ countryCode, regions, stat
     [homeCoords, regions]
   );
   const homePoint = homeInCountry && homeCoords ? projection([homeCoords.lon, homeCoords.lat]) : null;
+  const capitalPoint = capital ? projection([capital.lon, capital.lat]) : null;
 
   return (
     <div ref={containerRef} className="absolute inset-0 select-none bg-[var(--surface-1)]">
@@ -120,12 +125,20 @@ export const RegionMap: React.FC<RegionMapProps> = ({ countryCode, regions, stat
             return (
               <g key={c.key} className="pointer-events-none">
                 <circle cx={pt[0]} cy={pt[1]} r={3.4} strokeWidth={1.2} className="fill-deep-blue dark:fill-white" style={{ stroke: 'var(--atlas-border)' }} />
-                <text x={pt[0] + 6} y={pt[1] + 4} className="text-[11px] font-semibold fill-slate-700 dark:fill-slate-200" style={{ paintOrder: 'stroke', stroke: 'var(--surface-1)', strokeWidth: 3 }}>
-                  {c.city}
-                </text>
+                {/* La città che è anche la capitale prende il nome dalla stella */}
+                {!nearCapital(capital, c) && (
+                  <text x={pt[0] + 6} y={pt[1] + 4} className="text-[11px] font-semibold fill-slate-700 dark:fill-slate-200" style={{ paintOrder: 'stroke', stroke: 'var(--surface-1)', strokeWidth: 3 }}>
+                    {c.city}
+                  </text>
+                )}
               </g>
             );
           })}
+        {capitalPoint && capital && (
+          <g transform={`translate(${capitalPoint[0]} ${capitalPoint[1]})`} className="pointer-events-none">
+            <CapitalMarker capital={capital} showLabel={!(homePoint && homeLabel && nearCapital(capital, homeCoords))} />
+          </g>
+        )}
         {homePoint && (
           <g transform={`translate(${homePoint[0]} ${homePoint[1]})`} className="pointer-events-none">
             <circle r={10} strokeWidth={1.5} style={{ fill: 'var(--atlas-home)', stroke: 'var(--atlas-border)' }} />

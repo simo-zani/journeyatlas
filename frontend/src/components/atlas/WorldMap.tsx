@@ -10,6 +10,9 @@ import {
   geoPath,
   type GeoProjection,
 } from 'd3-geo';
+import { CountryFlag } from '@/components/CountryFlag';
+import { CapitalMarker } from '@/components/atlas/CapitalMarker';
+import { nearCapital, type Capital } from '@/lib/capitals';
 import { countryCenter, mainPart, type GeoFeature, type WorldGeo } from '@/lib/atlasGeo';
 import type { AtlasCity, AtlasCountry, CountryStatus } from '@/lib/atlas';
 import type { Coordinates } from '@/lib/types';
@@ -33,6 +36,8 @@ interface WorldMapProps {
   homeCoords?: Coordinates | null;
   /** Nome della città di casa, mostrato accanto all'icona dentro il suo paese. */
   homeLabel?: string | null;
+  /** Capitale del paese selezionato: segnata con una stella. */
+  capital?: Capital | null;
 }
 
 /** Colori del lampeggio del paese selezionato: dal suo colore pieno a una
@@ -129,6 +134,7 @@ export const WorldMap: React.FC<WorldMapProps> = ({
   onFocusSettled,
   homeCoords = null,
   homeLabel = null,
+  capital = null,
 }) => {
   const { t } = useTranslation();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -155,6 +161,7 @@ export const WorldMap: React.FC<WorldMapProps> = ({
   const cityEls = useRef(new Map<string, SVGCircleElement>());
   const labelEls = useRef(new Map<string, SVGTextElement>());
   const homeEl = useRef<SVGGElement>(null);
+  const capitalEl = useRef<SVGGElement>(null);
 
   const height = view === 'globe' ? Math.min(width, 620) : Math.round(width * 0.52);
 
@@ -200,16 +207,17 @@ export const WorldMap: React.FC<WorldMapProps> = ({
   );
   // Entrando in un paese se ne mostrano i nomi delle città visitate.
   const labeledCities = useMemo(
-    () => (selected ? visitedCities.filter((c) => c.countryCode === selected) : []),
-    [visitedCities, selected]
+    // La città che è anche la capitale prende il nome dalla stella.
+    () => (selected ? visitedCities.filter((c) => c.countryCode === selected && !nearCapital(capital, c)) : []),
+    [visitedCities, selected, capital]
   );
 
   // Valori correnti letti da draw(), che resta stabile (nessuna dipendenza).
-  const latest = useRef({ view, width, height, tinyCountries, visitedCities, labeledCities, homeCoords, features: geo.features });
-  latest.current = { view, width, height, tinyCountries, visitedCities, labeledCities, homeCoords, features: geo.features };
+  const latest = useRef({ view, width, height, tinyCountries, visitedCities, labeledCities, homeCoords, capital, features: geo.features });
+  latest.current = { view, width, height, tinyCountries, visitedCities, labeledCities, homeCoords, capital, features: geo.features };
 
   const draw = useCallback(() => {
-    const { view: v, width: w, height: h, tinyCountries: tiny, visitedCities: vc, labeledCities: lc, homeCoords: home, features } =
+    const { view: v, width: w, height: h, tinyCountries: tiny, visitedCities: vc, labeledCities: lc, homeCoords: home, capital: cap, features } =
       latest.current;
     const projection = makeProjection(v, w, h, cam.current);
     const path = geoPath(projection);
@@ -251,6 +259,11 @@ export const WorldMap: React.FC<WorldMapProps> = ({
       const pt = home ? pointAt(home.lon, home.lat) : null;
       homeEl.current.style.display = pt ? '' : 'none';
       if (pt) homeEl.current.setAttribute('transform', `translate(${pt[0]} ${pt[1]})`);
+    }
+    if (capitalEl.current) {
+      const pt = cap ? pointAt(cap.lon, cap.lat) : null;
+      capitalEl.current.style.display = pt ? '' : 'none';
+      if (pt) capitalEl.current.setAttribute('transform', `translate(${pt[0]} ${pt[1]})`);
     }
   }, []);
 
@@ -519,6 +532,13 @@ export const WorldMap: React.FC<WorldMapProps> = ({
           </text>
         ))}
 
+        {/* Capitale del paese selezionato */}
+        {capital && selected && (
+          <g ref={capitalEl} className="pointer-events-none">
+            <CapitalMarker capital={capital} showLabel={!(homeLabel && nearCapital(capital, homeCoords))} />
+          </g>
+        )}
+
         {/* Casa (città di casa dal profilo) */}
         {homeCoords && (
           <g ref={homeEl} className="pointer-events-none">
@@ -542,13 +562,14 @@ export const WorldMap: React.FC<WorldMapProps> = ({
 
       {hover && (
         <div
-          className="pointer-events-none absolute z-10 rounded-lg bg-slate-900/90 text-white text-xs px-2.5 py-1.5 shadow-lg whitespace-nowrap"
+          className="pointer-events-none absolute z-10 flex items-center gap-2 rounded-lg bg-slate-900/90 text-white text-xs px-2.5 py-1.5 shadow-lg whitespace-nowrap"
           style={
             hover.x > width / 2
               ? { right: width - hover.x + 12, top: hover.y + 12 }
               : { left: hover.x + 12, top: hover.y + 12 }
           }
         >
+          <CountryFlag code={hover.code} size="xs" />
           <span className="font-semibold">{countryName(hover.code)}</span>
         </div>
       )}

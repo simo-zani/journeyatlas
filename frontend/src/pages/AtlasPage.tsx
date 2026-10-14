@@ -19,6 +19,7 @@ import { Card } from '@/components/Card';
 import { Alert } from '@/components/Alert';
 import { Modal } from '@/components/Modal';
 import { CountryFlag } from '@/components/CountryFlag';
+import { CountryFlagsBoard, type FlagBoardCountry } from '@/components/atlas/CountryFlagsBoard';
 import { WorldMap, type MapView } from '@/components/atlas/WorldMap';
 import { RegionMap, type RegionState } from '@/components/atlas/RegionMap';
 import { TripsBadge } from '@/components/atlas/TripsBadge';
@@ -60,10 +61,18 @@ import { useHomeCity } from '@/lib/useHomeCity';
 import { useNationality } from '@/lib/useNationality';
 import { formatMonthRange } from '@/lib/tripDates';
 import { useLocalizedCityNames } from '@/lib/cityNames';
+import { useCapital } from '@/lib/capitals';
 import type { AtlasMarkRow, TransportRow } from '@/lib/types';
 
 const CONTINENTS = ['europe', 'asia', 'africa', 'north-america', 'south-america', 'oceania', 'antarctica'] as const;
 const NO_CITIES: AtlasCity[] = [];
+/** Cambio tra mappa e bandiere (card "Paesi sbloccati"). */
+const SWAP_MOTION = {
+  initial: { opacity: 0, y: 8 },
+  animate: { opacity: 1, y: 0 },
+  exit: { opacity: 0, y: 8 },
+  transition: { duration: 0.25, ease: [0.16, 1, 0.3, 1] },
+} as const;
 const LIST_ORDER: CountryStatus[] = ['visited', 'transit', 'planned'];
 /** Paesi mostrati con il nome completo invece di quello breve del browser. */
 const NAME_OVERRIDES = new Set(['US']);
@@ -137,6 +146,8 @@ export const AtlasPage: React.FC = () => {
   const [settled, setSettled] = useState<string | null>(null);
   // Vista per regioni accesa/spenta a mano: resta com'è passando da un paese all'altro.
   const [regionsOn, setRegionsOn] = useState(false);
+  // Card "Paesi sbloccati" attiva: al posto di mappa e pannello, tutte le bandiere.
+  const [showFlags, setShowFlags] = useState(false);
   // Ogni nuova selezione riparte da capo: le regioni aspettano la fine del nuovo volo.
   useEffect(() => setSettled(null), [selected]);
 
@@ -371,6 +382,7 @@ export const AtlasPage: React.FC = () => {
   // --------------------------------------------------------------- vista
   const visitedCities = atlas?.cities.filter((c) => c.visited).length ?? 0;
   // Etichette delle città del paese aperto nella lingua dell'interfaccia (gli scali arrivano in inglese).
+  const capital = useCapital(selected, i18n.language);
   const localizedCityNames = useLocalizedCityNames(atlas?.cities ?? NO_CITIES, selected, i18n.language);
   const shownCities = useMemo(
     () => (atlas?.cities ?? NO_CITIES).map((c) => (localizedCityNames.has(c.key) ? { ...c, city: localizedCityNames.get(c.key)! } : c)),
@@ -393,6 +405,21 @@ export const AtlasPage: React.FC = () => {
     visitedByKind.territory > 0 && t('atlas.tiles.territories', { count: visitedByKind.territory }),
     visitedByKind.limited > 0 && t('atlas.tiles.limited', { count: visitedByKind.limited }),
   ].filter(Boolean);
+
+  // Tutti i paesi contati nella card (i 195), con il continente e se sono sbloccati.
+  const flagBoardCountries = useMemo<FlagBoardCountry[]>(
+    () =>
+      (geo?.index ?? [])
+        .filter((c) => kindOf(c.code) === 'sovereign')
+        .map((c) => ({
+          code: c.code,
+          name: countryName(c.code),
+          continent: continentOf(c.code) ?? null,
+          visited: atlas?.countries.get(c.code)?.status === 'visited',
+        })),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [geo, atlas, kindOf, countryName, continents]
+  );
 
   const tiles = [
     {
@@ -460,331 +487,369 @@ export const AtlasPage: React.FC = () => {
       ) : (
         <div className="space-y-6">
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-            {tiles.map(({ key, icon: Icon, label, value, suffix, hint, progress }) => (
-              <Card key={key} className="card-static !px-6 !py-5">
-                <div className="flex items-center gap-3">
-                  <div className="w-[42px] h-[42px] rounded-xl bg-gold/15 border border-gold/40 flex items-center justify-center text-gold shrink-0">
-                    <Icon className="w-5 h-5" strokeWidth={2.2} />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{label}</p>
-                    <p className="font-poppins font-bold text-lg sm:text-xl tabular-nums">
-                      {value}
-                      {suffix && <span className="ml-1 text-sm font-semibold text-slate-400">{suffix}</span>}
-                    </p>
-                  </div>
-                </div>
-                {progress !== undefined && (
-                  <div className="mt-2.5 h-1.5 rounded-full bg-slate-900/5 dark:bg-white/10 overflow-hidden">
-                    <div
-                      className="h-full rounded-full bg-gold transition-[width] duration-700"
-                      style={{ width: `${Math.max(progress * 100, progress > 0 ? 1.5 : 0)}%` }}
-                    />
-                  </div>
-                )}
-                <p className="mt-2 text-xs text-slate-500 dark:text-slate-400 truncate" title={hint}>
-                  {hint}
-                </p>
-              </Card>
-            ))}
-          </div>
-
-          <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-            <Card noPadding className="card-static xl:col-span-2">
-              <div
-                className="flex flex-wrap items-center justify-between gap-3 px-5 py-3.5"
-                style={{ borderBottom: '1px solid var(--border-subtle)' }}
-              >
-                <div className="flex flex-wrap items-center gap-3">
-                  <div className="flex items-center gap-1 bg-slate-900/80 dark:bg-slate-900/85 border border-slate-700/60 dark:border-white/10 p-1 rounded-full shadow-md">
-                    {(
-                      [
-                        ['globe', Globe2, t('atlas.view.globe')],
-                        ['flat', MapIcon, t('atlas.view.flat')],
-                      ] as const
-                    ).map(([mode, Icon, label]) => (
-                      <button
-                        key={mode}
-                        type="button"
-                        onClick={() => setView(mode)}
-                        aria-pressed={view === mode}
-                        className={`relative flex items-center gap-2 px-5 py-1 rounded-full text-xs font-bold whitespace-nowrap transition-colors duration-200 cursor-pointer ${
-                          view === mode ? 'text-slate-950' : 'text-slate-400 hover:text-slate-100 hover:bg-white/10'
-                        }`}
-                      >
-                        {view === mode && (
-                          <motion.span
-                            layoutId="atlas-view-active"
-                            className="absolute inset-0 rounded-full bg-gold shadow-sm"
-                            transition={{ type: 'spring', stiffness: 380, damping: 32 }}
-                          />
-                        )}
-                        <Icon className="w-5 h-5 relative shrink-0" />
-                        <span className="relative">{label}</span>
-                      </button>
-                    ))}
-                  </div>
-                  {/* Interruttore della vista per regioni: compare solo quando si è su un
-                      paese che ha le regioni; la si apre e chiude a mano. */}
-                  {hasRegions && selected && (
-                    <button
-                      type="button"
-                      role="switch"
-                      aria-checked={regionsOn}
-                      onClick={() => setRegionsOn((v) => !v)}
-                      title={t('atlas.regions.toggleTitle', { country: countryName(selected) })}
-                      className="inline-flex items-center gap-2.5 cursor-pointer select-none"
-                    >
-                      <span
-                        className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${
-                          regionsOn ? 'bg-gold' : 'bg-slate-300 dark:bg-white/15'
-                        }`}
-                      >
-                        <span
-                          className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform duration-200 ${
-                            regionsOn ? 'translate-x-5' : ''
-                          }`}
-                        />
-                      </span>
-                      <span className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-600 dark:text-slate-300">
-                        <Layers className="w-5 h-5" />
-                        {t('atlas.regions.toggle')}
-                        <CountryFlag code={selected} size="xs" />
-                      </span>
-                    </button>
-                  )}
-                </div>
-                {legend}
-              </div>
-              <div className="p-2 sm:p-4">
-                {/* Transizione: il mondo vola sul paese (rotazione + zoom), poi le regioni
-                    compaiono sopra in dissolvenza. Al ritorno le regioni svaniscono mentre il
-                    mondo si riallarga. Il mondo resta sempre montato sotto. */}
-                <div className="relative">
-                  <WorldMap
-                    geo={geo}
-                    view={view}
-                    countries={atlas.countries}
-                    cities={shownCities}
-                    homeCode={nationality}
-                    selected={selected}
-                    onSelect={setSelected}
-                    countryName={countryName}
-                    onFocusSettled={setSettled}
-                    homeCoords={homeCity?.coords ?? null}
-                    homeLabel={homeCity?.city ?? null}
-                  />
-                  <AnimatePresence>
-                    {regionMapVisible && selected && regions && (
-                      <motion.div
-                        key={selected}
-                        className="absolute inset-0"
-                        initial={{ opacity: 0, scale: 0.94 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.94 }}
-                        transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-                      >
-                        <RegionMap
-                          countryCode={selected}
-                          regions={regions.features}
-                          states={regionStates}
-                          cities={shownCities}
-                          homeCoords={homeCity?.coords ?? null}
-                          homeLabel={homeCity?.city ?? null}
-                          flags={regionFlags}
-                          regionLabel={regionLabel}
-                          onToggle={(name) => void toggleMark(selected, name)}
-                        />
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-                {regionsLoading && regionsOn && settled === selected && !showRegions && (
-                  <p className="mt-2 text-center text-xs text-slate-400 inline-flex w-full justify-center items-center gap-2">
-                    <Loader2 className="w-5 h-5 animate-spin text-gold" />
-                    {t('atlas.regions.loading')}
-                  </p>
-                )}
-                <p className="mt-2 text-center text-xs text-slate-400 dark:text-slate-500">
-                  {regionMapVisible ? t('atlas.regions.hint') : view === 'globe' ? t('atlas.hintGlobe') : t('atlas.hintFlat')}
-                </p>
-              </div>
-            </Card>
-
-            <div className="relative">
-              <Card className="card-static xl:absolute xl:inset-0 flex flex-col">
-              {selected ? (
-                <div className="space-y-4 flex flex-col min-h-0 xl:flex-1">
-                  <button
-                    type="button"
-                    onClick={() => setSelected(null)}
-                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-light-blue hover:underline cursor-pointer"
-                  >
-                    <ArrowLeft className="w-5 h-5" />
-                    {t('atlas.allCountries')}
-                  </button>
+            {tiles.map(({ key, icon: Icon, label, value, suffix, hint, progress }) => {
+              // "Paesi sbloccati" si clicca: mostra (o richiude) l'elenco delle bandiere, e
+              // da attiva diventa dorata con il contenuto scuro (colori in transizione).
+              const clickable = key === 'countries';
+              const on = clickable && showFlags;
+              return (
+                <Card
+                  key={key}
+                  onClick={clickable ? () => setShowFlags((v) => !v) : undefined}
+                  className={`card-static !px-6 !py-5 ${clickable ? 'hover:!border-gold/50' : ''} ${on ? '!bg-gold !border-gold' : ''}`}
+                >
                   <div className="flex items-center gap-3">
-                    <CountryFlag code={selected} size="lg" />
-                    <div className="min-w-0 flex-1">
-                      <h3 className="font-poppins font-semibold text-lg flex items-center gap-2 min-w-0">
-                        <span className="truncate">{countryName(selected)}</span>
-                        <KindTag kind={kindOf(selected)} />
-                      </h3>
-                      {continentOf(selected) && (
-                        <p className="text-xs text-slate-500 dark:text-slate-400">
-                          {t(`atlas.continent.${continentOf(selected)}`)}
-                        </p>
-                      )}
-                    </div>
-                    {/* Check "visitato": segna/toglie a mano il paese */}
-                    <button
-                      type="button"
-                      role="checkbox"
-                      aria-checked={countryVisited}
-                      onClick={() => void toggleCountryVisited(selected)}
-                      title={countryVisited ? t('atlas.unmarkVisited') : t('atlas.markVisited')}
-                      aria-label={countryVisited ? t('atlas.unmarkVisited') : t('atlas.markVisited')}
-                      className={`ml-auto w-9 h-9 rounded-full border-2 flex items-center justify-center shrink-0 transition-all cursor-pointer ${
-                        countryVisited
-                          ? 'bg-gold border-gold text-slate-950 shadow-sm shadow-gold/30'
-                          : 'border-slate-300 dark:border-slate-600 text-transparent hover:border-gold hover:text-gold/50'
+                    <div
+                      className={`w-[42px] h-[42px] rounded-xl border flex items-center justify-center shrink-0 transition-colors duration-300 ${
+                        on ? 'bg-slate-950/15 border-slate-950/30 text-slate-950' : 'bg-gold/15 border-gold/40 text-gold'
                       }`}
                     >
-                      <Check className="w-5 h-5" strokeWidth={3} />
-                    </button>
+                      <Icon className="w-5 h-5" strokeWidth={2.2} />
+                    </div>
+                    <div className="min-w-0">
+                      <p className={`text-xs truncate transition-colors duration-300 ${on ? 'text-slate-950/70' : 'text-slate-500 dark:text-slate-400'}`}>
+                        {label}
+                      </p>
+                      <p className={`font-poppins font-bold text-lg sm:text-xl tabular-nums transition-colors duration-300 ${on ? 'text-slate-950' : ''}`}>
+                        {value}
+                        {suffix && (
+                          <span className={`ml-1 text-sm font-semibold transition-colors duration-300 ${on ? 'text-slate-950/60' : 'text-slate-400'}`}>
+                            {suffix}
+                          </span>
+                        )}
+                      </p>
+                    </div>
                   </div>
+                  {progress !== undefined && (
+                    <div
+                      className={`mt-2.5 h-1.5 rounded-full overflow-hidden transition-colors duration-300 ${
+                        on ? 'bg-slate-950/15' : 'bg-slate-900/5 dark:bg-white/10'
+                      }`}
+                    >
+                      <div
+                        className={`h-full rounded-full transition-[width,background-color] duration-700 ${on ? 'bg-slate-950' : 'bg-gold'}`}
+                        style={{ width: `${Math.max(progress * 100, progress > 0 ? 1.5 : 0)}%` }}
+                      />
+                    </div>
+                  )}
+                  <p
+                    className={`mt-2 text-xs truncate transition-colors duration-300 ${on ? 'text-slate-950/70' : 'text-slate-500 dark:text-slate-400'}`}
+                    title={hint}
+                  >
+                    {hint}
+                  </p>
+                </Card>
+              );
+            })}
+          </div>
 
-
-                  {selectedCountry && selectedCountry.trips.length > 0 && (
-                    // Al massimo 3 viaggi visibili (righe da 60px + 2 spazi da 8px), gli altri scorrono.
-                    <ul className="space-y-2 shrink-0 max-h-[196px] overflow-y-auto pr-1">
-                      {selectedCountry.trips.map((trip) => (
-                        <li key={trip.id}>
-                          <TripLink
-                            trip={trip}
-                            className="flex items-center justify-between gap-3 h-[60px] rounded-2xl bg-slate-900/5 dark:bg-white/5 hover:bg-slate-900/10 dark:hover:bg-white/10 px-3.5 no-underline hover:no-underline transition-colors"
-                          >
-                            <div className="min-w-0">
-                              <p className="text-sm font-semibold truncate text-slate-800 dark:text-slate-100">{trip.name}</p>
-                              <p className="text-xs text-slate-500 dark:text-slate-400">{formatRange(trip.start_date, trip.end_date, trip.date_precision)}</p>
-                            </div>
-                            <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-slate-900/5 dark:bg-white/10 text-slate-500 dark:text-slate-300 shrink-0">
-                              {!trip.asDestination ? t('atlas.tripStopover') : trip.started ? t('atlas.tripDone') : t('atlas.tripPlanned')}
-                            </span>
-                          </TripLink>
-                        </li>
+          {/* Bandiere o mappa: si passa dall'una all'altra in dissolvenza */}
+          <AnimatePresence mode="wait" initial={false}>
+          {showFlags ? (
+            <motion.div key="flags" {...SWAP_MOTION}>
+              <CountryFlagsBoard countries={flagBoardCountries} continents={CONTINENTS} />
+            </motion.div>
+          ) : (
+            <motion.div key="map" {...SWAP_MOTION} className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+              <Card noPadding className="card-static xl:col-span-2">
+                <div
+                  className="flex flex-wrap items-center justify-between gap-3 px-5 py-3.5"
+                  style={{ borderBottom: '1px solid var(--border-subtle)' }}
+                >
+                  <div className="flex flex-wrap items-center gap-3">
+                    <div className="flex items-center gap-1 bg-slate-900/80 dark:bg-slate-900/85 border border-slate-700/60 dark:border-white/10 p-1 rounded-full shadow-md">
+                      {(
+                        [
+                          ['globe', Globe2, t('atlas.view.globe')],
+                          ['flat', MapIcon, t('atlas.view.flat')],
+                        ] as const
+                      ).map(([mode, Icon, label]) => (
+                        <button
+                          key={mode}
+                          type="button"
+                          onClick={() => setView(mode)}
+                          aria-pressed={view === mode}
+                          className={`relative flex items-center gap-2 px-5 py-1 rounded-full text-xs font-bold whitespace-nowrap transition-colors duration-200 cursor-pointer ${
+                            view === mode ? 'text-slate-950' : 'text-slate-400 hover:text-slate-100 hover:bg-white/10'
+                          }`}
+                        >
+                          {view === mode && (
+                            <motion.span
+                              layoutId="atlas-view-active"
+                              className="absolute inset-0 rounded-full bg-gold shadow-sm"
+                              transition={{ type: 'spring', stiffness: 380, damping: 32 }}
+                            />
+                          )}
+                          <Icon className="w-5 h-5 relative shrink-0" />
+                          <span className="relative">{label}</span>
+                        </button>
                       ))}
-                    </ul>
+                    </div>
+                    {/* Interruttore della vista per regioni: compare solo quando si è su un
+                        paese che ha le regioni; la si apre e chiude a mano. */}
+                    {hasRegions && selected && (
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={regionsOn}
+                        onClick={() => setRegionsOn((v) => !v)}
+                        title={t('atlas.regions.toggleTitle', { country: countryName(selected) })}
+                        className="inline-flex items-center gap-2.5 cursor-pointer select-none"
+                      >
+                        <span
+                          className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${
+                            regionsOn ? 'bg-gold' : 'bg-slate-300 dark:bg-white/15'
+                          }`}
+                        >
+                          <span
+                            className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform duration-200 ${
+                              regionsOn ? 'translate-x-5' : ''
+                            }`}
+                          />
+                        </span>
+                        <span className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-600 dark:text-slate-300">
+                          <Layers className="w-5 h-5" />
+                          {t('atlas.regions.toggle')}
+                          <CountryFlag code={selected} size="xs" />
+                        </span>
+                      </button>
+                    )}
+                  </div>
+                  {legend}
+                </div>
+                <div className="p-2 sm:p-4">
+                  {/* Transizione: il mondo vola sul paese (rotazione + zoom), poi le regioni
+                      compaiono sopra in dissolvenza. Al ritorno le regioni svaniscono mentre il
+                      mondo si riallarga. Il mondo resta sempre montato sotto. */}
+                  <div className="relative">
+                    <WorldMap
+                      geo={geo}
+                      view={view}
+                      countries={atlas.countries}
+                      cities={shownCities}
+                      homeCode={nationality}
+                      selected={selected}
+                      onSelect={setSelected}
+                      countryName={countryName}
+                      onFocusSettled={setSettled}
+                      homeCoords={homeCity?.coords ?? null}
+                      homeLabel={homeCity?.city ?? null}
+                      capital={capital}
+                    />
+                    <AnimatePresence>
+                      {regionMapVisible && selected && regions && (
+                        <motion.div
+                          key={selected}
+                          className="absolute inset-0"
+                          initial={{ opacity: 0, scale: 0.94 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          exit={{ opacity: 0, scale: 0.94 }}
+                          transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+                        >
+                          <RegionMap
+                            countryCode={selected}
+                            regions={regions.features}
+                            states={regionStates}
+                            cities={shownCities}
+                            homeCoords={homeCity?.coords ?? null}
+                            homeLabel={homeCity?.city ?? null}
+                      capital={capital}
+                            flags={regionFlags}
+                            regionLabel={regionLabel}
+                            onToggle={(name) => void toggleMark(selected, name)}
+                          />
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                  {regionsLoading && regionsOn && settled === selected && !showRegions && (
+                    <p className="mt-2 text-center text-xs text-slate-400 inline-flex w-full justify-center items-center gap-2">
+                      <Loader2 className="w-5 h-5 animate-spin text-gold" />
+                      {t('atlas.regions.loading')}
+                    </p>
                   )}
-                  {!selectedCountry?.trips.length && <p className="text-sm text-slate-500 dark:text-slate-400">{t('atlas.noTripsHere')}</p>}
+                  <p className="mt-2 text-center text-xs text-slate-400 dark:text-slate-500">
+                    {regionMapVisible ? t('atlas.regions.hint') : view === 'globe' ? t('atlas.hintGlobe') : t('atlas.hintFlat')}
+                  </p>
+                </div>
+              </Card>
 
-                  {/* Regioni: conteggio ed elenco, con la casella per segnarle a mano */}
-                  {showRegions && (
-                    <section className="pt-1 flex flex-col min-h-0 xl:flex-1">
-                      <div className="flex items-center justify-between gap-2 mb-1.5">
-                        <h4 className="font-poppins font-semibold text-sm">{t('atlas.regions.listTitle')}</h4>
-                        <span className="text-sm font-bold tabular-nums">
-                          {visitedRegions}
-                          <span className="text-slate-400 font-semibold"> / {countedRegions.length}</span>
-                          {visitedExtras.map((short) => (
-                            <span key={short} className="ml-1.5 text-gold">
-                              + {short}
-                            </span>
-                          ))}
-                        </span>
+              <div className="relative">
+                <Card className="card-static xl:absolute xl:inset-0 flex flex-col">
+                {selected ? (
+                  <div className="space-y-4 flex flex-col min-h-0 xl:flex-1">
+                    <button
+                      type="button"
+                      onClick={() => setSelected(null)}
+                      className="inline-flex items-center gap-1.5 text-xs font-semibold text-light-blue hover:underline cursor-pointer"
+                    >
+                      <ArrowLeft className="w-5 h-5" />
+                      {t('atlas.allCountries')}
+                    </button>
+                    <div className="flex items-center gap-3">
+                      <CountryFlag code={selected} size="lg" />
+                      <div className="min-w-0 flex-1">
+                        <h3 className="font-poppins font-semibold text-lg flex items-center gap-2 min-w-0">
+                          <span className="truncate">{countryName(selected)}</span>
+                          <KindTag kind={kindOf(selected)} />
+                        </h3>
+                        {continentOf(selected) && (
+                          <p className="text-xs text-slate-500 dark:text-slate-400">
+                            {t(`atlas.continent.${continentOf(selected)}`)}
+                          </p>
+                        )}
                       </div>
-                      <div className="h-1.5 rounded-full bg-slate-900/5 dark:bg-white/10 overflow-hidden mb-3">
-                        <div
-                          className="h-full rounded-full bg-gold transition-[width] duration-500"
-                          style={{ width: `${countedRegions.length ? (visitedRegions / countedRegions.length) * 100 : 0}%` }}
-                        />
-                      </div>
-                      <ul className="max-h-80 xl:max-h-none xl:flex-1 min-h-0 overflow-y-auto space-y-0.5 pr-1">
-                        {regionNamesSorted.map((name) => {
-                          const state = regionStates.get(name);
-                          const auto = !!state && !state.manual && state.status === 'visited';
-                          const checked = state?.status === 'visited';
-                          return (
-                            <li
-                              key={name}
-                              className="flex items-center gap-2 pr-2 rounded-lg hover:bg-slate-900/5 dark:hover:bg-white/5 transition-colors"
+                      {/* Check "visitato": segna/toglie a mano il paese */}
+                      <button
+                        type="button"
+                        role="checkbox"
+                        aria-checked={countryVisited}
+                        onClick={() => void toggleCountryVisited(selected)}
+                        title={countryVisited ? t('atlas.unmarkVisited') : t('atlas.markVisited')}
+                        aria-label={countryVisited ? t('atlas.unmarkVisited') : t('atlas.markVisited')}
+                        className={`ml-auto w-9 h-9 rounded-full border-2 flex items-center justify-center shrink-0 transition-all cursor-pointer ${
+                          countryVisited
+                            ? 'bg-gold border-gold text-slate-950 shadow-sm shadow-gold/30'
+                            : 'border-slate-300 dark:border-slate-600 text-transparent hover:border-gold hover:text-gold/50'
+                        }`}
+                      >
+                        <Check className="w-5 h-5" strokeWidth={3} />
+                      </button>
+                    </div>
+
+
+                    {selectedCountry && selectedCountry.trips.length > 0 && (
+                      // Al massimo 3 viaggi visibili (righe da 60px + 2 spazi da 8px), gli altri scorrono.
+                      <ul className="space-y-2 shrink-0 max-h-[196px] overflow-y-auto pr-1">
+                        {selectedCountry.trips.map((trip) => (
+                          <li key={trip.id}>
+                            <TripLink
+                              trip={trip}
+                              className="flex items-center justify-between gap-3 h-[60px] rounded-2xl bg-slate-900/5 dark:bg-white/5 hover:bg-slate-900/10 dark:hover:bg-white/10 px-3.5 no-underline hover:no-underline transition-colors"
                             >
-                              <button
-                                type="button"
-                                disabled={auto}
-                                onClick={() => void toggleMark(selected, name)}
-                                title={auto ? t('atlas.regions.fromTrips') : undefined}
-                                className="flex-1 min-w-0 flex items-center gap-2.5 px-2 py-1.5 text-left text-sm cursor-pointer disabled:cursor-default"
-                              >
-                                <span
-                                  className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 ${
-                                    checked ? 'bg-gold border-gold text-slate-950' : 'border-slate-300 dark:border-slate-600 text-transparent'
-                                  } ${auto ? 'opacity-70' : ''}`}
-                                >
-                                  <Check className="w-3.5 h-3.5" strokeWidth={3} />
-                                </span>
-                                {regionFlags?.[name] && (
-                                  <img
-                                    src={regionFlags[name]}
-                                    alt=""
-                                    loading="lazy"
-                                    className="h-[20px] w-[30px] object-cover rounded-[4px] ring-1 ring-black/10 shrink-0"
-                                  />
-                                )}
-                                <span className="flex-1 min-w-0 truncate">{regionLabel(name)}</span>
-                                {state && state.status !== 'visited' && <Swatch status={state.status} />}
-                              </button>
-                              {/* Fuori dal pulsante della riga: è cliccabile da solo (link o elenco dei viaggi) */}
-                              {auto && <TripsBadge trips={state.trips} />}
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    </section>
-                  )}
-                </div>
-              ) : atlas.countries.size === 0 ? (
-                <div className="empty-state !py-8">
-                  <div className="empty-state-icon">🌍</div>
-                  <p className="empty-state-title">{t('atlas.empty')}</p>
-                  <p className="empty-state-message">{t('atlas.emptySub')}</p>
-                </div>
-              ) : (
-                <div className="space-y-5 min-h-0 xl:flex-1 xl:overflow-y-auto pr-1">
-                  {LIST_ORDER.filter((s) => grouped[s].length > 0).map((status) => (
-                    <section key={status}>
-                      <h3 className="flex items-center gap-2 font-poppins font-semibold text-base mb-2">
-                        <Swatch status={status} />
-                        {t(`atlas.group.${status}`)}
-                        <span className="text-xs font-mono px-2 py-0.5 rounded-full bg-slate-900/5 dark:bg-white/10 text-slate-500">
-                          {grouped[status].length}
-                        </span>
-                      </h3>
-                      <ul className="space-y-0.5">
-                        {grouped[status].map((c) => (
-                          <li key={c.code}>
-                            <button
-                              type="button"
-                              onClick={() => setSelected(c.code)}
-                              className="w-full flex items-center gap-3 px-2.5 py-2 rounded-xl text-left hover:bg-slate-900/5 dark:hover:bg-white/5 transition-colors cursor-pointer"
-                            >
-                              <CountryFlag code={c.code} size="sm" />
-                              <span className="flex-1 min-w-0 truncate text-sm font-medium">{countryName(c.code)}</span>
-                              <KindTag kind={kindOf(c.code)} />
-                              <span className="text-xs text-slate-500 dark:text-slate-400 shrink-0">
-                                {c.trips.length > 0 ? t('atlas.tripsCount', { count: c.trips.length }) : t('atlas.regions.manual')}
+                              <div className="min-w-0">
+                                <p className="text-sm font-semibold truncate text-slate-800 dark:text-slate-100">{trip.name}</p>
+                                <p className="text-xs text-slate-500 dark:text-slate-400">{formatRange(trip.start_date, trip.end_date, trip.date_precision)}</p>
+                              </div>
+                              <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-slate-900/5 dark:bg-white/10 text-slate-500 dark:text-slate-300 shrink-0">
+                                {!trip.asDestination ? t('atlas.tripStopover') : trip.started ? t('atlas.tripDone') : t('atlas.tripPlanned')}
                               </span>
-                            </button>
+                            </TripLink>
                           </li>
                         ))}
                       </ul>
-                    </section>
-                  ))}
-                </div>
-              )}
-            </Card>
-            </div>
-          </div>
+                    )}
+                    {!selectedCountry?.trips.length && <p className="text-sm text-slate-500 dark:text-slate-400">{t('atlas.noTripsHere')}</p>}
+
+                    {/* Regioni: conteggio ed elenco, con la casella per segnarle a mano */}
+                    {showRegions && (
+                      <section className="pt-1 flex flex-col min-h-0 xl:flex-1">
+                        <div className="flex items-center justify-between gap-2 mb-1.5">
+                          <h4 className="font-poppins font-semibold text-sm">{t('atlas.regions.listTitle')}</h4>
+                          <span className="text-sm font-bold tabular-nums">
+                            {visitedRegions}
+                            <span className="text-slate-400 font-semibold"> / {countedRegions.length}</span>
+                            {visitedExtras.map((short) => (
+                              <span key={short} className="ml-1.5 text-gold">
+                                + {short}
+                              </span>
+                            ))}
+                          </span>
+                        </div>
+                        <div className="h-1.5 rounded-full bg-slate-900/5 dark:bg-white/10 overflow-hidden mb-3">
+                          <div
+                            className="h-full rounded-full bg-gold transition-[width] duration-500"
+                            style={{ width: `${countedRegions.length ? (visitedRegions / countedRegions.length) * 100 : 0}%` }}
+                          />
+                        </div>
+                        <ul className="max-h-80 xl:max-h-none xl:flex-1 min-h-0 overflow-y-auto space-y-0.5 pr-1">
+                          {regionNamesSorted.map((name) => {
+                            const state = regionStates.get(name);
+                            const auto = !!state && !state.manual && state.status === 'visited';
+                            const checked = state?.status === 'visited';
+                            return (
+                              <li
+                                key={name}
+                                className="flex items-center gap-2 pr-2 rounded-lg hover:bg-slate-900/5 dark:hover:bg-white/5 transition-colors"
+                              >
+                                <button
+                                  type="button"
+                                  disabled={auto}
+                                  onClick={() => void toggleMark(selected, name)}
+                                  title={auto ? t('atlas.regions.fromTrips') : undefined}
+                                  className="flex-1 min-w-0 flex items-center gap-2.5 px-2 py-1.5 text-left text-sm cursor-pointer disabled:cursor-default"
+                                >
+                                  <span
+                                    className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 ${
+                                      checked ? 'bg-gold border-gold text-slate-950' : 'border-slate-300 dark:border-slate-600 text-transparent'
+                                    } ${auto ? 'opacity-70' : ''}`}
+                                  >
+                                    <Check className="w-3.5 h-3.5" strokeWidth={3} />
+                                  </span>
+                                  {regionFlags?.[name] && (
+                                    <img
+                                      src={regionFlags[name]}
+                                      alt=""
+                                      loading="lazy"
+                                      className="h-[20px] w-[30px] object-cover rounded-[4px] ring-1 ring-black/10 shrink-0"
+                                    />
+                                  )}
+                                  <span className="flex-1 min-w-0 truncate">{regionLabel(name)}</span>
+                                  {state && state.status !== 'visited' && <Swatch status={state.status} />}
+                                </button>
+                                {/* Fuori dal pulsante della riga: è cliccabile da solo (link o elenco dei viaggi) */}
+                                {auto && <TripsBadge trips={state.trips} />}
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      </section>
+                    )}
+                  </div>
+                ) : atlas.countries.size === 0 ? (
+                  <div className="empty-state !py-8">
+                    <div className="empty-state-icon">🌍</div>
+                    <p className="empty-state-title">{t('atlas.empty')}</p>
+                    <p className="empty-state-message">{t('atlas.emptySub')}</p>
+                  </div>
+                ) : (
+                  <div className="space-y-5 min-h-0 xl:flex-1 xl:overflow-y-auto pr-1">
+                    {LIST_ORDER.filter((s) => grouped[s].length > 0).map((status) => (
+                      <section key={status}>
+                        <h3 className="flex items-center gap-2 font-poppins font-semibold text-base mb-2">
+                          <Swatch status={status} />
+                          {t(`atlas.group.${status}`)}
+                          <span className="text-xs font-mono px-2 py-0.5 rounded-full bg-slate-900/5 dark:bg-white/10 text-slate-500">
+                            {grouped[status].length}
+                          </span>
+                        </h3>
+                        <ul className="space-y-0.5">
+                          {grouped[status].map((c) => (
+                            <li key={c.code}>
+                              <button
+                                type="button"
+                                onClick={() => setSelected(c.code)}
+                                className="w-full flex items-center gap-3 px-2.5 py-2 rounded-xl text-left hover:bg-slate-900/5 dark:hover:bg-white/5 transition-colors cursor-pointer"
+                              >
+                                <CountryFlag code={c.code} size="sm" />
+                                <span className="flex-1 min-w-0 truncate text-sm font-medium">{countryName(c.code)}</span>
+                                <KindTag kind={kindOf(c.code)} />
+                                <span className="text-xs text-slate-500 dark:text-slate-400 shrink-0">
+                                  {c.trips.length > 0 ? t('atlas.tripsCount', { count: c.trips.length }) : t('atlas.regions.manual')}
+                                </span>
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      </section>
+                    ))}
+                  </div>
+                )}
+              </Card>
+              </div>
+            </motion.div>
+          )}
+          </AnimatePresence>
 
           <p className="text-[11px] text-slate-400 dark:text-slate-500 text-center">{t('atlas.credits')}</p>
 

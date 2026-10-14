@@ -1,9 +1,8 @@
-const FLAG_CDN_BASE = 'https://flags.restcountries.com/v5/w320';
-
 const CACHE_PREFIX = 'ja-cc:';
 
-export const flagUrl = (countryCode: string): string =>
-  `${FLAG_CDN_BASE}/${countryCode.toLowerCase()}.png`;
+// Bandiere servite dall'app (scripts/download-flags.mjs): niente richieste a un
+// servizio esterno a ogni visita, e il browser le tiene in cache come gli altri file.
+export const flagUrl = (countryCode: string): string => `/flags/${countryCode.toLowerCase()}.png`;
 
 interface FlagSource {
   countryCode?: string | null;

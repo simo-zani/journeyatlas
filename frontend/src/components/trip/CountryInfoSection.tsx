@@ -11,6 +11,7 @@ import {
   Coins,
   ExternalLink,
   Globe2,
+  Handshake,
   Landmark,
   Languages,
   Loader2,
@@ -24,6 +25,7 @@ import {
 import { Alert } from '@/components/Alert';
 import { PlugTypeIcon } from '@/components/PlugTypeIcon';
 import { CurrencyPanel } from '@/components/trip/country/CurrencyPanel';
+import { CustomsPanel } from '@/components/trip/country/CustomsPanel';
 import { PhrasebookPanel } from '@/components/trip/country/PhrasebookPanel';
 import { WeatherPanel } from '@/components/trip/country/WeatherPanel';
 import { flagUrl, resolveCountryFlags } from '@/lib/flags';
@@ -50,13 +52,14 @@ interface CountryInfoSectionProps {
   tripDestinations: Destination[];
 }
 
-type SubTab = 'overview' | 'weather' | 'currency' | 'phrasebook';
+type SubTab = 'overview' | 'weather' | 'currency' | 'phrasebook' | 'customs';
 
 const SUB_TABS: { id: SubTab; icon: LucideIcon }[] = [
   { id: 'overview', icon: Globe2 },
   { id: 'weather', icon: CloudSun },
   { id: 'currency', icon: ArrowLeftRight },
   { id: 'phrasebook', icon: BookOpen },
+  { id: 'customs', icon: Handshake },
 ];
 
 const HOME_CURRENCY = 'EUR';
@@ -577,6 +580,9 @@ export const CountryInfoSection: React.FC<CountryInfoSectionProps> = ({ tripId, 
       {tab === 'weather' && <WeatherPanel destinations={tripDestinations} tripId={tripId} tripStart={tripStart} tripEnd={tripEnd} />}
       {tab === 'currency' && <CurrencyPanel countries={visibleCountries} rates={rates} />}
       {tab === 'phrasebook' && <PhrasebookPanel countries={visibleCountries} stickyTop={56 + barHeight} />}
+      {tab === 'customs' && (
+        <CustomsPanel countries={visibleCountries} tripStart={tripStart} tripEnd={tripEnd} destinations={tripDestinations} />
+      )}
     </div>
   );
 };

@@ -880,7 +880,8 @@
       "overview": "Overview",
       "weather": "Weather",
       "currency": "Exchange",
-      "phrasebook": "Phrasebook"
+      "phrasebook": "Phrasebook",
+      "customs": "Customs"
     },
     "plugs": "Power outlets",
     "plugFits": "Your European plugs (type C) should work.",
@@ -936,7 +937,39 @@
     "transitTitle": "Transit countries",
     "transitSub": "Countries your flights, trains or ferries pass through that are not a destination: the essentials for a layover.",
     "transitBadge": "Transit",
-    "safetySub": "Official safety advisories (Italian Foreign Ministry)"
+    "safetySub": "Official safety advisories (Italian Foreign Ministry)",
+    "customs": {
+      "meals": "Meals",
+      "breakfast": "Breakfast",
+      "lunch": "Lunch",
+      "dinner": "Dinner",
+      "tipping": "Tipping",
+      "weekend": "Weekend",
+      "weekendDefault": "Saturday and Sunday",
+      "holidays": "Holidays and seasons",
+      "holidaysNoDates": "Add dates to the trip to see the public holidays that fall during your stay.",
+      "holidaysNone": "No public holidays during the trip.",
+      "holidaysUnavailable": "The public holiday calendar is not available for this country.",
+      "duringTrip": "During your trip",
+      "noData": "We haven't collected the customs of {{country}} yet: holidays are still shown below.",
+      "sections": {
+        "law": "Against the law",
+        "gestures": "Gestures",
+        "avoid": "Better avoid",
+        "local": "Normal there"
+      },
+      "disclaimer": "Laws and rules change: check Viaggiare Sicuri before you leave.",
+      "sources": "Customs compiled by JourneyAtlas (October 2026) · Public holidays: Nager.Date",
+      "localYear": "Year and calendar",
+      "forTravellers": "For travellers:",
+      "onHolidays": "On public holidays:",
+      "appliesTo": "Applies in {{places}}",
+      "onlyIn": "Only in: {{regions}}",
+      "otherRegional_one": "One more regional holiday, not where you are going",
+      "otherRegional_other": "{{count}} more regional holidays, not where you are going",
+      "regional_one": "One regional holiday",
+      "regional_other": "{{count}} regional holidays"
+    }
   },
   "atlas": {
     "title": "My Atlas",

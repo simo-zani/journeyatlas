@@ -172,6 +172,45 @@ export const fetchExchangeRates = async (base: string): Promise<Record<string, n
   return json.rates;
 };
 
+export interface PublicHoliday {
+  /** YYYY-MM-DD */
+  date: string;
+  /** Nome inglese (Nager.Date non ha l'italiano). */
+  name: string;
+  localName: string;
+  /** Codici ISO 3166-2 delle regioni in cui vale (es. "DE-BY"); null = tutto il paese. */
+  regions: string[] | null;
+}
+
+/** Festività di un anno da Nager.Date (gratis, senza chiave), nazionali e regionali. `null` se il paese non è
+ *  coperto (es. Thailandia, India, Emirati): il servizio risponde 204 senza contenuto. */
+export const fetchPublicHolidays = async (countryCode: string, year: number): Promise<PublicHoliday[] | null> => {
+  const code = countryCode.toUpperCase();
+  const key = `h2:${code}:${year}`;
+  const cached = readCache<PublicHoliday[] | 'none'>(key, COUNTRY_TTL_MS);
+  if (cached) return cached === 'none' ? null : cached;
+
+  const res = await fetch(`https://date.nager.at/api/v3/PublicHolidays/${year}/${code}`);
+  if (res.status === 204 || res.status === 404) {
+    writeCache(key, 'none');
+    return null;
+  }
+  if (!res.ok) throw new Error(`Nager.Date ${res.status}`);
+  const json = (await res.json()) as { date: string; name: string; localName: string; global?: boolean; counties?: string[] | null }[];
+  // La stessa festa può comparire più volte nello stesso giorno per gruppi di regioni diversi: si uniscono.
+  const byDay = new Map<string, PublicHoliday>();
+  for (const h of json) {
+    const regions = h.global === false && h.counties?.length ? h.counties : null;
+    const id = `${h.date}|${h.name}`;
+    const prev = byDay.get(id);
+    if (!prev) byDay.set(id, { date: h.date, name: h.name, localName: h.localName, regions });
+    else if (prev.regions) prev.regions = regions ? [...new Set([...prev.regions, ...regions])] : null;
+  }
+  const list = [...byDay.values()];
+  writeCache(key, list);
+  return list;
+};
+
 /** Quando il servizio ha aggiornato i tassi (non quando li abbiamo scaricati), se noto. */
 export const ratesUpdatedAt = (base: string): Date | null => {
   const unix = readCache<number>(`r2t:${base}`, COUNTRY_TTL_MS);

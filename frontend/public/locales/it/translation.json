@@ -880,7 +880,8 @@
       "overview": "Panoramica",
       "weather": "Meteo",
       "currency": "Cambio",
-      "phrasebook": "Frasario"
+      "phrasebook": "Frasario",
+      "customs": "Usanze"
     },
     "plugs": "Prese elettriche",
     "plugFits": "Le tue spine europee (tipo C) dovrebbero andare bene.",
@@ -936,7 +937,39 @@
     "transitTitle": "Paesi di passaggio",
     "transitSub": "Paesi attraversati da voli, treni o traghetti che non sono una meta del viaggio: le informazioni essenziali per uno scalo.",
     "transitBadge": "Scalo",
-    "safetySub": "Avvisi e sicurezza del Ministero degli Esteri"
+    "safetySub": "Avvisi e sicurezza del Ministero degli Esteri",
+    "customs": {
+      "meals": "Pasti",
+      "breakfast": "Colazione",
+      "lunch": "Pranzo",
+      "dinner": "Cena",
+      "tipping": "Mance",
+      "weekend": "Weekend",
+      "weekendDefault": "Sabato e domenica",
+      "holidays": "Feste e periodi",
+      "holidaysNoDates": "Aggiungi le date al viaggio per vedere le feste nazionali che cadono durante il soggiorno.",
+      "holidaysNone": "Nessuna festa nazionale durante il viaggio.",
+      "holidaysUnavailable": "Il calendario delle feste nazionali non è disponibile per questo paese.",
+      "duringTrip": "Durante il tuo viaggio",
+      "noData": "Non abbiamo ancora raccolto le usanze di {{country}}: qui sotto trovi comunque le feste.",
+      "sections": {
+        "law": "Vietato per legge",
+        "gestures": "Gesti",
+        "avoid": "Da evitare",
+        "local": "Normale lì"
+      },
+      "disclaimer": "Leggi e regole cambiano: prima di partire verifica su Viaggiare Sicuri.",
+      "sources": "Usanze raccolte da JourneyAtlas (ottobre 2026) · Feste nazionali: Nager.Date",
+      "localYear": "Anno e calendario",
+      "forTravellers": "Per chi viaggia:",
+      "onHolidays": "Nei giorni di festa:",
+      "appliesTo": "Vale a {{places}}",
+      "onlyIn": "Solo in: {{regions}}",
+      "otherRegional_one": "Un'altra festa regionale, non nelle tue mete",
+      "otherRegional_other": "Altre {{count}} feste regionali, non nelle tue mete",
+      "regional_one": "Una festa regionale",
+      "regional_other": "{{count}} feste regionali"
+    }
   },
   "atlas": {
     "title": "Il Mio Atlante",

@@ -151,7 +151,7 @@ export const TransportCard: React.FC<TransportCardProps> = ({
     : isFerry
     ? (ferryOp?.gradient ?? TRANSPORT_TYPE_GRADIENTS.ferry)
     : isBus
-    ? busOperatorGradient(transport.airline)
+    ? busOperatorGradient()
     : TRANSPORT_TYPE_GRADIENTS[transport.transport_type] ?? TRANSPORT_TYPE_GRADIENTS.other;
 
   const depWall = transport.departure_datetime ? wallClockFromIso(transport.departure_datetime) : null;

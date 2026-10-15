@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { Suspense, lazy, useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -27,7 +27,6 @@ import { ActivitySection } from '@/components/trip/ActivitySection';
 import { AccommodationSection } from '@/components/trip/AccommodationSection';
 import { TransportSection } from '@/components/trip/TransportSection';
 import { ChecklistSection } from '@/components/trip/ChecklistSection';
-import { CountryInfoSection } from '@/components/trip/CountryInfoSection';
 import { ExpenseSection } from '@/components/trip/expenses/ExpenseSection';
 import { ShareTripModal } from '@/components/trip/ShareTripModal';
 import { TripParticipantAvatars } from '@/components/trip/TripParticipantAvatars';
@@ -37,6 +36,11 @@ import { fetchTripParticipants } from '@/lib/api';
 import { useImageBrightness } from '@/lib/useImageBrightness';
 import { useIsStuck } from '@/lib/useIsStuck';
 import type { Trip, TripParticipantDetail } from '@/lib/types';
+
+// Info Paese (frasario, usanze, dataset di paesi) pesa: si scarica solo aprendo la scheda.
+const CountryInfoSection = lazy(() =>
+  import('@/components/trip/CountryInfoSection').then((m) => ({ default: m.CountryInfoSection }))
+);
 
 type TripSection =
   | 'calendar'
@@ -411,7 +415,15 @@ export const TripDetailPage: React.FC = () => {
             />
           )}
           {activeSection === 'info' && (
-            <CountryInfoSection tripId={trip.id} tripStart={trip.start_date} tripEnd={trip.end_date} tripDestinations={trip.destinations ?? []} />
+            <Suspense
+              fallback={
+                <div className="flex items-center justify-center py-16">
+                  <Loader2 className="w-10 h-10 text-gold animate-spin" />
+                </div>
+              }
+            >
+              <CountryInfoSection tripId={trip.id} tripStart={trip.start_date} tripEnd={trip.end_date} tripDestinations={trip.destinations ?? []} />
+            </Suspense>
           )}
         </>
       )}

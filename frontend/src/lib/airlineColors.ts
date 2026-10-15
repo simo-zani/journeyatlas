@@ -133,7 +133,7 @@ export const trainOperatorGradient = (
   return TRANSPORT_TYPE_GRADIENTS.train;
 };
 
-export const busOperatorGradient = (_name?: string | null | undefined): Gradient => {
+export const busOperatorGradient = (): Gradient => {
   return BUS_YELLOW_GRADIENT;
 };
 

@@ -1,52 +1,60 @@
+import { lazy, Suspense } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AppLayout } from '@/layouts/AppLayout';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { GuestRoute } from '@/components/GuestRoute';
-import { LoginPage } from '@/pages/LoginPage';
-import { SignupPage } from '@/pages/SignupPage';
-import { DashboardPage } from '@/pages/DashboardPage';
-import { TripDetailPage } from '@/pages/TripDetailPage';
-import { TravelersPage } from '@/pages/TravelersPage';
-import { TravelerProfilePage } from '@/pages/TravelerProfilePage';
-import { AtlasPage } from '@/pages/AtlasPage';
+
+// Pagine caricate on demand: ognuna (con i suoi dataset, es. aeroporti o confini
+// dell'atlante) finisce in un chunk separato invece che nel bundle iniziale.
+const LoginPage = lazy(() => import('@/pages/LoginPage').then((m) => ({ default: m.LoginPage })));
+const SignupPage = lazy(() => import('@/pages/SignupPage').then((m) => ({ default: m.SignupPage })));
+const DashboardPage = lazy(() => import('@/pages/DashboardPage').then((m) => ({ default: m.DashboardPage })));
+const TripDetailPage = lazy(() => import('@/pages/TripDetailPage').then((m) => ({ default: m.TripDetailPage })));
+const TravelersPage = lazy(() => import('@/pages/TravelersPage').then((m) => ({ default: m.TravelersPage })));
+const TravelerProfilePage = lazy(() =>
+  import('@/pages/TravelerProfilePage').then((m) => ({ default: m.TravelerProfilePage }))
+);
+const AtlasPage = lazy(() => import('@/pages/AtlasPage').then((m) => ({ default: m.AtlasPage })));
 
 export default function App() {
   return (
     <BrowserRouter>
-      <Routes>
-        <Route
-          path="/login"
-          element={
-            <GuestRoute>
-              <LoginPage />
-            </GuestRoute>
-          }
-        />
-        <Route
-          path="/signup"
-          element={
-            <GuestRoute>
-              <SignupPage />
-            </GuestRoute>
-          }
-        />
+      <Suspense fallback={null}>
+        <Routes>
+          <Route
+            path="/login"
+            element={
+              <GuestRoute>
+                <LoginPage />
+              </GuestRoute>
+            }
+          />
+          <Route
+            path="/signup"
+            element={
+              <GuestRoute>
+                <SignupPage />
+              </GuestRoute>
+            }
+          />
 
-        <Route
-          element={
-            <ProtectedRoute>
-              <AppLayout />
-            </ProtectedRoute>
-          }
-        >
-          <Route path="/" element={<DashboardPage />} />
-          <Route path="/trips/:tripId" element={<TripDetailPage />} />
-          <Route path="/atlas" element={<AtlasPage />} />
-          <Route path="/travelers" element={<TravelersPage />} />
-          <Route path="/travelers/:userId" element={<TravelerProfilePage />} />
-        </Route>
+          <Route
+            element={
+              <ProtectedRoute>
+                <AppLayout />
+              </ProtectedRoute>
+            }
+          >
+            <Route path="/" element={<DashboardPage />} />
+            <Route path="/trips/:tripId" element={<TripDetailPage />} />
+            <Route path="/atlas" element={<AtlasPage />} />
+            <Route path="/travelers" element={<TravelersPage />} />
+            <Route path="/travelers/:userId" element={<TravelerProfilePage />} />
+          </Route>
 
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </Suspense>
     </BrowserRouter>
   );
 }

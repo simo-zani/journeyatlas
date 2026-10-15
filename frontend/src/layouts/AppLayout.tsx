@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { Suspense, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -729,15 +729,19 @@ export const AppLayout: React.FC = () => {
           style={{ padding: 'clamp(16px, 2.5vw, 40px) clamp(16px, 2.5vw, 48px)' }}
         >
           {/* Solo fade-in all'ingresso, senza AnimatePresence/exit: un'uscita
-              che non termina lascerebbe la pagina vuota. */}
-          <motion.div
-            key={location.pathname}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-          >
-            <Outlet />
-          </motion.div>
+              che non termina lascerebbe la pagina vuota. Le pagine sono caricate
+              on demand: il Suspense sta fuori dal motion.div, così il fade-in
+              parte quando il codice della pagina è arrivato. */}
+          <Suspense fallback={null}>
+            <motion.div
+              key={location.pathname}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+            >
+              <Outlet />
+            </motion.div>
+          </Suspense>
         </main>
         <OverlayScrollbar targetRef={mainRef} />
       </div>

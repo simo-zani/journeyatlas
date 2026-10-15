@@ -11,7 +11,7 @@ const SLOTS: string[] = Array.from({ length: (24 * 60) / STEP }, (_, i) => {
 const toMinutes = (v: string) => Number(v.slice(0, 2)) * 60 + Number(v.slice(3, 5));
 
 /** "9" → 09:00, "930" → 09:30, "9.5" → 09:05, "2130" → 21:30. Null se non è un orario valido. */
-export const parseTime = (raw: string): string | null => {
+const parseTime = (raw: string): string | null => {
   const s = raw.trim();
   if (!s) return '';
   let h: number;

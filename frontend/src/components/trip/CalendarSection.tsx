@@ -1106,7 +1106,7 @@ export const CalendarSection: React.FC<CalendarSectionProps> = ({ trip, onSelect
     }
 
     return list;
-  }, [activities, transports, accommodations, airports, stations, ferryPorts, airlines, trainOperators, ferryOperators, t]);
+  }, [activities, transports, accommodations, airports, stations, ferryPorts, airlines, trainOperators, ferryOperators, trip.destinations, t]);
 
   // Filter events
   const filteredEvents = useMemo(() => {

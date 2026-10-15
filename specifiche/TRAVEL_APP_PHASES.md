@@ -4,15 +4,19 @@
 
 | Fase | Nome | Status | Completamento |
 |------|------|--------|----------------|
-| 1 | MVP Core (Auth + Viaggio Base) | 🟡 In Progress | 95% |
-| 2 | Packing + Expense Split | ⏳ Not Started | 0% |
-| 3 | Info Paese + Documenti + Chat | ⏳ Not Started | 0% |
-| 4 | Timeline + Notifiche + Post-Report | ⏳ Not Started | 0% |
-| 5 | Dashboard Analytics + Scratch Map | ⏳ Not Started | 0% |
-| 6 | Admin Dashboard (metriche servizio) | ⏳ Not Started | 0% |
+| 1 | MVP Core (Auth + Viaggio Base) | 🟡 In Progress | 90% (resta il blocco "lancio": PWA, mobile, deploy, import Notion) |
+| 2 | Check List + Spese condivise | 🟡 In Progress | 80% |
+| 3 | Info Paese + Calendario + Chat | 🟡 In Progress | 70% (Documenti rimosso dallo scope) |
+| 4 | Notifiche + Post-Report | 🟡 In Progress | 10% |
+| 5 | Atlante personale + Statistiche | 🟡 In Progress | 50% (atlante ~85%, statistiche globali ~15%) |
+| 6 | Admin Dashboard + OAuth | ⏳ Not Started | 0% |
 
-**Ultimo aggiornamento:** 2026-09-27  
-**Prossima milestone:** Fase 1 — Storage & Compressione Immagini copertina (1.12b) e deployment/PWA. (Vista calendario giorno/settimana con drag&drop, icone attività e copertina Unsplash integrate da `main`; test 1.10 completati; import Notion e responsivo mobile spostati a fine progetto).
+**Ultimo aggiornamento:** 2026-10-15 (stato verificato sul codice: 57 commit, migration fino a `0043`, `npm run build` pulito)  
+**Prossima milestone:** completare il nucleo funzionale mancante — export PDF spese (2.5), chat del viaggio (3.6), campanella notifiche/inviti (4.1), statistiche globali (5.1/5.2) — poi il blocco "lancio": PWA + test mobile (1.4), deploy (1.12), import Notion (1.11).
+
+> **Migration da applicare a mano:** tutte le migration `0001`→`0043` vanno eseguite nel Supabase SQL Editor. Prima del deploy verificare che il progetto Supabase di produzione le abbia tutte.
+
+> **Nota architetturale:** il frontend parla **solo con Supabase** (query dirette protette da RLS + RPC `security definer`). Il backend ASP.NET (`backend/JourneyAtlas.Api`) è rimasto uno scheletro (~100 righe) e non è usato da nessuna funzione. Da decidere: rimuoverlo dalla roadmap/deploy, oppure riusarlo solo come proxy/cache (es. Nominatim, 1.12a).
 
 ---
 
@@ -22,9 +26,9 @@
 **Deliverable:** Web app funzionante con viaggio basic, inviti, attività/alloggi/voli
 
 ### 1.1 Setup Infrastruttura
-- [x] Creare progetto ASP.NET Core (Minimal APIs)
+- [x] Creare progetto ASP.NET Core (Minimal APIs) — creato ma inutilizzato, vedi nota architetturale in cima
 - [x] Setup React TypeScript + Tailwind + shadcn
-- [x] Supabase project setup (database, auth, storage) — migrazioni `0001`→`0010` applicate nel SQL Editor
+- [x] Supabase project setup (database, auth, storage) — migrazioni `0001`→`0043`
 - [x] Environment variables e secrets management (`frontend/.env.local` + `.env.example`)
 - [~] PWA setup: manifest.json fatto, service worker e icone mancanti (icone rimandate, vedi 1.4)
 - [x] i18next + react-i18next setup
@@ -62,6 +66,7 @@
 ### 1.3 Database & Migrations
 - [x] Creare tabelle: trips, trip_participants, activities, flights, accommodations, profiles — `0001_init.sql` applicata
 - [x] Row-level security policies — audit completo di tutte le 17 migration: ogni tabella con dati utente (`trips`, `trip_participants`, `activities`, `flights`, `accommodations`, `checklist_items`, `checklist_categories`, `profiles`, `friendships`, `profile_views`) ha RLS abilitata con policy esplicite. Non è emerso nessun altro buco simile a quello risolto su `profiles` in `0010_profiles_rls.sql`
+- [x] Fix successivi: `0034_restrict_participant_self_insert.sql` chiude un buco per cui un utente poteva auto-inserirsi come editor in un viaggio altrui (l'auto-insert ora è ammesso solo come owner del viaggio appena creato); `0042_reference_tables_read.sql` aggiunge la policy di lettura mancante su `country_continents` (l'atlante mostrava "Continenti 0/7"). Le nuove tabelle (`expenses`, `expense_splits`, `expense_categories`, `trip_notifications`, `atlas_marks`) nascono con RLS
 - [x] Indexes su foreign keys
 - [x] Triggers per updated_at auto
 - **Status:** 🟢 Done
@@ -101,18 +106,23 @@
 
 > Nota: questa sezione era numerata "1.5" per errore, duplicando 1.5 Dashboard qui sopra — rinominata in 1.5b, nessun contenuto cambiato.
 
-- [ ] Sidebar con 9 sezioni (Attività, Alloggi, Voli, Packing, Expense, Info, Documenti, Chat, Report) — rimandato, per ora la tab bar assolve la stessa funzione
+- [~] ~~Sidebar con 9 sezioni~~ — sostituita definitivamente dalla tab bar (pill animate, sticky): non più prevista
 - [x] Header con nome viaggio, date, partecipanti
-- [x] Tab navigation (Attività/Alloggi/Voli/Check List attive, altre sezioni disabilitate "coming soon")
+- [x] Tab navigation — 7 tab attive: **Calendario** (default), Attività, Alloggi, Spostamenti, Check List, Spese, Info Paese. Documenti rimosso (vedi 3.5), Chat/Report non ancora presenti
 - [x] Modifica viaggio dal dettaglio (nome, date, mete, budget) — modal `TripForm` in modalità edit, `updateTrip` API
 - [x] Bandiere dei paesi delle mete nel header del viaggio (una per paese, deduplicate; codice paese salvato in `countryCode` e risolto via Nominatim per i viaggi esistenti, con cache localStorage)
-- **Status:** 🟡 In Progress (resta solo la sidebar, rimandata)
+- [x] Colore della testata adattivo alla luminosità della cover (`useImageBrightness`); mete riordinabili e duplicabili nel form (`ItineraryEditor`)
+- [x] Eliminazione viaggio con conferma (`DeleteTripButton`, migration `0039_delete_trip.sql` — FK spese differite per permettere il cascade); i partecipanti ricevono un avviso `trip_deleted`
+- [x] Modalità **sola lettura** per i viewer su tutte le tab
+- **Status:** 🟢 Done
 
 ### 1.6 Sezione Attività
 - [x] Form aggiungi attività (nome, descrizione, data, orario, luogo, categoria, status)
 - [x] Lista attività con filtri (per status, per categoria)
 - [x] Edit/delete attività
 - [x] API endpoints (CRUD - supabase direct, senza backend esterno per ora)
+- [x] Icone per categoria e durata attività (`0018`, `0019`), operatore di prenotazione con logo personalizzato (`0028`, es. GetYourGuide)
+- [x] Grafico distribuzione attività per categoria (`ActivityCategoryChart`)
 - **Status:** ✅ Done
 
 ### 1.7 Sezione Alloggi
@@ -132,20 +142,25 @@
 - [x] **Stelle hotel (migrazione `0020`):** `stars smallint NULL` con CHECK 1-5,
       selettore 1-5 stelle nel form mostrato solo per `type = 'hotel'`, visualizzato
       in card come sola lettura. Su appartamento non viene salvato
+- [x] Numero camere e bagni (`0023`, `0029`), logo piattaforma di prenotazione (`0030`)
+- [x] Card con numero di notti, ordine cronologico, indirizzo cliccabile (apre la mappa)
 - **Status:** ✅ Done
 
-### 1.8 Sezione Mezzi (ex Voli)
-- [x] Tab rinominata da "Voli" a "Mezzi" (i18n IT/EN)
+### 1.8 Sezione Spostamenti (ex Voli, ex Mezzi)
+- [x] Tab rinominata da "Voli" a "Mezzi" e poi a "Spostamenti" (i18n IT/EN)
 - [x] Migration `0005_transport_type.sql` (colonna `transport_type` con valori flight/train/bus/ferry/car/other)
 - [x] Selettore tipo di mezzo nel form (aereo, treno, pullman, traghetto, auto, altro) con icone
 - [x] Etichette dinamiche: aeroporti per voli, stazione/città per gli altri mezzi
 - [x] Badge tipo mezzo nelle card
-- [x] Form aggiungi mezzo (passeggeri, bagagli - da aggiungere)
 - [x] Form aggiungi mezzo (aeroporti, date/orari, compagnia, numero, booking ref)
 - [x] Lista mezzi
 - [x] Edit/delete
 - [x] API endpoints
-- **Status:** ✅ Done (mancano solo passeggeri/bagagli)
+- [x] **Voli:** ricerca aeroporti (dataset locale ~4.600 righe + alias) e compagnie aeree con logo; terminal e bagagli extra (`0025`); niente vincolo sulle date del viaggio
+- [x] **Treni e traghetti:** picker stazioni, porti, operatori ferroviari e marittimi; opzioni posto/cabina (`0026`)
+- [x] Card stile **carta d'imbarco** con logo e colore della compagnia (`TransportCard`), gradiente fisso per i bus
+- [x] Toggle fuso orario: ora locale vs ora della città di casa (`home_city` nel profilo, `0024`)
+- **Status:** ✅ Done
 
 ### 1.8b Sezione Check List (ex Packing)
 - [x] Tab rinominato da "Packing" a "Check List" (i18n IT/EN)
@@ -159,7 +174,8 @@
 - [x] Durata viaggio nel header (giorni, notti)
 - [x] Icona calendario ingrandita nel header, separatore data senza em-dash
 - [x] Categorie personalizzabili (migration `0003` rimuove il CHECK constraint)
-- [x] Icona personalizzabile per categoria (migration `0004` tabella `checklist_categories`, set Lucide)
+- [x] Icona personalizzabile per categoria (migration `0004` tabella `checklist_categories`, set Lucide), icon picker responsive
+- [x] Filtri sticky "glass" e categorie raggruppate; seed di voci realistiche per i viaggi esistenti (`0027`, solo dati di prova)
 - **Status:** ✅ Done
 - **Nota:** funzioni avanzate (per persona, template condivisi) in Fase 2
 
@@ -209,6 +225,16 @@
 - [x] `ShareTripModal` invita solo amici (riusa `get_friends` + `fetch_trip_participants`, filtrati lato client — niente più ricerca globale): elenco unico con chi è già nel viaggio in cima e gli amici ancora invitabili sotto, con pulsante Invita
 - [x] Avatar dei partecipanti (esclude te stesso) accanto alle date nel dettaglio viaggio, con hover desktop che mostra lo username
 - [x] **Lista Amici** — dentro `/travelers` (`TravelersPage.tsx`), sezione "I miei amici" con richieste in entrata/uscita, accetta/rifiuta e badge (migration `0015_friend_lists.sql`: `get_friends`, `get_incoming_friend_requests`, `count_incoming_friend_requests`) — non serve una pagina separata
+- [x] Profilo pubblico: compaiono anche i viaggi pubblici a cui l'utente partecipa (`0036`) con indicazione "ci sei anche tu" (`0037`); viaggiatori popolari (`0013`) e visite al profilo (`0014`)
+- [x] Nazionalità nel profilo (`0031`) — usata in Info Paese per escludere il proprio paese
+- [x] Conteggi paesi/continenti del profilo allineati all'atlante (`0041`: contano anche i viaggi a cui si partecipa e i segni manuali)
+- **Status:** 🟢 Done
+
+### 1.9c Compagni di viaggio senza account
+- [x] Migration `0032_trip_companions.sql`: partecipanti "compagno" (solo nome) in `trip_participants`, senza account — possono pagare/partecipare alle spese; se poi si registrano e collegano l'account, la riga (e le spese) restano le loro
+- [x] `CompanionsSection` nel form viaggio e `useCompanions`
+- [x] Rimozione viaggiatore con conferma (`RemoveTravelerModal`), bloccata se compare in una spesa (FK `NO ACTION`); il rimosso riceve un avviso in-app (`0035`, vedi 4.1)
+- [x] Link al profilo dai partecipanti; date del viaggio nella card invito (`0033`)
 - **Status:** 🟢 Done
 
 #### Accettazione / Rifiuto — ✅ fatto
@@ -239,10 +265,13 @@
 - [x] Test inviti — confermato funzionante
 - [x] Test CRUD attività/alloggi/voli — script `supabase/test_rls_crud.mjs`, eseguito con gli account di test (`lucia_explorer`/`marco_wanderer` da `seed_test_accounts.mjs`): crea/legge/modifica su activities, accommodations, flights come owner — 21/21 verifiche OK
 - [x] Test autorizzazioni (row-level security) — stesso script: un estraneo non invitato non vede/scrive nulla; un viewer legge ma non può creare/modificare/eliminare; promosso a editor ottiene CRUD pieno; flusso invito (pending → `respond_to_invite`) testato nello stesso passaggio. Nessuna regressione trovata
-- [x] `npm run build` e `npm run lint` puliti (nessun errore di tipo, nessun warning)
+- [x] `npm run build` pulito (verificato 15/10)
+- [x] `npm run lint` di nuovo pulito (15/10): rimossi un parametro inutilizzato in `airlineColors.ts`, un export superfluo in `TimeField.tsx` e aggiunta la dipendenza `trip.destinations` mancante in `CalendarSection.tsx`
+- [ ] Test RLS da estendere alle tabelle nuove (`expenses`, `expense_splits`, `atlas_marks`, `trip_notifications`) e ai compagni senza account — `test_rls_crud.mjs` copre solo activities/accommodations/flights
+- [x] Code-splitting (15/10): pagine caricate on demand (`React.lazy` in `App.tsx`, `Suspense` attorno all'`Outlet` di `AppLayout`) e librerie in chunk separati (`manualChunks` in `vite.config.ts`: react, supabase, framer-motion, i18n, d3-geo). Bundle iniziale dell'app da 1,32 MB a 84 KB, warning Vite sparito; il chunk più grande è il dataset aeroporti (405 KB, già caricato a parte)
 - [ ] Test responsivo mobile — rimandato insieme a 1.4
 - [ ] Bugfix eventuali
-- **Status:** 🟢 Done (resta solo il responsivo mobile, rimandato)
+- **Status:** 🟡 In Progress (test RLS nuove tabelle, responsivo mobile)
 
 ### 1.11 Import da Notion (MVP)
 
@@ -256,7 +285,14 @@
 - [ ] Fallback: form manuale "Add Journey Skeleton" (nome + destinazioni + date)
 - [ ] Notifica success/error
 - [ ] Test con Notion export reale
+- [x] ~~Fallback: form manuale "Add Journey Skeleton"~~ → realizzato come **viaggio ricordo** (vedi 1.13)
 - **Status:** ⏳ Rimandato (a fine progetto, dopo Fase 2/3)
+
+### 1.13 Viaggi rapidi / "ricordo"
+- [x] Migration `0043_memory_trips.sql`: `is_memory`, `stopovers` (aeroporti di scalo), `date_precision` (`day` / `month`)
+- [x] `MemoryTripForm` dalla dashboard: viaggio passato registrato in fretta — paesi (città facoltative), scali, date anche solo mese/anno, compagni
+- [x] Il viaggio ricordo conta nell'atlante e nelle statistiche del profilo, ma non apre il gestionale (si modifica solo con il suo form); form crea-viaggio e form ricordo unificati nello stile
+- **Status:** 🟢 Done
 
 ### 1.12a API esterne & privacy (prerequisito al deploy)
 
@@ -303,178 +339,178 @@ Con l'uso attuale del team (poche decine di viaggi) siamo ben sotto soglia; se l
 - **Status:** ⏳ Not Started
 - **Nota:** non è più necessario aggiungere alcun dominio/whitelist su REST Countries: l'autocomplete usa Nominatim/OSM senza chiave
 
-**Checkpoint Fase 1:** Utente può creare un viaggio, invitare partecipanti, aggiungere attività/alloggi/voli, collaborazione in tempo reale. (Import da Notion rimandato a fine progetto, vedi 1.11)
+**Checkpoint Fase 1:** ✅ Funzionalmente raggiunto: l'utente crea viaggi (anche "ricordo"), invita amici e compagni senza account, gestisce attività/alloggi/spostamenti/check list. Nota: la collaborazione non è in tempo reale (niente Supabase Realtime, i dati si aggiornano al ricaricamento). Restano il blocco "lancio" (1.4 PWA/mobile, 1.12 deploy) e l'import Notion (1.11).
 
 ---
 
-## FASE 2: Packing List + Expense Split
+## FASE 2: Check List + Spese condivise
 
 **Durata stimata:** 1-1.5 settimane  
 **Prerequisiti:** Fase 1 completata  
-**Deliverable:** Sistema packing list personalizzato + expense tracking avanzato
+**Deliverable:** Check list personalizzata + spese condivise stile Tricount
 
-### 2.1 Sezione Packing List
-- [ ] UI packing list per persona
-- [ ] Form aggiungi item (categoria, nome, quantità, note)
-- [ ] Checkbox "packed" items
-- [ ] Edit/delete items
+### 2.1 Check List avanzata (ex Packing List)
+
+> La base (voci, categorie e icone personalizzate, checkbox "preparato", progresso, filtri) è già in Fase 1, sezione 1.8b. Qui restano solo le funzioni avanzate.
+
+- [x] Form aggiungi voce, checkbox preparato, edit/delete, CRUD — vedi 1.8b
+- [ ] Voci assegnate a una persona / vista "la mia lista"
 - [ ] Template salvati (es. "Estate Europa")
 - [ ] Condivisione template tra utenti
-- [ ] API endpoints CRUD
-- **Status:** ⏳ Not Started
+- **Status:** 🟡 In Progress (base fatta, mancano per-persona e template)
 
-### 2.2 Sezione Expense Tracking - Base
-- [ ] Form aggiungi spesa (chi ha pagato, importo, valuta, categoria, data, descrizione, note)
-- [ ] Lista spese con filtri (per categoria, per data, per chi ha pagato)
-- [ ] Edit/delete spesa
-- [ ] API endpoints CRUD
-- **Status:** ⏳ Not Started
+### 2.2 Spese - Base
+- [x] Migration `0038_expenses.sql`: tabelle `expenses`, `expense_splits`, `expense_categories` + RLS; RPC `save_expense` che scrive spesa e ripartizione in un'unica transazione verificando che i conti tornino
+- [x] Tab **Spese** (`components/trip/expenses/`): form con chi ha pagato, importo, valuta, categoria, data, titolo, note
+- [x] Categorie predefinite + categorie personalizzate per viaggio (nome + icona, come la check list)
+- [x] Lista spese con filtri sticky per categoria e per persona
+- [x] Edit/delete: chi l'ha creata oppure owner/editor; **qualunque partecipante accettato (anche viewer) può inserire** le proprie spese
+- [x] Pagatore e beneficiari sono righe di `trip_participants`, quindi funzionano anche i compagni senza account (1.9c)
+- **Status:** 🟢 Done
 
-### 2.3 Expense Split Logica
-- [ ] Seleziona persone per cui splittare la spesa
-- [ ] Opzioni split:
-  - Equo (dividi per N persone)
-  - Personalizzato (importi diversi per persona)
-- [ ] Tasso cambio capture (al momento della spesa, consultabile)
-- [ ] DB: tabella expense_splits con dettagli
-- **Status:** ⏳ Not Started
+### 2.3 Logica di ripartizione
+- [x] Selezione delle persone coinvolte nella spesa
+- [x] Modalità: **equa**, **per importi** (personalizzato), **per quote** (pesi, es. 2 = doppia quota)
+- [x] **Rimborsi** tra persone (`kind = 'transfer'`) per saldare i debiti
+- [x] Tabella `expense_splits` con quota e peso per partecipante
+- **Status:** 🟢 Done
 
-### 2.4 ExchangeRate API Integration
-- [ ] Registrazione su ExchangeRate-API (free tier)
-- [ ] API call per tassi cambio (real-time)
-- [ ] Caching tassi cambio per 1 ora
-- [ ] Conversione automatica spese in valuta "base" (EUR o scelta utente)
-- [ ] Salvataggio tasso cambio al momento della spesa (snapshot)
-- **Status:** ⏳ Not Started
+### 2.4 Tassi di cambio
+- [x] Tassi da **open.er-api.com** (free, senza chiave — scelto al posto di ExchangeRate-API con registrazione), `fetchExchangeRates` in `lib/countryInfo.ts`, condiviso con il convertitore di Info Paese
+- [x] Tasso proposto in automatico nel form e modificabile a mano
+- [x] Snapshot del tasso salvato sulla spesa (`expenses.exchange_rate`: 1 unità della valuta spesa = N unità della valuta del viaggio)
+- [x] Valuta di riferimento del viaggio configurabile (`trips.expense_currency`, default EUR)
+- **Status:** 🟢 Done
 
 ### 2.5 Riepilogo Spese & Debiti
-- [ ] Dashboard "Riepilogo Spese"
-  - Totale speso per categoria
-  - Totale per persona
-  - Chi ha pagato complessivamente
-- [ ] Calcolo automatico debiti/crediti (chi deve rimborso a chi)
-- [ ] UI intuitiva (tipo Splitwise: "Tizio deve 25 EUR a Caio")
+- [x] Grafici riepilogo (`ExpenseCharts`): totale per categoria e per persona
+- [x] Saldi (`ExpenseBalances`): quanto ha pagato e quanto deve ciascuno
+- [x] Calcolo automatico "chi deve quanto a chi" stile Splitwise/Tricount, con azione per registrare il rimborso
 - [ ] Esporta PDF riepilogo
-- **Status:** ⏳ Not Started
+- **Status:** 🟡 In Progress (manca solo l'export PDF)
 
 ### 2.6 Multi-Currency Handling
-- [ ] Supporta spese in valute diverse nello stesso viaggio
-- [ ] Conversione con tassi nel momento della spesa
-- [ ] Display totale finale in valuta selezionata
+- [x] Spese in valute diverse nello stesso viaggio
+- [x] Conversione con il tasso del momento della spesa
+- [x] Totali e saldi nella valuta del viaggio
 - [ ] Test caso complesso: spese EUR, THB, USD nello stesso viaggio
-- **Status:** ⏳ Not Started
+- **Status:** 🟢 Done (manca il test strutturato)
 
 ### 2.7 Testing & Bugfix
-- [ ] Test split equity scenarios
-- [ ] Test multi-currency conversions
-- [ ] Test rounding edge cases (cent, satang)
+- [ ] Test scenari di ripartizione (equa/importi/quote)
+- [ ] Test conversioni multi-valuta
+- [ ] Test arrotondamenti (centesimi, valute senza decimali)
+- [ ] Test RLS spese (viewer inserisce, non modifica quelle altrui)
 - [ ] Test export PDF
 - **Status:** ⏳ Not Started
 
-**Checkpoint Fase 2:** Sistema expense tracking completo, split intelligente, multi-currency, debiti chiari.
+**Checkpoint Fase 2:** ✅ Spese condivise complete, ripartizione flessibile, multi-valuta, debiti chiari. Restano export PDF, check list per persona/template e test strutturati.
 
 ---
 
-## FASE 3: Info Paese + Meteo + Documenti + Chat
+## FASE 3: Info Paese + Meteo + Calendario + Chat
 
 **Durata stimata:** 1.5-2 settimane  
 **Prerequisiti:** Fase 1 completata  
-**Deliverable:** Info pratiche, meteo, upload documenti, chat collaborativo
+**Deliverable:** Info pratiche, meteo, calendario del viaggio, chat collaborativa
 
 ### 3.1 Sezione Info Pratiche Paese
-- [ ] Fetch dati da REST Countries API (fuso orario, valuta, lingue)
-- [ ] Display info per meta selezionata
-- [ ] Caching dati paese in DB (per performance)
-- **Status:** ⏳ Not Started
+- [x] Tab **Info Paese** (`CountryInfoSection.tsx`) con una scheda orizzontale per ogni paese del viaggio
+- [x] Dati da dataset `world-countries` via CDN jsDelivr (al posto di REST Countries): capitale, lingue, valuta, fusi orari (con differenza rispetto a te), prefisso telefonico, lato di guida
+- [x] Paesi di solo transito (scali) mostrati a parte; il proprio paese (nazionalità del profilo) escluso
+- [~] Caching: cache lato client; nessuna copia in DB (non serve)
+- **Status:** 🟢 Done
 
 ### 3.1b Link Sicurezza — Viaggiare Sicuri (Farnesina)
-- [ ] Pulsante per ogni paese di destinazione del viaggio che rimanda alla scheda paese ufficiale di viaggiaresicuri.it (Ministero Affari Esteri)
-  - URL pattern verificato: `https://www.viaggiaresicuri.it/find-country/country/{ISO3}` (es. Thailandia → `THA`) — serve solo il codice ISO 3166-1 alpha-3 del paese
-  - Il viaggio salva già `countryCode` alpha-2 (vedi 1.5); serve conversione alpha-2 → alpha-3 (tabella statica, oppure campo `cca3` di REST Countries, stessa API già usata altrove nel progetto)
-- [ ] Se il viaggio ha più mete/paesi, un pulsante per ciascun paese (non uno generico): bandierina del paese + piccolo badge/logo "Farnesina - Viaggiare Sicuri" per riconoscerlo a colpo d'occhio
-- [ ] Apertura in nuova scheda (`target="_blank" rel="noopener noreferrer"`)
-- [ ] Posizionamento: in cima al tab "Info" del dettaglio viaggio, una riga di pulsanti (uno per paese)
-- **Status:** ⏳ Not Started
+- [x] Pulsante per ogni paese di destinazione verso `https://www.viaggiaresicuri.it/find-country/country/{ISO3}` (alpha-3 dal dataset paesi)
+- [x] Un pulsante per paese con bandierina + badge Farnesina, apertura in nuova scheda
+- [x] Posizionato in cima al tab Info Paese
+- **Status:** 🟢 Done
 
 ### 3.1c Frasario Utile (Traduzioni Lingua Locale)
+- [x] Lingua/e del paese dal dataset paesi; selettore se il paese ne ha più di una
+- [x] Dataset statico in `lib/phrasebook.ts` (non JSON in `/public` né tabella Supabase): per ogni frase testo italiano, inglese, frase locale in script originale e **pronuncia leggibile in italiano**
+- [x] **31 lingue + 3 varianti regionali**, 39 frasi ciascuna:
+  - Europa: inglese, francese, spagnolo, tedesco, portoghese, italiano (per chi arriva in Italia, nascosto agli utenti di nazionalità italiana), greco, rumeno, bulgaro, russo, ucraino, serbo, croato, polacco, ceco, ungherese, olandese
+  - Asia e Medio Oriente: giapponese, cinese, coreano, thailandese, vietnamita, indonesiano, malese, hindi, arabo, ebraico, turco
+  - Africa: swahili (Kenya, Tanzania/Zanzibar, Uganda), amarico (Etiopia, alfabeto ge'ez), malgascio (Madagascar); per il resto del continente coprono già arabo, francese, inglese e portoghese
+  - Varianti scelte in automatico dal paese (`REGIONAL_VARIANTS`): inglese britannico (GB), **portoghese brasiliano** (BR) e **arabo marocchino / darija** (MA)
+  - Alias (`aliases`): il serbo, in alfabeto latino, copre anche Montenegro ("Montenegrin") e Bosnia ("Bosnian")
+- [x] Pronuncia rumena: â/î volutamente omesse nella trascrizione italiana (es. `mnca`, `kt`), scelta concordata con madrelingua
+- [ ] Revisione da parte di madrelingua delle trascrizioni aggiunte il 15/10 (non verificate), in particolare malgascio, amarico e darija
+- [x] 7 categorie: allergie e diete, saluti, cibo, bisogni base, emergenze, orientamento e trasporti, cortesia
+- [x] Lista raggruppata per categoria (collassabile) con ricerca
+- [x] Tap su una frase → vista "schermo grande" (modale) da mostrare alla persona del posto
+- [x] Fallback per lingue non coperte: messaggio + link a Google Translate
+- [x] Icona per ogni frase nella vista grande (Lucide + `BreadIcon` disegnata a mano: una pagnotta al posto del croissant)
+- **Status:** 🟢 Done
 
-> **Obiettivo:** aiutare a comunicare con la gente del posto senza parlare la lingua, mostrando lo schermo del telefono.
-
-- [ ] Determinare la/le lingua/e ufficiali del paese di destinazione (campo `languages` di REST Countries, già integrato; se il paese ha più lingue ufficiali, permettere scelta/priorità)
-- [ ] Dataset frasario per lingua, struttura per voce: `{categoria, frase_it, frase_locale (script originale), pronuncia_it (trascrizione fonetica leggibile in italiano — utile per lingue non latine come cinese, giapponese, coreano, arabo, thailandese...), icona_categoria}`
-- [ ] Categorie iniziali:
-  - Allergie e intolleranze ("Sono allergico/a a...", "Non posso mangiare glutine/lattosio/frutta secca", "Contiene [ingrediente]?")
-  - Bisogni base ("Dove è il bagno?", "Ho bisogno di aiuto", "Dove è la farmacia/l'ospedale?")
-  - Emergenze ("Chiamate la polizia/un'ambulanza", "Ho perso il passaporto")
-  - Orientamento e trasporti ("Dove è la stazione/fermata?", "Quanto costa?", "Mi aiuta ad arrivare a...?")
-  - Cortesia base (grazie, per favore, scusi, sì/no, "non parlo [lingua]/non capisco")
-- [ ] UI: lista frasi raggruppate per categoria con ricerca/filtro
-- [ ] Tap su una frase → vista "schermo grande" pensata per essere mostrata a una persona del posto: frase in lingua locale (script originale, font enorme), pronuncia italiana sotto (più piccola), sfondo ad alto contrasto
-- [ ] Disegno stilizzato per ogni categoria (set di icone SVG semplici e riutilizzabili, es. WC per i bagni, triangolo di allerta per allergie) mostrato nella vista "schermo grande" insieme al testo
-- [ ] Scope MVP: coprire un set iniziale di lingue delle destinazioni più comuni (inglese, francese, spagnolo, tedesco, giapponese, cinese mandarino, coreano, thailandese, arabo, greco, portoghese), dataset curato manualmente ed espandibile in seguito
-- [ ] Dati statici in JSON (es. `/public/locales/phrasebook/{lang}.json`) — valutare in alternativa una tabella Supabase se si vuole poter aggiungere lingue/frasi senza redeploy
-- [ ] Fallback se la lingua del paese non è ancora coperta dal dataset: messaggio + link a Google Translate
-- **Status:** ⏳ Not Started
+### 3.1d Usanze
+- [x] Nuova sotto-scheda **Usanze** in Info Paese (`CustomsPanel.tsx`), una scheda per ogni paese del viaggio
+- [x] Dati curati a mano in `lib/customs.ts` (ottobre 2026), IT/EN, **58 paesi** tra le mete più comuni: orari tipici dei pasti, mance, weekend (se diverso da sabato-domenica), e quattro sezioni — **vietato per legge**, **gesti**, **da evitare**, **normale lì**
+- [x] **Feste nazionali durante il viaggio** da Nager.Date (gratis, senza chiave, cache locale): solo le feste di tutto il paese. Non copre Thailandia, India, Emirati, Maldive, Israele, Malesia e non include le feste islamiche
+- [x] **Nome italiano e spiegazione di ogni festa** (`lib/holidayInfo.ts`): dizionario con eccezioni per paese per i nomi ambigui (es. "Independence Day", il Labor Day americano a settembre); copre 589 delle 592 feste dei paesi con usanze. Restano senza spiegazione TN "Revolution Day", BG "Currency change day", DK "Bank closing day" (da verificare)
+- [x] Periodi scritti a mano con due testi distinti: **cos'è la festa** e **cosa cambia per chi viaggia**
+- [x] **Feste regionali** (Germania, Austria, Svizzera, Spagna, Portogallo, Regno Unito, USA, Canada, Australia, Nuova Zelanda, San Paolo): le mete del viaggio vengono collocate nella loro regione con i confini dell'atlante (`regionAt`) e i codici ISO 3166-2 di Nager.Date (`lib/subdivisions.ts`). Le feste che toccano le tue mete compaiono con "Vale a Monaco (Baviera)"; le altre in un elenco richiudibile con "Solo in: …"
+- [x] Riga **"Nei giorni di festa"** per ogni paese (`HOLIDAY_NOTES` in `customs.ts`): cosa chiude e cosa resta aperto (es. Germania: supermercati chiusi come la domenica; USA: negozi aperti e saldi; Australia: sovrapprezzo festivo nei caffè)
+- [ ] Feste patronali delle singole città (es. La Mercè a Barcellona): Nager.Date arriva solo al livello regionale
+- [ ] Facoltativo: segnalare le feste nei 2-3 giorni prima e dopo il viaggio (traffico, voli)
+- [x] **Periodi che cambiano il viaggio** (Ramadan ed Eid, Capodanno lunare, Golden Week cinese e giapponese, Obon, Songkran, Nyepi a Bali, Yom Kippur, Diwali, Holi, Chuseok, Tết, Carnevale di Rio, Día de Muertos, Oktoberfest), con badge "Durante il tuo viaggio" quando le date si sovrappongono
+- [x] Date dei periodi **calcolate per qualsiasi anno**, senza API (`lib/calendars.ts`): calendari islamico, cinese, coreano ed ebraico via `Intl` del browser; Diwali, Holi e Nyepi con regole sulle fasi lunari (verificate sulle date reali 2019-2027); Carnevale dalla Pasqua; Oktoberfest dalla regola ufficiale. Margine ±1 giorno per le feste lunari (avvistamento della luna)
+- [x] Riquadro **Anno e calendario**: zodiaco lunare per Cina, Taiwan, Hong Kong, Macao, Singapore, Corea e Vietnam (con le varianti vietnamite Bufalo e Gatto), era imperiale giapponese, era buddista thai, anno Minguo di Taiwan, calendario etiope, persiano (Iran, Afghanistan), islamico (Arabia Saudita), ebraico, Vikram Samvat (Nepal). Calcolato alla data di partenza, o a oggi se il viaggio non ha date
+- [x] Rimando a Viaggiare Sicuri in fondo a ogni paese ("le leggi cambiano")
+- [x] Info Paese caricata solo all'apertura della scheda (chunk separato da ~190 KB)
+- [ ] Revisione dei contenuti (soprattutto i divieti di legge) e aggiornamento periodico
+- [ ] Estendere ad altri paesi (oggi: messaggio "usanze non ancora disponibili" + solo feste)
+- [ ] Facoltativo: riquadro "Da sapere" in Panoramica con i divieti di legge più gravi; voce suggerita in Check List (es. farmaci in Giappone)
+- **Status:** 🟢 Done
 
 ### 3.2 Tasso Cambio Real-Time
-- [ ] Sottosezione "Tassi Cambio" in Info Paese
-- [ ] Input: seleziona valuta base (es. EUR)
-- [ ] Mostra cambio verso valuta locale
-- [ ] Aggiornamento ogni volta che apri sezione
-- [ ] Caching 1 ora
-- **Status:** ⏳ Not Started
+- [x] Pannello convertitore valuta (`CurrencyPanel`): valuta di casa ↔ valuta locale
+- [x] Tassi da open.er-api.com (free, senza chiave), condivisi con le spese (2.4), con fonte indicata
+- **Status:** 🟢 Done
 
 ### 3.3 Prese Elettriche
-- [ ] Dataset paesi → tipi prese (A, B, C, F, G, I, etc) + voltaggio + frequenza
-- [ ] UI con icone/immagini prese
-- [ ] Mostra which plugs you need to buy
-- [ ] Link a negozi online (opzionale)
-- **Status:** ⏳ Not Started
+- [x] Dataset paesi → tipi di presa + voltaggio + frequenza (`lib/plugs.ts`)
+- [x] Icone delle prese (`PlugTypeIcon`), indicazione "compatibile" / "serve adattatore" rispetto alle prese di casa
+- [x] Avviso se il voltaggio è diverso
+- [ ] Link a negozi online (opzionale, non previsto)
+- **Status:** 🟢 Done
 
 ### 3.4 Meteo
-- [ ] Integrazione Open-Meteo API (no auth)
-- [ ] Forecast 7-14 giorni per destinazione
-- [ ] Display: temperatura, precipitazioni, vento, umidità
-- [ ] Icone meteo carine (clear, rain, snow, cloud)
-- [ ] Aggiornamento ogni 6 ore
-- **Status:** ⏳ Not Started
+- [x] Integrazione Open-Meteo (no auth), `lib/weather.ts` + `WeatherPanel`
+- [x] Meteo sui giorni del viaggio con tre fonti: previsioni (forecast), archivio storico (dal 1940) per i viaggi passati, medie climatiche quando le date sono troppo lontane
+- [x] Temperatura, precipitazioni, icone meteo; fonte indicata
+- **Status:** 🟢 Done
 
 ### 3.5 Sezione Documenti
-- [ ] Drag-and-drop file upload (PDF, foto)
-- [ ] File storage su Supabase Storage (private)
-- [ ] Per documento: nome, tipo (volo, hotel, assicurazione, passport, visa, vaccine), expiry date
-- [ ] Metadata extraction (booking ref, hotel name, etc - opzionale)
-- [ ] Lista documenti con filtri
-- [ ] Download file
-- [ ] Delete documento
-- [ ] API endpoints
-- **Status:** ⏳ Not Started
+- [x] ~~Upload documenti~~ — **tab rimossa** (commit `c026f7d`): fuori scope per ora. Prenotazioni e codici stanno già in Spostamenti/Alloggi/Attività
+- **Status:** ❌ Rimosso dallo scope (da rivalutare solo se emerge un bisogno reale, es. passaporto/visti con scadenza)
 
 ### 3.6 Chat/Note Condivise
 - [ ] UI chat thread per viaggio
-- [ ] Messaggi in tempo reale (o polling ogni N secondi)
+- [ ] Messaggi in tempo reale (Supabase Realtime) o polling
 - [ ] Display user avatar + nome + timestamp
 - [ ] Markdown support (opzionale)
-- [ ] API endpoints (save message, fetch messages)
 - [ ] Notifiche @ mention (opzionale Fase 4)
 - **Status:** ⏳ Not Started
 
-### 3.7 Timeline Interattiva
-- [ ] Asse temporale verticale (giorni viaggio)
-- [ ] Voli, alloggi, attività posizionati cronologicamente
-- [ ] Colori per categoria
-- [ ] Drag-and-drop per riordinare attività (opzionale)
-- [ ] Hover per dettagli
-- **Status:** ⏳ Not Started
+### 3.7 Timeline Interattiva → Calendario
+- [x] Tab **Calendario** (prima tab del viaggio), viste **giorno** e **settimana** (`CalendarSection.tsx`)
+- [x] Spostamenti, alloggi e attività posizionati cronologicamente, con barra colore per tipo e icone
+- [x] Spostamenti divisi in evento di partenza e di arrivo (aeroporto/stazione/porto, terminal, indirizzo), badge biglietto con logo operatore e numero
+- [x] Alloggi con logo della piattaforma; bandierina del paese accanto all'orario
+- [x] Drag-and-drop desktop per spostare attività su altro giorno/orario
+- [x] Giorni fuori dalle date del viaggio in tono smorzato; click su un evento porta alla tab relativa
+- **Status:** 🟢 Done
 
 ### 3.8 Testing & Bugfix
-- [ ] Test API calls (REST Countries, Open-Meteo)
-- [ ] Test file upload limiti e formati
+- [ ] Test API esterne (dataset paesi, Open-Meteo, open.er-api) e comportamento offline/errore
 - [ ] Test chat real-time
-- [ ] Test timeline mobile view
+- [ ] Test calendario su mobile
 - **Status:** ⏳ Not Started
 
-**Checkpoint Fase 3:** Info paese complete, meteo, documenti gestiti, chat collaborativo, timeline interattiva.
+**Checkpoint Fase 3:** ✅ Info paese complete (sicurezza, prese, valuta, meteo, frasario) e calendario interattivo. Manca la chat; Documenti rimosso dallo scope.
 
 ---
 
@@ -488,11 +524,13 @@ Con l'uso attuale del team (poche decine di viaggi) siamo ben sotto soglia; se l
 - [ ] Email reminder 24h prima check-in volo
 - [ ] Email reminder mattina checkout hotel
 - [ ] Email reminder attività pianificate (es. 2h prima)
-- [ ] In-app notification (badge) — includere il badge per gli inviti in sospeso, rimandato da 1.9
+- [x] Avvisi in-app di base (`0035_trip_notifications.sql`, `TripNotices`): "sei stato rimosso dal viaggio" e "il viaggio è stato eliminato" (`0039`). Scritti solo da RPC `security definer`, il destinatario li legge e li chiude
+- [x] Inviti in sospeso visibili in dashboard (`PendingInvites`) e richieste di amicizia in `/travelers` — ma senza campanella globale
+- [ ] In-app notification (badge/campanella) — includere il badge per gli inviti in sospeso, rimandato da 1.9
 - [ ] Notifiche quando qualcuno invita, aggiunge info, chiede rimborso
 - [ ] **Invito via canale esterno** (WhatsApp/Telegram/email) per chi non ha ancora un account — vedi nota in 1.9 "Flusso invito"; genera un link condivisibile che collega la persona all'invito in sospeso dopo la registrazione/login
 - [ ] Impostazioni notifiche per utente
-- **Status:** ⏳ Not Started
+- **Status:** 🟡 In Progress (solo avvisi di rimozione/eliminazione; niente email, campanella o invito esterno)
 
 ### 4.2 Report Post-Viaggio
 - [ ] Archiviazione automatica viaggio dopo end_date
@@ -519,133 +557,93 @@ Con l'uso attuale del team (poche decine di viaggi) siamo ben sotto soglia; se l
 - [ ] Test archiving logic
 - **Status:** ⏳ Not Started
 
-**Checkpoint Fase 4:** Sistema notifiche funzionante, report post-viaggio completi, memoria organizzata.
+**Checkpoint Fase 4:** ⏳ Da fare quasi tutto: notifiche (email, campanella, invito esterno) e report post-viaggio.
 
 ---
 
-## FASE 5: Dashboard Analytics + Scratch Map
+## FASE 5: Atlante personale + Statistiche
 
 **Durata stimata:** 1-1.5 settimane  
 **Prerequisiti:** Tutte le fasi precedenti completate  
 **Deliverable:** Dashboard statistiche globali, mappa mondiale scratch, analytics avanzate
 
 ### 5.1 Statistiche Dashboard Globali
-- [ ] Paesi visitati (contatore totale + breakdown anno)
-- [ ] Città visitate (lista, contatore)
+- [x] Paesi visitati (contatore totale) — nell'atlante e nel profilo; breakdown per anno ancora da fare
+- [x] Città visitate (contatore) — nell'atlante
 - [ ] Spesa media per viaggio
 - [ ] Viaggio più caro / più economico
 - [ ] Viaggio più lungo (durata giorni)
 - [ ] Luogo più lontano (calcolo distanza coordinate)
 - [ ] Compagni di viaggio più frequenti (ranking)
 - [ ] Trending: mete revisitate
-- **Status:** ⏳ Not Started
+- **Status:** 🟡 In Progress (solo i contatori dell'atlante; manca una pagina/sezione statistiche)
 
 ### 5.2 Grafici Analytics
 - [ ] Spesa per anno (bar chart)
-- [ ] Spesa per categoria (pie chart)
+- [~] Spesa per categoria (pie chart) — esiste per il singolo viaggio (`ExpenseCharts`), manca l'aggregato su tutti i viaggi
 - [ ] Timeline viaggi (timeline view)
 - [ ] Paesi per frequenza (world heatmap opzionale)
 - **Status:** ⏳ Not Started
 
-### 5.3 Scratch Map Mondiale - Dual View (3D Globe + Flat Map)
+### 5.3 Atlante personale (ex Scratch Map) — `/atlas`
+
+> **Scelta tecnica diversa dalla spec:** niente Cobe né Leaflet. Globo e mappa piatta sono disegnati in SVG con **d3-geo** + **world-atlas** (TopoJSON Natural Earth), in un unico componente con due proiezioni (ortografica / Natural Earth). Confini regionali in `public/regions/{ISO3}.json` (≈200 paesi), bandiere e capitali ospitate in locale (`public/flags`, `public/capitals.json`). Nessuna basemap a tasselli, nessuna chiave.
 
 **Setup Librerie & Dati:**
-- [ ] Installa Cobe (3D globe) + Leaflet + react-leaflet
-- [ ] Setup GeoJSON loading (CDN Unpkg vs Supabase Storage decision)
-- [ ] Scarica datasets: Natural Earth (paesi) + world-geojson (stati USA + territori)
-- [ ] Setup localStorage caching per GeoJSON (offline support)
-- **Status:** ⏳ Not Started
+- [x] `d3-geo`, `topojson-client`, `world-atlas` al posto di Cobe/Leaflet
+- [x] Confini regionali per paese (≈200 file GeoJSON in `public/regions`), caricati solo quando si entra nel paese
+- [x] Bandiere (paesi e regioni) e capitali self-hosted
+- [ ] Cache offline dei GeoJSON (dipende dal service worker, 1.4)
+- **Status:** 🟢 Done
 
-**Parte A - 3D Globe (Cobe):**
-- [ ] Integrazione libreria Cobe (ultra-lightweight, 5KB)
-- [ ] Rendering globo interattivo con auto-rotazione
-- [ ] Scansione viaggi → estrai paesi destinazioni
-- [ ] Colorazione dinamica: paesi visitati con heatmap (1=light, 5+=dark)
-- [ ] Zoom/pan interactivo
-- [ ] Hover paese → tooltip (nome + N visite)
-- [ ] Click paese → drill-down: lista viaggio con date
-- [ ] Doppio-click paese → zoom in su globo
-- [ ] Dark mode support (inverted colors)
-- **Status:** ⏳ Not Started
+**Globo e mappa piatta:**
+- [x] Toggle Globo ↔ Mappa piatta, colorazione unica condivisa
+- [x] Globo con auto-rotazione e pulsante pausa; drag per ruotare, zoom con rotella e pulsanti +/−/reset
+- [x] Stati colorati per **stato**, non per numero di visite: sbloccato, di passaggio (scalo, tratteggiato), in programma, casa
+- [x] Legenda dei colori
+- [x] Tooltip con bandiera e nome tradotto; click su un paese → pannello laterale con i viaggi (date nei badge) e contatore viaggi
+- [x] Passaggio animato "fly-to" dal mondo alla mappa regionale del paese
+- [ ] Heatmap per numero di visite (1 = chiaro, 5+ = scuro) — non fatta, scelta la colorazione per stato
+- **Status:** 🟢 Done
 
-**Parte B - Flat Map (Leaflet + GeoJSON):**
-- [ ] Integrazione Leaflet + react-leaflet + OpenStreetMap basemap
-- [ ] Carica GeoJSON layers:
-  - [ ] Level 0: Paesi mondo (Natural Earth) - 250+
-  - [ ] Level 1: Suddivisioni (50 stati USA, province Canada, regioni Europa)
-  - [ ] Level 2: Sotto-suddivisioni (tutti i territori USA + autonomie)
-  - [ ] Level 3: De facto states & disputed territories (15+):
-    - [ ] Post-Soviet: Abkhazia, South Ossetia, Transnistria, Nagorno-Karabakh
-    - [ ] Middle East: Kosovo, Palestine, Northern Cyprus
-    - [ ] Asia: Taiwan
-    - [ ] Africa: Somaliland, Western Sahara (SADR)
-    - [ ] Europa/Ucraina: Crimea, Donetsk, Luhansk
-  - [ ] Aggiungi metadata riconoscimento (riconosciuto da: [lista paesi])
-- [ ] Zoom dinamico: pan globo → continente → paese → regione
-- [ ] Heatmap colori su tutti i livelli amministrativi
-- [ ] Layer toggle buttons:
-  - ☑ Paesi, ☑ Stati USA, ☑ Territori USA, ☑ Province
-- [ ] Autocomplete search: "Search region" (fuzzy find su tutte le regioni)
-- [ ] Dark mode: invert colori mappa (basemap dark)
-- **Status:** ⏳ Not Started
+**Regioni, territori e stati non riconosciuti:**
+- [x] Mappa regionale per paese (regioni italiane, 50 stati USA, province, ecc.) con nomi tradotti e bandiere regionali
+- [x] Gli USA contano come 50 stati
+- [x] Stati a riconoscimento limitato (codici `X-...`, es. Abcasia) e territori con il loro stato sovrano ("dipende da")
+- [x] Piccoli stati e isole lontane rese cliccabili (marker dedicati)
+- [x] Capitali (`CapitalMarker`), puntini delle città visitate e degli scali, etichette città localizzate, segnaposto casa
+- **Status:** 🟢 Done
 
-**View Toggle & UX:**
-- [ ] Button toggle: 3D Globe ↔ Flat Map (top-left header)
-- [ ] Sincronizzazione real-time tra viste (colorazione unificata)
-- [ ] Performance: render lazy solo view attiva (save CPU mobile)
-- [ ] Responsive: toggle auto-hide su mobile (usa una view default)
-- **Status:** ⏳ Not Started
+**Dati & segni manuali:**
+- [x] Calcolo in memoria di paesi/regioni dalle mete dei viaggi (posseduti + a cui si partecipa + viaggi ricordo, 1.13), aggiornato a ogni caricamento
+- [x] **Segni a mano** (`0040_atlas_marks.sql`): segnare/togliere un paese o una regione visitata senza viaggio; righe private per utente
+- [x] Conteggi del profilo pubblico allineati all'atlante (`0041`)
+- **Status:** 🟢 Done
 
-**Interazione Utente - Globo:**
-- [ ] Drag per ruotare
-- [ ] Scroll/wheel per zoom
-- [ ] Click paese → mostra modal "Paese: N visite, lista viaggio"
-- [ ] Pulsante "Add Custom Journey Skeleton" (form veloce)
-- [ ] Auto-refresh colorazione quando viaggio aggiunto
-- **Status:** ⏳ Not Started
+**Statistiche widget:**
+- [x] Riquadri: paesi sbloccati (con % del mondo), continenti, viaggi fatti/in programma, città visitate, paesi di passaggio, territori e non riconosciuti in più
+- [x] **Bacheca bandiere** (`CountryFlagsBoard`): tutte le bandiere dei paesi sbloccati, raggruppate
+- [ ] "Regione più visitata" / "ultimo viaggio aggiunto"
+- **Status:** 🟢 Done (mancano i due widget minori)
 
-**Interazione Utente - Mappa Piatta:**
-- [ ] Click regione → drill-down se livello gerarchico
-- [ ] Click viaggio nella lista → enter trip detail
-- [ ] Search autocomplete su tutti i nomi regioni
-- [ ] Heatmap legend visibile (colori + numero visite)
-- **Status:** ⏳ Not Started
-
-**Dati & Colorazione:**
-- [ ] Pre-calcola mappa visite → {regione: count} in memoria
-- [ ] Genera colori dinamici basati su count (linear scale)
-- [ ] Update colori quando viaggio added/modified/deleted
-- [ ] Persistenza: salva visited_regions array in DB (per user)
+**Ricerca:**
+- [ ] Ricerca con autocompletamento su paesi e regioni
 - **Status:** ⏳ Not Started
 
 **Export & Sharing:**
-- [ ] Export PNG: entrambe le viste (globo + mappa piatta) via html2canvas
-- [ ] Export CSV: lista regioni visitate (nome, tipo, visite, ultime date)
-- [ ] Export GeoJSON: dati geopolitici colorati (per altre app)
-- [ ] Share link pubblico: snapshot mappa (read-only, privato di default)
-- [ ] QR code generazione (condividi su social)
-- **Status:** ⏳ Not Started
-
-**Statistiche Widget:**
-- [ ] Display nel corner della mappa:
-  - Total paesi visitati
-  - Total stati USA visitati
-  - Total territori visitati
-  - Regione più visitata
-  - Ultimo viaggio aggiunto
-- [ ] Live update quando viaggio changed
+- [ ] Export PNG della mappa
+- [ ] Export CSV delle regioni visitate
+- [ ] Export GeoJSON (opzionale)
+- [ ] Link pubblico in sola lettura / QR code
 - **Status:** ⏳ Not Started
 
 **Testing & Performance:**
-- [ ] Test caricamento GeoJSON (timing, size)
-- [ ] Test heatmap rendering con 100+ regioni colorate
-- [ ] Test mobile responsivo (zoom, pan, toggle view)
-- [ ] Test sincronizzazione globo ↔ mappa (stessi colori)
-- [ ] Test export PNG quality (entrambe viste)
-- [ ] Performance optimization: lazy-render, memoization
+- [ ] Code-splitting della pagina Atlante (oggi finisce nel bundle principale, vedi 1.10)
+- [ ] Test su mobile (pinch-zoom, pan, toggle vista)
+- [ ] Test con molti paesi/regioni colorati
 - **Status:** ⏳ Not Started
 
-**Checkpoint Fase 5.3:** Dual-map funzionante, auto-population dai viaggi, export funzionante, stats visibili.
+**Checkpoint Fase 5.3:** ✅ Atlante funzionante con globo, mappa piatta, regioni, segni manuali e statistiche; popolamento automatico dai viaggi. Mancano ricerca ed export.
 
 ### 5.4 Export & Sharing Statistiche
 - [ ] Esporta statistiche annuali come report PDF
@@ -669,7 +667,7 @@ Con l'uso attuale del team (poche decine di viaggi) siamo ben sotto soglia; se l
 - [ ] Mobile responsive tutte le viste
 - **Status:** ⏳ Not Started
 
-**Checkpoint Fase 5:** Dashboard analytics completo, mappa scratch funzionante, stats globali visibili.
+**Checkpoint Fase 5:** 🟡 Atlante fatto; restano statistiche e grafici globali, filtri per anno, ricerca ed export della mappa.
 
 ---
 
@@ -685,7 +683,7 @@ Con l'uso attuale del team (poche decine di viaggi) siamo ben sotto soglia; se l
 ### 6.1 Ruolo Admin
 
 #### Schema DB
-- [ ] Migration `0012_admin_role.sql`: aggiungere colonna `is_admin boolean not null default false` a `public.profiles` (numerazione aggiornata, vedi nota in 1.9)
+- [ ] Migration `00XX_admin_role.sql` (prima numerazione libera, oggi `0044`): aggiungere colonna `is_admin boolean not null default false` a `public.profiles`
   - Solo un superuser Postgres o il proprietario del progetto Supabase può settare `is_admin = true` via SQL diretto (mai via UI pubblica)
   - Index `idx_profiles_is_admin` (sparse, pochissime righe `true`)
 - [ ] RLS: nessuna policy espone `is_admin` agli utenti normali; le funzioni admin usano `security definer`
@@ -783,11 +781,11 @@ I limiti del **Free Tier Supabase (2024)** da monitorare:
 
 | Fase | Settimane | Cumulative | Status |
 |------|-----------|-----------|--------|
-| 1 | 1.5 | 1.5 | ⏳ |
-| 2 | 1.25 | 2.75 | ⏳ |
-| 3 | 1.75 | 4.5 | ⏳ |
-| 4 | 1 | 5.5 | ⏳ |
-| 5 | 1.25 | 6.75 | ⏳ |
+| 1 | 1.5 | 1.5 | 🟡 90% |
+| 2 | 1.25 | 2.75 | 🟡 80% |
+| 3 | 1.75 | 4.5 | 🟡 70% |
+| 4 | 1 | 5.5 | 🟡 10% |
+| 5 | 1.25 | 6.75 | 🟡 50% |
 | 6 | 0.5 | 7.25 | ⏳ |
 
 **Totale: ~7 settimane** (caso ottimista, parallelizzando dove possibile)

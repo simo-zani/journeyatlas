@@ -9,7 +9,6 @@ import {
   Bird,
   Carrot,
   ChevronDown,
-  Croissant,
   Drumstick,
   EarOff,
   Egg,
@@ -47,6 +46,7 @@ import {
   Wheat,
   type LucideIcon,
 } from 'lucide-react';
+import { BreadIcon } from '@/components/BreadIcon';
 import { CountryFlag } from '@/components/CountryFlag';
 import { Input } from '@/components/Input';
 import { Modal } from '@/components/Modal';
@@ -54,10 +54,12 @@ import type { CountryInfo } from '@/lib/countryInfo';
 import { useIsStuck } from '@/lib/useIsStuck';
 import { useNationality } from '@/lib/useNationality';
 import {
-  BRITISH_ENGLISH_COUNTRIES,
   LANGUAGES,
   PHRASES,
   PHRASE_CATEGORIES,
+  REGIONAL_VARIANTS,
+  coversLanguageName,
+  phrasebookCodeFor,
   phrasebookLanguagesFor,
   type PhraseCategoryId,
   type PhraseDef,
@@ -73,8 +75,8 @@ const CATEGORY_ICONS: Record<PhraseCategoryId, LucideIcon> = {
   courtesy: Handshake,
 };
 
-/** Icona specifica per frase, mostrata nella vista a schermo grande. */
-const PHRASE_ICONS: Record<string, LucideIcon> = {
+/** Icona specifica per frase, mostrata nella vista a schermo grande (Lucide o disegnata a mano). */
+const PHRASE_ICONS: Record<string, LucideIcon | typeof BreadIcon> = {
   allergy: ShieldAlert,
   vegetarian: Leaf,
   vegan: Sprout,
@@ -109,7 +111,7 @@ const PHRASE_ICONS: Record<string, LucideIcon> = {
   shellfish: Shrimp,
   eggs: Egg,
   rice: Soup,
-  bread: Croissant,
+  bread: BreadIcon,
   vegetables: Carrot,
   fruit: Apple,
   water: GlassWater,
@@ -126,28 +128,30 @@ export const PhrasebookPanel: React.FC<{ countries: CountryInfo[]; stickyTop: nu
   const isItalian = i18n.language?.startsWith('it');
 
   // Una lingua per ogni voce del frasario, con la bandiera del primo paese che la parla.
-  // L'inglese dei paesi britannici è una variante a sé; quello americano c'è sempre, in coda,
-  // perché serve ovunque nel mondo.
+  // Le varianti regionali (inglese britannico, portoghese brasiliano, arabo marocchino) dipendono dal paese;
+  // l'inglese americano c'è sempre, in coda, perché serve ovunque nel mondo.
   const available = useMemo(() => {
     const map = new Map<string, { code: string; label: string; flag: string; labelCode: string }>();
     for (const c of countries) {
       for (const { code: base } of phrasebookLanguagesFor(c.languages)) {
         // il frasario italiano è per chi arriva in Italia: a un italiano non serve (es. in Svizzera)
         if (base === 'it' && nationality === 'IT') continue;
-        const code = base === 'en' && BRITISH_ENGLISH_COUNTRIES.includes(c.code) ? 'en-gb' : base;
+        const code = phrasebookCodeFor(base, c.code);
         if (!map.has(code)) map.set(code, { code, label: LANGUAGES[code].name, flag: c.code, labelCode: code });
       }
     }
     if (!map.has('en')) map.set('en', { code: 'en', label: LANGUAGES.en.name, flag: 'US', labelCode: 'en' });
-    // con entrambe le varianti serve distinguerle: "inglese britannico" e "inglese americano"
-    if (map.has('en-gb') && map.has('en')) map.get('en')!.labelCode = 'en-US';
+    // con base e variante insieme serve distinguerle: "inglese britannico" e "inglese americano"
+    for (const [base, { baseLabel, variants }] of Object.entries(REGIONAL_VARIANTS)) {
+      if (map.has(base) && variants.some((v) => map.has(v.code))) map.get(base)!.labelCode = baseLabel;
+    }
     return [...map.values()];
   }, [countries, nationality]);
 
   const uncovered = useMemo(() => {
-    const covered = new Set(Object.values(LANGUAGES).map((l) => l.name));
+    const languages = Object.values(LANGUAGES);
     return [...new Set(countries.flatMap((c) => c.languages))].filter(
-      (name) => ![...covered].some((n) => name === n || name.startsWith(`${n} `))
+      (name) => !languages.some((l) => coversLanguageName(l, name))
     );
   }, [countries]);
 

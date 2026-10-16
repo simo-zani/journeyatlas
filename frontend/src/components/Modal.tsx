@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion, useIsPresent } from 'framer-motion';
 import { X } from 'lucide-react';
 
 interface ModalProps {
@@ -66,17 +66,7 @@ export const Modal: React.FC<ModalProps> = ({ open, onClose, title, maxWidth = '
   return createPortal(
     <AnimatePresence>
       {open && (
-        <motion.div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 overscroll-contain"
-          style={{ backgroundColor: 'var(--overlay)', backdropFilter: 'blur(4px)' }}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-          onClick={onClose}
-          role="dialog"
-          aria-modal="true"
-        >
+        <ModalOverlay onClose={onClose}>
           <motion.div
             ref={panelRef}
             tabIndex={-1}
@@ -100,9 +90,31 @@ export const Modal: React.FC<ModalProps> = ({ open, onClose, title, maxWidth = '
             </div>
             <div className="p-5 flex-1 min-h-0 overflow-y-auto overscroll-contain">{children}</div>
           </motion.div>
-        </motion.div>
+        </ModalOverlay>
       )}
     </AnimatePresence>,
     document.body
+  );
+};
+
+/** Sfondo della modale. Mentre si chiude (animazione di uscita) non intercetta
+ * più i click: se l'uscita si interrompe o non arriva in fondo, uno strato
+ * invisibile sopra la pagina bloccherebbe ogni pulsante fino al refresh. */
+const ModalOverlay: React.FC<{ onClose: () => void; children: React.ReactNode }> = ({ onClose, children }) => {
+  const isPresent = useIsPresent();
+  return (
+    <motion.div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 overscroll-contain"
+      style={{ backgroundColor: 'var(--overlay)', backdropFilter: 'blur(4px)', pointerEvents: isPresent ? 'auto' : 'none' }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+      onClick={isPresent ? onClose : undefined}
+      role="dialog"
+      aria-modal="true"
+    >
+      {children}
+    </motion.div>
   );
 };

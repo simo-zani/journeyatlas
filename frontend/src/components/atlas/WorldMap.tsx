@@ -295,6 +295,16 @@ export const WorldMap: React.FC<WorldMapProps> = ({
     }
   }, []);
 
+  // Zoom fluido in corso (vedi zoomBy): obiettivo, punto d'ancoraggio e fotogramma.
+  const zoomGoal = useRef<number | null>(null);
+  const zoomAnchor = useRef<[number, number] | null>(null);
+  const zoomFrame = useRef(0);
+  const cancelZoom = useCallback(() => {
+    cancelAnimationFrame(zoomFrame.current);
+    zoomFrame.current = 0;
+    zoomGoal.current = null;
+  }, []);
+
   // Dopo ogni render (dati, dimensioni, selezione) si ridisegna con l'inquadratura corrente.
   useLayoutEffect(() => {
     draw();
@@ -302,9 +312,10 @@ export const WorldMap: React.FC<WorldMapProps> = ({
 
   // Cambiando vista si riparte dalla visuale d'insieme.
   useEffect(() => {
+    cancelZoom();
     cam.current = { ...cam.current, zoom: 1, pan: [0, 0] };
     draw();
-  }, [view, draw]);
+  }, [view, draw, cancelZoom]);
 
   // Rotazione lenta del globo finché l'utente non lo tocca.
   useEffect(() => {
@@ -336,6 +347,7 @@ export const WorldMap: React.FC<WorldMapProps> = ({
   const onFocusSettledRef = useRef(onFocusSettled);
   onFocusSettledRef.current = onFocusSettled;
   useEffect(() => {
+    cancelZoom();
     const from = cam.current;
     let toRot: [number, number] = from.rotation;
     let toZoom = 1;
@@ -387,15 +399,58 @@ export const WorldMap: React.FC<WorldMapProps> = ({
     };
     frame = requestAnimationFrame(step);
     return () => cancelAnimationFrame(frame);
-  }, [selected, geo, view, draw, setSpin]);
+  }, [selected, geo, view, draw, setSpin, cancelZoom]);
 
+  // Zoom fluido: rotella, pinch e pulsanti spostano solo l'obiettivo (zoomGoal);
+  // a ogni fotogramma l'inquadratura ci si avvicina un po' (smorzamento esponenziale),
+  // quindi tanti piccoli scatti della rotella diventano un unico movimento continuo.
+  // Sul planisfero lo zoom resta ancorato al punto sotto il cursore (o al centro).
+  const applyZoom = useCallback((next: number) => {
+    const c = cam.current;
+    const { view: v, width: w, height: h } = latest.current;
+    let pan = c.pan;
+    if (v === 'flat') {
+      // il punto sotto l'ancora resta fermo sullo schermo mentre la scala cambia
+      const [ax, ay] = zoomAnchor.current ?? [w / 2, h / 2];
+      const r = next / c.zoom;
+      pan = [ax - w / 2 - (ax - w / 2 - c.pan[0]) * r, ay - h / 2 - (ay - h / 2 - c.pan[1]) * r];
+    }
+    cam.current = { ...c, zoom: next, pan };
+  }, []);
   const zoomBy = useCallback(
-    (factor: number) => {
-      cam.current = { ...cam.current, zoom: clamp(cam.current.zoom * factor, MIN_ZOOM, maxZoom.current) };
-      draw();
+    (factor: number, anchor: [number, number] | null = null) => {
+      const goal = clamp((zoomGoal.current ?? cam.current.zoom) * factor, MIN_ZOOM, maxZoom.current);
+      zoomGoal.current = goal;
+      zoomAnchor.current = anchor;
+      if (prefersReducedMotion()) {
+        applyZoom(goal);
+        cancelZoom();
+        draw();
+        return;
+      }
+      if (zoomFrame.current) return;
+      let last = performance.now();
+      const step = (now: number) => {
+        const target = zoomGoal.current;
+        if (target === null) return;
+        const dt = Math.min(now - last, 64);
+        last = now;
+        const z = cam.current.zoom;
+        // ~90 ms di costante di tempo, in scala logaritmica: stessa sensazione a ogni livello di zoom
+        const k = 1 - Math.exp(-dt / 90);
+        const done = Math.abs(Math.log(target / z)) < 0.002;
+        applyZoom(done ? target : z * Math.pow(target / z, k));
+        draw();
+        if (done) {
+          zoomFrame.current = 0;
+          zoomGoal.current = null;
+        } else zoomFrame.current = requestAnimationFrame(step);
+      };
+      zoomFrame.current = requestAnimationFrame(step);
     },
-    [draw]
+    [draw, applyZoom, cancelZoom]
   );
+  useEffect(() => cancelZoom, [cancelZoom]);
 
   // Zoom con pinch del trackpad / Ctrl+rotella: la rotella semplice continua a scorrere la pagina.
   useEffect(() => {
@@ -404,7 +459,11 @@ export const WorldMap: React.FC<WorldMapProps> = ({
     const onWheel = (e: WheelEvent) => {
       if (!e.ctrlKey && !e.metaKey) return;
       e.preventDefault();
-      zoomBy(Math.exp(-e.deltaY * 0.01));
+      // Delta in pixel (le righe valgono ~16 px). Uno scatto della rotella (~100 px)
+      // vale circa ×1.3; il pinch, a piccoli passi, resta proporzionale al gesto.
+      const delta = e.deltaY * (e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? 400 : 1);
+      const box = el.getBoundingClientRect();
+      zoomBy(Math.exp(-clamp(delta, -30, 30) * 0.009), [e.clientX - box.left, e.clientY - box.top]);
     };
     el.addEventListener('wheel', onWheel, { passive: false });
     return () => el.removeEventListener('wheel', onWheel);
@@ -442,6 +501,7 @@ export const WorldMap: React.FC<WorldMapProps> = ({
   };
 
   const resetView = () => {
+    cancelZoom();
     cam.current = { rotation: INITIAL_ROTATION, zoom: 1, pan: [0, 0] };
     draw();
     onSelect(null);

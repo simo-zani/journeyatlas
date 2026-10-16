@@ -61,10 +61,13 @@ interface CustomsPanelProps {
   tripStart: string | null;
   tripEnd: string | null;
   destinations: Destination[];
+  /** Dove si aggancia la barra dei paesi: sotto la barra delle sotto-schede. */
+  stickyTop: number;
 }
 
-export const CustomsPanel: React.FC<CustomsPanelProps> = ({ countries, tripStart, tripEnd, destinations }) => {
+export const CustomsPanel: React.FC<CustomsPanelProps> = ({ countries, tripStart, tripEnd, destinations, stickyTop }) => {
   const { t } = useTranslation();
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 
   if (countries.length === 0) {
     return (
@@ -85,6 +88,9 @@ export const CustomsPanel: React.FC<CustomsPanelProps> = ({ countries, tripStart
           tripStart={tripStart}
           tripEnd={tripEnd}
           destinations={destinations.filter((d) => d.countryCode?.toUpperCase() === c.code)}
+          stickyTop={stickyTop}
+          collapsed={!!collapsed[c.code]}
+          onToggle={() => setCollapsed((prev) => ({ ...prev, [c.code]: !prev[c.code] }))}
         />
       ))}
     </div>
@@ -97,7 +103,10 @@ const CountryCustomsCard: React.FC<{
   tripEnd: string | null;
   /** Mete del viaggio in questo paese. */
   destinations: Destination[];
-}> = ({ country, tripStart, tripEnd, destinations }) => {
+  stickyTop: number;
+  collapsed: boolean;
+  onToggle: () => void;
+}> = ({ country, tripStart, tripEnd, destinations, stickyTop, collapsed, onToggle }) => {
   const { t, i18n } = useTranslation();
   const lang: keyof LocalText = i18n.language?.startsWith('it') ? 'it' : 'en';
   // Paesi piccoli senza voce propria: usanze e piatti del vicino a cui somigliano (le feste restano le loro)
@@ -204,208 +213,230 @@ const CountryCustomsCard: React.FC<{
   const tileCols = ['', 'sm:grid-cols-1', 'sm:grid-cols-2', 'sm:grid-cols-3', 'sm:grid-cols-2 xl:grid-cols-4'][tileCount];
 
   return (
-    <div className="card card-static space-y-5">
-      <div className="flex items-center gap-3">
-        <CountryFlag code={country.code} size="lg" />
-        <h3 className="font-poppins font-bold text-2xl leading-tight break-words">{name}</h3>
+    // Come le categorie della checklist: l'intestazione resta agganciata sotto la barra delle
+    // sotto-schede finché si legge il paese, poi la spinge via quella del paese successivo
+    // (il riquadro taglia con overflow: clip, che a differenza di hidden non blocca lo sticky).
+    <div className="relative rounded-xl [overflow:clip]">
+      {/* Copertura sticky: dentro questo riquadro nasconde ciò che scorre sopra l'intestazione agganciata */}
+      <div className="sticky z-[4] h-0 pointer-events-none" style={{ top: stickyTop }} aria-hidden="true">
+        {/* scende di 32px (il raggio degli angoli) sotto il bordo alto dell'intestazione: negli angoli curvi non si intravede nulla */}
+        <div className="absolute inset-x-0 bottom-[-32px] h-[3032px] bg-[var(--surface-0)]" />
       </div>
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={!collapsed}
+        style={{ top: stickyTop }}
+        className="sticky z-[5] w-full flex items-center gap-3 px-6 py-[16px] bg-[var(--surface-1)] border border-[var(--border-subtle)] rounded-xl text-left select-none cursor-pointer hover:brightness-110 dark:hover:brightness-125 transition-[filter]"
+      >
+        <CountryFlag code={country.code} size="lg" />
+        <h3 className="flex-1 min-w-0 font-poppins font-bold text-2xl leading-tight break-words">{name}</h3>
+        <ChevronDown
+          size={22}
+          className={`text-slate-400 shrink-0 transition-transform duration-200 ${collapsed ? '' : 'rotate-180'}`}
+        />
+      </button>
 
-      {likeName && (
-        <p className="flex items-start gap-2 text-sm text-slate-500 dark:text-slate-400">
-          <Info className="w-5 h-5 shrink-0" />
-          {t('countryInfo.customs.likeCountry', { like: likeName })}
-        </p>
-      )}
+      {!collapsed && (
+        <div className="-mt-[32px] pt-[52px] px-6 pb-6 space-y-5 bg-[var(--surface-1)] border border-t-0 border-[var(--border-subtle)] rounded-b-xl">
+          {likeName && (
+            <p className="flex items-start gap-2 text-sm text-slate-500 dark:text-slate-400">
+              <Info className="w-5 h-5 shrink-0" />
+              {t('countryInfo.customs.likeCountry', { like: likeName })}
+            </p>
+          )}
 
-      {tileCount > 0 && (
-        <div className={`grid grid-cols-1 ${tileCols} gap-3`}>
-          {data?.meals && (
-            <InfoTile icon={Utensils} label={t('countryInfo.customs.meals')}>
-              <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5">
-                <dt className="text-slate-500 dark:text-slate-400">{t('countryInfo.customs.breakfast')}</dt>
-                <dd className="font-semibold tabular-nums">{data.meals.breakfast}</dd>
-                <dt className="text-slate-500 dark:text-slate-400">{t('countryInfo.customs.lunch')}</dt>
-                <dd className="font-semibold tabular-nums">{data.meals.lunch}</dd>
-                <dt className="text-slate-500 dark:text-slate-400">{t('countryInfo.customs.dinner')}</dt>
-                <dd className="font-semibold tabular-nums">{data.meals.dinner}</dd>
-              </dl>
-              {data.meals.note && <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">{data.meals.note[lang]}</p>}
-            </InfoTile>
+          {tileCount > 0 && (
+            <div className={`grid grid-cols-1 ${tileCols} gap-3`}>
+              {data?.meals && (
+                <InfoTile icon={Utensils} label={t('countryInfo.customs.meals')}>
+                  <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5">
+                    <dt className="text-slate-500 dark:text-slate-400">{t('countryInfo.customs.breakfast')}</dt>
+                    <dd className="font-semibold tabular-nums">{data.meals.breakfast}</dd>
+                    <dt className="text-slate-500 dark:text-slate-400">{t('countryInfo.customs.lunch')}</dt>
+                    <dd className="font-semibold tabular-nums">{data.meals.lunch}</dd>
+                    <dt className="text-slate-500 dark:text-slate-400">{t('countryInfo.customs.dinner')}</dt>
+                    <dd className="font-semibold tabular-nums">{data.meals.dinner}</dd>
+                  </dl>
+                  {data.meals.note && <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">{data.meals.note[lang]}</p>}
+                </InfoTile>
+              )}
+              {data?.tipping && (
+                <InfoTile icon={HandCoins} label={t('countryInfo.customs.tipping')}>
+                  <p>{data.tipping[lang]}</p>
+                </InfoTile>
+              )}
+              {data && (
+                <InfoTile icon={CalendarDays} label={t('countryInfo.customs.weekend')}>
+                  <p className="font-semibold">{data.weekend ? data.weekend[lang] : t('countryInfo.customs.weekendDefault')}</p>
+                </InfoTile>
+              )}
+              {localYears.length > 0 && (
+                <InfoTile icon={CalendarRange} label={t('countryInfo.customs.localYear')}>
+                  <div className="space-y-2">
+                    {localYears.map((y) => (
+                      <div key={y.value.en}>
+                        <p className="font-poppins font-bold">{y.value[lang]}</p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">{y.note[lang]}</p>
+                      </div>
+                    ))}
+                  </div>
+                </InfoTile>
+              )}
+            </div>
           )}
-          {data?.tipping && (
-            <InfoTile icon={HandCoins} label={t('countryInfo.customs.tipping')}>
-              <p>{data.tipping[lang]}</p>
-            </InfoTile>
+
+          {!data && (
+            <p className="flex items-start gap-2 text-sm text-slate-500 dark:text-slate-400">
+              <Info className="w-5 h-5 shrink-0" />
+              {t('countryInfo.customs.noData', { country: name })}
+            </p>
           )}
-          {data && (
-            <InfoTile icon={CalendarDays} label={t('countryInfo.customs.weekend')}>
-              <p className="font-semibold">{data.weekend ? data.weekend[lang] : t('countryInfo.customs.weekendDefault')}</p>
-            </InfoTile>
+
+          {dishes.length > 0 && (
+            <div className="rounded-2xl ring-1 ring-orange-500/25 bg-orange-500/10 p-6">
+              <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-orange-600 dark:text-orange-400">
+                <ChefHat className="w-5 h-5" />
+                {t('countryInfo.customs.dishes')}
+              </p>
+              <ul className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
+                {dishes.map((dish) => (
+                  <li key={dish.name} className="min-w-0">
+                    <p className="font-semibold">{dish.name}</p>
+                    <p className="text-sm text-slate-500 dark:text-slate-400">{dish.about[lang]}</p>
+                  </li>
+                ))}
+              </ul>
+            </div>
           )}
-          {localYears.length > 0 && (
-            <InfoTile icon={CalendarRange} label={t('countryInfo.customs.localYear')}>
-              <div className="space-y-2">
-                {localYears.map((y) => (
-                  <div key={y.value.en}>
-                    <p className="font-poppins font-bold">{y.value[lang]}</p>
-                    <p className="text-xs text-slate-500 dark:text-slate-400">{y.note[lang]}</p>
+
+          {/* Feste: quelle nazionali nelle date del viaggio, più i periodi che lo toccano */}
+          <div className="rounded-2xl ring-1 ring-light-blue/25 bg-light-blue/10 p-6 space-y-3">
+            <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-light-blue">
+              <PartyPopper className="w-5 h-5" />
+              {t('countryInfo.customs.holidays')}
+            </p>
+
+            {holidayNote && (
+              <p className="text-sm">
+                <span className="font-semibold">{t('countryInfo.customs.onHolidays')}</span> {holidayNote[lang]}
+              </p>
+            )}
+
+            {!tripStart ? (
+              <p className="text-sm text-slate-500 dark:text-slate-400">{t('countryInfo.customs.holidaysNoDates')}</p>
+            ) : holidays === undefined ? (
+              <Loader2 className="w-5 h-5 text-light-blue animate-spin" />
+            ) : holidays === null ? (
+              <p className="text-sm text-slate-500 dark:text-slate-400">{t('countryInfo.customs.holidaysUnavailable')}</p>
+            ) : national.length + relevant.length === 0 && otherRegional.length === 0 ? (
+              <p className="text-sm text-slate-500 dark:text-slate-400">{t('countryInfo.customs.holidaysNone')}</p>
+            ) : (
+              <>
+                {national.length + relevant.length > 0 ? (
+                  <ul className="space-y-1.5">
+                    {[...national, ...relevant]
+                      .sort((a, b) => a.date.localeCompare(b.date))
+                      .map((h) =>
+                        renderHoliday(
+                          h,
+                          h.regions && tripRegions && (
+                            <p className="flex items-center gap-1 text-xs font-semibold text-gold">
+                              <MapPin className="w-[14px] h-[14px] shrink-0" />
+                              {t('countryInfo.customs.appliesTo', {
+                                places: h.regions
+                                  .filter((r) => tripRegions.has(r))
+                                  .map((r) => `${tripRegions.get(r)!.join(', ')} (${subdivisionName(r, lang)})`)
+                                  .join(' · '),
+                              })}
+                            </p>
+                          )
+                        )
+                      )}
+                  </ul>
+                ) : (
+                  <p className="text-sm text-slate-500 dark:text-slate-400">{t('countryInfo.customs.holidaysNone')}</p>
+                )}
+
+                {otherRegional.length > 0 && (
+                  <details className="group">
+                    <summary className="flex items-center gap-1.5 text-sm font-semibold cursor-pointer list-none [&::-webkit-details-marker]:hidden">
+                      <ChevronDown className="w-5 h-5 transition-transform group-open:rotate-180" />
+                      {t(tripRegions ? 'countryInfo.customs.otherRegional' : 'countryInfo.customs.regional', {
+                        count: otherRegional.length,
+                      })}
+                    </summary>
+                    <ul className="mt-2 space-y-1.5">
+                      {otherRegional.map((h) =>
+                        renderHoliday(
+                          h,
+                          <p className="text-xs text-slate-500 dark:text-slate-400">
+                            {t('countryInfo.customs.onlyIn', { regions: regionList(h.regions!) })}
+                          </p>
+                        )
+                      )}
+                    </ul>
+                  </details>
+                )}
+              </>
+            )}
+
+            {periods.length > 0 && (
+              <div className="space-y-2 pt-1">
+                {periods.map((p) => (
+                  <div key={p.name.en} className="rounded-xl p-5 ring-1 bg-gold/15 ring-gold/40">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="font-semibold">{p.name[lang]}</p>
+                      <span className="rounded-full bg-gold px-2 py-0.5 text-[11px] font-bold text-slate-950">
+                        {t('countryInfo.customs.duringTrip')}
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">{p.when[lang]}</p>
+                    {p.about && <p className="mt-1 text-sm">{p.about[lang]}</p>}
+                    <p className="mt-1 text-sm">
+                      <span className="font-semibold">{t('countryInfo.customs.forTravellers')}</span> {p.note[lang]}
+                    </p>
                   </div>
                 ))}
               </div>
-            </InfoTile>
-          )}
-        </div>
-      )}
-
-      {!data && (
-        <p className="flex items-start gap-2 text-sm text-slate-500 dark:text-slate-400">
-          <Info className="w-5 h-5 shrink-0" />
-          {t('countryInfo.customs.noData', { country: name })}
-        </p>
-      )}
-
-      {dishes.length > 0 && (
-        <div className="rounded-2xl ring-1 ring-orange-500/25 bg-orange-500/10 p-6">
-          <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-orange-600 dark:text-orange-400">
-            <ChefHat className="w-5 h-5" />
-            {t('countryInfo.customs.dishes')}
-          </p>
-          <ul className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
-            {dishes.map((dish) => (
-              <li key={dish.name} className="min-w-0">
-                <p className="font-semibold">{dish.name}</p>
-                <p className="text-sm text-slate-500 dark:text-slate-400">{dish.about[lang]}</p>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {/* Feste: quelle nazionali nelle date del viaggio, più i periodi che lo toccano */}
-      <div className="rounded-2xl ring-1 ring-light-blue/25 bg-light-blue/10 p-6 space-y-3">
-        <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-light-blue">
-          <PartyPopper className="w-5 h-5" />
-          {t('countryInfo.customs.holidays')}
-        </p>
-
-        {holidayNote && (
-          <p className="text-sm">
-            <span className="font-semibold">{t('countryInfo.customs.onHolidays')}</span> {holidayNote[lang]}
-          </p>
-        )}
-
-        {!tripStart ? (
-          <p className="text-sm text-slate-500 dark:text-slate-400">{t('countryInfo.customs.holidaysNoDates')}</p>
-        ) : holidays === undefined ? (
-          <Loader2 className="w-5 h-5 text-light-blue animate-spin" />
-        ) : holidays === null ? (
-          <p className="text-sm text-slate-500 dark:text-slate-400">{t('countryInfo.customs.holidaysUnavailable')}</p>
-        ) : national.length + relevant.length === 0 && otherRegional.length === 0 ? (
-          <p className="text-sm text-slate-500 dark:text-slate-400">{t('countryInfo.customs.holidaysNone')}</p>
-        ) : (
-          <>
-            {national.length + relevant.length > 0 ? (
-              <ul className="space-y-1.5">
-                {[...national, ...relevant]
-                  .sort((a, b) => a.date.localeCompare(b.date))
-                  .map((h) =>
-                    renderHoliday(
-                      h,
-                      h.regions && tripRegions && (
-                        <p className="flex items-center gap-1 text-xs font-semibold text-gold">
-                          <MapPin className="w-[14px] h-[14px] shrink-0" />
-                          {t('countryInfo.customs.appliesTo', {
-                            places: h.regions
-                              .filter((r) => tripRegions.has(r))
-                              .map((r) => `${tripRegions.get(r)!.join(', ')} (${subdivisionName(r, lang)})`)
-                              .join(' · '),
-                          })}
-                        </p>
-                      )
-                    )
-                  )}
-              </ul>
-            ) : (
-              <p className="text-sm text-slate-500 dark:text-slate-400">{t('countryInfo.customs.holidaysNone')}</p>
             )}
-
-            {otherRegional.length > 0 && (
-              <details className="group">
-                <summary className="flex items-center gap-1.5 text-sm font-semibold cursor-pointer list-none [&::-webkit-details-marker]:hidden">
-                  <ChevronDown className="w-5 h-5 transition-transform group-open:rotate-180" />
-                  {t(tripRegions ? 'countryInfo.customs.otherRegional' : 'countryInfo.customs.regional', {
-                    count: otherRegional.length,
-                  })}
-                </summary>
-                <ul className="mt-2 space-y-1.5">
-                  {otherRegional.map((h) =>
-                    renderHoliday(
-                      h,
-                      <p className="text-xs text-slate-500 dark:text-slate-400">
-                        {t('countryInfo.customs.onlyIn', { regions: regionList(h.regions!) })}
-                      </p>
-                    )
-                  )}
-                </ul>
-              </details>
-            )}
-          </>
-        )}
-
-        {periods.length > 0 && (
-          <div className="space-y-2 pt-1">
-            {periods.map((p) => (
-              <div key={p.name.en} className="rounded-xl p-5 ring-1 bg-gold/15 ring-gold/40">
-                <div className="flex flex-wrap items-center gap-2">
-                  <p className="font-semibold">{p.name[lang]}</p>
-                  <span className="rounded-full bg-gold px-2 py-0.5 text-[11px] font-bold text-slate-950">
-                    {t('countryInfo.customs.duringTrip')}
-                  </span>
-                </div>
-                <p className="text-xs text-slate-500 dark:text-slate-400">{p.when[lang]}</p>
-                {p.about && <p className="mt-1 text-sm">{p.about[lang]}</p>}
-                <p className="mt-1 text-sm">
-                  <span className="font-semibold">{t('countryInfo.customs.forTravellers')}</span> {p.note[lang]}
-                </p>
-              </div>
-            ))}
           </div>
-        )}
-      </div>
 
-      {sections.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {sections.map((s) => {
-            const tone = TONES[s];
-            const Icon = tone.icon;
-            return (
-              <div key={s} className={`rounded-2xl ring-1 p-6 ${tone.box}`}>
-                <p className={`flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider ${tone.head}`}>
-                  <Icon className="w-5 h-5" />
-                  {t(`countryInfo.customs.sections.${s}`)}
-                </p>
-                <ul className="mt-2 space-y-1.5 text-sm list-disc pl-5 marker:text-slate-400">
-                  {data![s]!.map((item) => (
-                    <li key={item.en}>{item[lang]}</li>
-                  ))}
-                </ul>
-              </div>
-            );
-          })}
+          {sections.length > 0 && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {sections.map((s) => {
+                const tone = TONES[s];
+                const Icon = tone.icon;
+                return (
+                  <div key={s} className={`rounded-2xl ring-1 p-6 ${tone.box}`}>
+                    <p className={`flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider ${tone.head}`}>
+                      <Icon className="w-5 h-5" />
+                      {t(`countryInfo.customs.sections.${s}`)}
+                    </p>
+                    <ul className="mt-2 space-y-1.5 text-sm list-disc pl-5 marker:text-slate-400">
+                      {data![s]!.map((item) => (
+                        <li key={item.en}>{item[lang]}</li>
+                      ))}
+                    </ul>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Le leggi cambiano: rimando alla fonte ufficiale */}
+          <a
+            href={farnesinaUrl(country.cca3)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 hover:text-gold no-underline hover:no-underline"
+          >
+            <Info className="w-5 h-5 shrink-0" />
+            <span>{t('countryInfo.customs.disclaimer')}</span>
+            <ExternalLink className="w-5 h-5 shrink-0" />
+          </a>
         </div>
       )}
-
-      {/* Le leggi cambiano: rimando alla fonte ufficiale */}
-      <a
-        href={farnesinaUrl(country.cca3)}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 hover:text-gold no-underline hover:no-underline"
-      >
-        <Info className="w-5 h-5 shrink-0" />
-        <span>{t('countryInfo.customs.disclaimer')}</span>
-        <ExternalLink className="w-5 h-5 shrink-0" />
-      </a>
     </div>
   );
 };

@@ -581,7 +581,13 @@ export const CountryInfoSection: React.FC<CountryInfoSectionProps> = ({ tripId, 
       {tab === 'currency' && <CurrencyPanel countries={visibleCountries} rates={rates} />}
       {tab === 'phrasebook' && <PhrasebookPanel countries={visibleCountries} stickyTop={56 + barHeight} />}
       {tab === 'customs' && (
-        <CustomsPanel countries={visibleCountries} tripStart={tripStart} tripEnd={tripEnd} destinations={tripDestinations} />
+        <CustomsPanel
+          countries={visibleCountries}
+          tripStart={tripStart}
+          tripEnd={tripEnd}
+          destinations={tripDestinations}
+          stickyTop={56 + barHeight}
+        />
       )}
     </div>
   );

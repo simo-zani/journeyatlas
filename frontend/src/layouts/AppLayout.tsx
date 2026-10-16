@@ -1,7 +1,7 @@
 import React, { Suspense, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion, useIsPresent } from 'framer-motion';
 import {
   Earth,
   Globe,
@@ -87,6 +87,26 @@ const NavList: React.FC<{
         </NavLink>
       ))}
     </nav>
+  );
+};
+
+/** Sfondo del menu mobile. Come per Modal: mentre si chiude non intercetta più
+ * i click, così un'uscita che si inceppa non lascia uno strato invisibile sopra la pagina.
+ * TODO: il menu mobile va rifatto da zero (layout pensato per smartphone). */
+const DrawerOverlay: React.FC<{ onClose: () => void; children: React.ReactNode }> = ({ onClose, children }) => {
+  const isPresent = useIsPresent();
+  return (
+    <motion.div
+      className="fixed inset-0 z-40 md:hidden"
+      style={{ backgroundColor: 'var(--overlay)', pointerEvents: isPresent ? 'auto' : 'none' }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.2 }}
+      onClick={isPresent ? onClose : undefined}
+    >
+      {children}
+    </motion.div>
   );
 };
 
@@ -559,15 +579,7 @@ export const AppLayout: React.FC = () => {
       {/* ── Mobile drawer with nav and settings ── */}
       <AnimatePresence>
         {sidebarOpen && (
-          <motion.div
-            className="fixed inset-0 z-40 md:hidden"
-            style={{ backgroundColor: 'var(--overlay)' }}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            onClick={() => setSidebarOpen(false)}
-          >
+          <DrawerOverlay onClose={() => setSidebarOpen(false)}>
             <motion.div
               className="absolute inset-y-0 left-0 w-72 surface-panel rounded-none p-4 flex flex-col justify-between"
               initial={{ x: '-100%' }}
@@ -712,7 +724,7 @@ export const AppLayout: React.FC = () => {
                 )}
               </div>
             </motion.div>
-          </motion.div>
+          </DrawerOverlay>
         )}
       </AnimatePresence>
 

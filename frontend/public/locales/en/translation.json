@@ -959,7 +959,8 @@
         "local": "Normal there"
       },
       "disclaimer": "Laws and rules change: check Viaggiare Sicuri before you leave.",
-      "sources": "Customs compiled by JourneyAtlas (October 2026) · Public holidays: Nager.Date",
+      "dishes": "Typical dishes",
+      "likeCountry": "Customs and dishes taken from a very similar country: {{like}}. The holidays below are the local ones.",
       "localYear": "Year and calendar",
       "forTravellers": "For travellers:",
       "onHolidays": "On public holidays:",

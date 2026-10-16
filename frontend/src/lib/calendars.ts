@@ -124,6 +124,12 @@ export const carnivalRanges = (year: number): Range[] => {
   return [[addDays(ash, -5), ash]];
 };
 
+/** Settimana Santa: dalla Domenica delle Palme a Pasqua. */
+export const holyWeekRanges = (year: number): Range[] => {
+  const e = easter(year);
+  return [[addDays(e, -7), e]];
+};
+
 /** Oktoberfest: finisce la prima domenica di ottobre (o il 3 ottobre se dopo), inizia il sabato 15 giorni prima. */
 export const oktoberfestRanges = (year: number): Range[] => {
   const oct1 = noon(`${year}-10-01`);
@@ -142,24 +148,24 @@ export const yearly =
 // Anno "locale": zodiaco, ere e calendari usati su documenti e scontrini
 // ---------------------------------------------------------------------------
 
-const ANIMALS: { it: [string, string]; en: string; emoji: string }[] = [
-  { it: ['del', 'Topo'], en: 'Rat', emoji: '🐀' },
-  { it: ['del', 'Bue'], en: 'Ox', emoji: '🐂' },
-  { it: ['della', 'Tigre'], en: 'Tiger', emoji: '🐅' },
-  { it: ['del', 'Coniglio'], en: 'Rabbit', emoji: '🐇' },
-  { it: ['del', 'Drago'], en: 'Dragon', emoji: '🐉' },
-  { it: ['del', 'Serpente'], en: 'Snake', emoji: '🐍' },
-  { it: ['del', 'Cavallo'], en: 'Horse', emoji: '🐎' },
-  { it: ['della', 'Capra'], en: 'Goat', emoji: '🐐' },
-  { it: ['della', 'Scimmia'], en: 'Monkey', emoji: '🐒' },
-  { it: ['del', 'Gallo'], en: 'Rooster', emoji: '🐓' },
-  { it: ['del', 'Cane'], en: 'Dog', emoji: '🐕' },
-  { it: ['del', 'Maiale'], en: 'Pig', emoji: '🐖' },
+const ANIMALS: { it: [string, string]; en: string }[] = [
+  { it: ['del', 'Topo'], en: 'Rat' },
+  { it: ['del', 'Bue'], en: 'Ox' },
+  { it: ['della', 'Tigre'], en: 'Tiger' },
+  { it: ['del', 'Coniglio'], en: 'Rabbit' },
+  { it: ['del', 'Drago'], en: 'Dragon' },
+  { it: ['del', 'Serpente'], en: 'Snake' },
+  { it: ['del', 'Cavallo'], en: 'Horse' },
+  { it: ['della', 'Capra'], en: 'Goat' },
+  { it: ['della', 'Scimmia'], en: 'Monkey' },
+  { it: ['del', 'Gallo'], en: 'Rooster' },
+  { it: ['del', 'Cane'], en: 'Dog' },
+  { it: ['del', 'Maiale'], en: 'Pig' },
 ];
 /** Nello zodiaco vietnamita il Bue è il Bufalo e il Coniglio è il Gatto. */
 const VIETNAMESE_ANIMALS: Record<number, (typeof ANIMALS)[number]> = {
-  1: { it: ['del', 'Bufalo'], en: 'Buffalo', emoji: '🐃' },
-  3: { it: ['del', 'Gatto'], en: 'Cat', emoji: '🐈' },
+  1: { it: ['del', 'Bufalo'], en: 'Buffalo' },
+  3: { it: ['del', 'Gatto'], en: 'Cat' },
 };
 const ELEMENTS: LocalText[] = [
   { it: 'Legno', en: 'Wood' },
@@ -180,7 +186,7 @@ const ZODIAC_COUNTRIES: Record<string, 'chinese' | 'dangi' | 'vietnamese'> = {
 };
 
 export interface LocalYear {
-  /** Il valore grande (es. "🐎 Anno del Cavallo di Fuoco", "令和8年 · Reiwa 8"). */
+  /** Il valore grande (es. "Anno del Cavallo di Fuoco", "令和8年 · Reiwa 8"). */
   value: LocalText;
   note: LocalText;
 }
@@ -205,8 +211,8 @@ export const localYearsFor = (countryCode: string, iso: string): LocalYear[] => 
     const start = datesInYear(calendar, '1', 1, lunarYear)[0];
     out.push({
       value: {
-        it: `${animal.emoji} Anno ${animal.it[0]} ${animal.it[1]} di ${element.it}`,
-        en: `${animal.emoji} Year of the ${element.en} ${animal.en}`,
+        it: `Anno ${animal.it[0]} ${animal.it[1]} di ${element.it}`,
+        en: `Year of the ${element.en} ${animal.en}`,
       },
       note: {
         it: `Zodiaco lunare: l'anno è iniziato il ${fmtDate(start, 'it')} con il Capodanno lunare.`,

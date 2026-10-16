@@ -1,7 +1,9 @@
 import {
+  addDays,
   carnivalRanges,
   chuseokRanges,
   diwaliRanges,
+  holyWeekRanges,
   holiRanges,
   lunarNewYearRanges,
   nyepiRanges,
@@ -137,6 +139,25 @@ const ramadan = (extra?: LocalText): CustomsPeriod => ({
     `Muslims fast from dawn to sunset: many places open only in the evening, offices and shops keep shorter hours. Avoid eating, drinking or smoking in public during the day. After sunset (iftar) cities come alive. It ends with Eid al-Fitr, 1-3 days of celebration and heavy travel.${extra ? ` ${extra.en}` : ''}`
   ),
   dates: ramadanRanges,
+});
+
+const BALTIC_REFLECTOR = tx(
+  'Di notte, a piedi fuori dalle zone illuminate, è obbligatorio portare un catarifrangente: multa se non lo hai.',
+  'At night, walking outside lit areas, you must wear a reflector: you can be fined without one.'
+);
+
+const balticMidsummer = (name: LocalText, extra?: LocalText): CustomsPeriod => ({
+  name,
+  about: tx(
+    'La notte più corta dell\'anno: falò, canti e notte in bianco in campagna, tradizione più antica del cristianesimo.',
+    'The shortest night of the year: bonfires, songs and an all-nighter in the countryside, a tradition older than Christianity.'
+  ),
+  when: tx('23 – 24 giugno', '23 – 24 June'),
+  note: tx(
+    `Le città si svuotano e molti negozi e ristoranti chiudono; strade verso la campagna trafficate.${extra ? ` ${extra.it}` : ''}`,
+    `Cities empty out and many shops and restaurants close; roads to the countryside are busy.${extra ? ` ${extra.en}` : ''}`
+  ),
+  dates: yearly('06-23', '06-24'),
 });
 
 // ---------------------------------------------------------------------------
@@ -453,6 +474,74 @@ export const CUSTOMS: Record<string, CountryCustoms> = {
     local: [tx('Nelle piscine e terme ci si lava nudi sotto la doccia prima di entrare: è obbligatorio e controllato.', 'In pools and hot springs you must shower naked before going in: it is mandatory and checked.')],
   },
 
+  EE: {
+    meals: { breakfast: '7:30–9:30', lunch: '12:00–14:00', dinner: '18:00–21:00' },
+    tipping: tx('Non obbligatoria: si arrotonda o si lascia il 5-10% se il servizio è stato buono.', 'Not required: round up or leave 5-10% for good service.'),
+    law: [BALTIC_REFLECTOR],
+    avoid: [
+      ODD_FLOWERS,
+      tx('Non dare per scontato che parlino russo né chiamarli "ex sovietici": è un tasto dolente.', "Don't assume they speak Russian or call them \"ex-Soviet\": it's a sore point."),
+    ],
+    local: [
+      tx('La sauna è un rito sociale: si fa nudi o con un telo, poi tuffo nel lago o nella neve.', 'Sauna is a social ritual: naked or in a towel, then a dip in the lake or snow.'),
+      tx('Quasi tutto si paga con la carta, anche cifre piccole.', 'Almost everything is paid by card, even small amounts.'),
+      tx('Le persone sono riservate: i silenzi in conversazione non sono imbarazzanti.', 'People are reserved: silences in conversation are not awkward.'),
+    ],
+    periods: [balticMidsummer(tx('Jaanipäev (Mezza estate)', 'Jaanipäev (Midsummer)'))],
+  },
+  LV: {
+    meals: { breakfast: '7:30–9:30', lunch: '12:00–14:00', dinner: '18:00–21:00' },
+    tipping: tx('Circa 10% al ristorante, se non è già nel conto.', 'Around 10% at restaurants, unless already on the bill.'),
+    law: [BALTIC_REFLECTOR],
+    avoid: [
+      ODD_FLOWERS,
+      tx('Non dare per scontato che parlino russo né chiamarli "ex sovietici": è un tasto dolente.', "Don't assume they speak Russian or call them \"ex-Soviet\": it's a sore point."),
+    ],
+    local: [
+      tx('Il Mercato Centrale di Riga sta in cinque vecchi hangar per dirigibili.', "Riga's Central Market is housed in five old zeppelin hangars."),
+      tx('Nei bar trovi il Balsamo nero di Riga, liquore alle erbe da bere puro o col caffè.', 'In bars you will find Riga Black Balsam, a herbal liqueur drunk neat or in coffee.'),
+    ],
+    periods: [
+      balticMidsummer(
+        tx('Jāņi (Mezza estate)', 'Jāņi (Midsummer)'),
+        tx('È la festa più sentita dell\'anno: falò, corone di foglie di quercia e formaggio al cumino.', 'The most heartfelt holiday of the year: bonfires, oak-leaf crowns and caraway cheese.')
+      ),
+    ],
+  },
+  LT: {
+    meals: { breakfast: '7:30–9:30', lunch: '12:00–14:00', dinner: '18:00–21:00' },
+    tipping: tx('Circa 10% al ristorante, se non è già nel conto.', 'Around 10% at restaurants, unless already on the bill.'),
+    law: [BALTIC_REFLECTOR],
+    avoid: [
+      ODD_FLOWERS,
+      tx('Non dare per scontato che parlino russo né chiamarli "ex sovietici": è un tasto dolente.', "Don't assume they speak Russian or call them \"ex-Soviet\": it's a sore point."),
+    ],
+    local: [
+      tx('Il basket è quasi una religione: le partite della nazionale svuotano le strade.', 'Basketball is almost a religion: national team games empty the streets.'),
+      tx('Non si dà la mano attraverso la soglia di casa: porta sfortuna.', "Don't shake hands across a doorway: it's bad luck."),
+    ],
+    periods: [balticMidsummer(tx('Joninės (Mezza estate)', 'Joninės (Midsummer)'))],
+  },
+  MD: {
+    meals: { breakfast: '7:00–9:00', lunch: '12:00–14:00', dinner: '19:00–21:00' },
+    tipping: tx('Circa 10%.', 'Around 10%.'),
+    law: [
+      tx(
+        'La Transnistria (est del paese) non è controllata dal governo moldavo: verifica Viaggiare Sicuri prima di andarci.',
+        'Transnistria (the east of the country) is not controlled by the Moldovan government: check Viaggiare Sicuri before going.'
+      ),
+    ],
+    avoid: [
+      ODD_FLOWERS,
+      tx('Lingua e identità (rumena, moldava, russa) sono temi delicati: meglio non schierarsi.', 'Language and identity (Romanian, Moldovan, Russian) are sensitive topics: better not to take sides.'),
+    ],
+    local: [
+      SHOES_HOME,
+      tx('Si parla rumeno, ma il russo è molto diffuso, soprattutto a Chișinău.', 'Romanian is spoken, but Russian is very common, especially in Chișinău.'),
+      tx('È terra di vino: le cantine sotterranee di Cricova e Mileștii Mici si visitano su prenotazione.', 'It is wine country: the underground cellars of Cricova and Mileștii Mici can be visited by booking.'),
+    ],
+  },
+
   // ----- Mediterraneo e Medio Oriente -----
   TR: {
     meals: { breakfast: '8:00–10:00', lunch: '12:00–14:00', dinner: '19:00–21:00', note: tx('La colazione (kahvaltı) è un pasto ricco e lungo.', 'Breakfast (kahvaltı) is a rich, long meal.') },
@@ -574,6 +663,38 @@ export const CUSTOMS: Record<string, CountryCustoms> = {
     ],
   },
 
+  OM: {
+    meals: { breakfast: '7:00–9:00', lunch: '13:00–15:00', dinner: '19:30–22:00' },
+    weekend: tx('Venerdì e sabato', 'Friday and Saturday'),
+    tipping: tx('Non obbligatoria; nei ristoranti turistici 10%.', 'Not required; 10% in tourist restaurants.'),
+    law: [
+      tx('L\'alcol si beve solo negli hotel e nei locali con licenza; bere in pubblico è reato.', 'Alcohol only in hotels and licensed venues; drinking in public is a crime.'),
+      tx('Si può prendere una multa per l\'auto troppo sporca.', 'You can be fined for driving a car that is too dirty.'),
+      DRUGS,
+    ],
+    gestures: [LEFT_HAND],
+    avoid: [MODEST_DRESS, MOSQUE_DRESS, PDA],
+    local: [tx('All\'ospite si offrono kahwa (caffè al cardamomo) e datteri: rifiutare è scortese.', 'Guests are offered kahwa (cardamom coffee) and dates: refusing is impolite.')],
+    periods: [ramadan()],
+  },
+  QA: {
+    meals: { breakfast: '7:00–9:00', lunch: '13:00–15:00', dinner: '20:00–23:00' },
+    weekend: tx('Venerdì e sabato', 'Friday and Saturday'),
+    tipping: tx('Spesso il servizio è già nel conto; altrimenti 10%.', 'Service is often in the bill; otherwise 10%.'),
+    law: [
+      tx('Non si può portare alcol nel paese; si beve solo negli hotel con licenza. Essere ubriachi in pubblico è reato.', "Alcohol can't be brought into the country; it is served only in licensed hotels. Being drunk in public is a crime."),
+      tx('Effusioni in pubblico e gesti offensivi possono portare all\'arresto.', 'Public displays of affection and offensive gestures can lead to arrest.'),
+      DRUGS,
+    ],
+    gestures: [LEFT_HAND],
+    avoid: [
+      tx('Nei luoghi pubblici (centri commerciali, musei, uffici) spalle e ginocchia coperte.', 'In public places (malls, museums, offices) cover shoulders and knees.'),
+      MOSQUE_DRESS,
+    ],
+    local: [tx('La vita si sposta verso sera: il Souq Waqif si anima dopo il tramonto.', 'Life shifts to the evening: Souq Waqif comes alive after sunset.')],
+    periods: [ramadan()],
+  },
+
   // ----- Americhe -----
   US: {
     meals: { breakfast: '7:00–9:00', lunch: '12:00–13:00', dinner: '18:00–20:00' },
@@ -675,6 +796,117 @@ export const CUSTOMS: Record<string, CountryCustoms> = {
     local: [
       tx('A Cusco e sulle Ande l\'altitudine si sente: i primi giorni vai piano e bevi mate de coca.', 'In Cusco and the Andes you feel the altitude: take it easy the first days and drink coca tea.'),
       tx('L\'acqua del rubinetto non si beve.', "Tap water isn't for drinking."),
+    ],
+  },
+
+  CO: {
+    meals: {
+      breakfast: '6:30–8:30',
+      lunch: '12:00–14:00',
+      dinner: '19:00–21:00',
+      note: tx('Il pasto principale è il pranzo: cerca il "menú del día", zuppa e piatto unico a poco prezzo.', 'Lunch is the main meal: look for the "menú del día", soup and a main at a low price.'),
+    },
+    tipping: tx(
+      'Al ristorante ti chiedono se includere il servizio ("¿desea incluir el servicio?"), di solito il 10%: è volontario.',
+      'At restaurants you are asked whether to add service ("¿desea incluir el servicio?"), usually 10%: it is voluntary.'
+    ),
+    law: [DRUGS],
+    avoid: [
+      tx('"No dar papaya": non mostrare telefono, gioielli o soldi in strada.', '"No dar papaya": don\'t show off your phone, jewellery or cash in the street.'),
+      tx('Non accettare drink o sigarette da sconosciuti: esistono furti con droghe (scopolamina).', "Don't accept drinks or cigarettes from strangers: there are robberies using drugs (scopolamine)."),
+    ],
+    local: [
+      tx('Un "tinto" è un caffè nero, non un vino rosso.', 'A "tinto" is a black coffee, not red wine.'),
+      tx('Si chiede con molta cortesia: "¿me regala…?" vuol dire "mi dà…?", non chiedere un regalo.', 'People are very polite: "¿me regala…?" means "can I have…?", not asking for a gift.'),
+    ],
+  },
+  CL: {
+    meals: {
+      breakfast: '7:00–9:00',
+      lunch: '13:00–15:00',
+      dinner: '20:30–22:30',
+      note: tx('Verso le 18-20 c\'è la "once", merenda con tè, pane e affettati che spesso sostituisce la cena.', 'Around 6-8 pm there\'s "once", tea with bread and cold cuts that often replaces dinner.'),
+    },
+    tipping: tx('Ti chiedono se aggiungere il 10% ("¿desea agregar la propina?"): è volontario ma si usa.', 'You are asked whether to add 10% ("¿desea agregar la propina?"): voluntary but customary.'),
+    law: [
+      tx(
+        'Controlli severissimi all\'arrivo su frutta, carne, formaggi e semi: dichiara tutto o rischi multe alte.',
+        'Very strict checks on fruit, meat, cheese and seeds on arrival: declare everything or risk heavy fines.'
+      ),
+    ],
+    local: [tx('Lo spagnolo cileno è veloce e pieno di gergo ("¿cachai?" = capisci?).', 'Chilean Spanish is fast and full of slang ("¿cachai?" = get it?).')],
+    periods: [
+      {
+        name: tx('Fiestas Patrias', 'Fiestas Patrias'),
+        about: tx(
+          "La festa dell'indipendenza: fondas con empanadas, asado e chicha, cueca (il ballo nazionale) e aquiloni.",
+          'Independence celebrations: fondas with empanadas, barbecue and chicha, cueca (the national dance) and kites.'
+        ),
+        when: tx('18 – 19 settembre, spesso con ponte', '18 – 19 September, often with a long weekend'),
+        note: tx('Si ferma tutto per giorni: uffici e molti negozi chiusi, autobus e voli interni pieni.', 'Everything stops for days: offices and many shops closed, buses and domestic flights full.'),
+        dates: yearly('09-17', '09-20'),
+      },
+    ],
+  },
+  EC: {
+    meals: { breakfast: '7:00–9:00', lunch: '12:30–14:00', dinner: '19:00–21:00', note: tx('Il pranzo (almuerzo) è il pasto principale.', 'Lunch (almuerzo) is the main meal.') },
+    tipping: tx('Spesso il 10% di servizio è già nel conto; si aggiunge qualcosa solo se si è contenti.', 'A 10% service charge is often already on the bill; add a little only if happy.'),
+    law: [
+      tx(
+        'Alle Galápagos regole rigide: niente cibo, nessun contatto con gli animali (almeno 2 metri), solo sentieri segnati e con guida.',
+        'In the Galápagos strict rules apply: no food, no contact with animals (at least 2 metres), marked trails only and with a guide.'
+      ),
+      DRUGS,
+    ],
+    local: [
+      tx('La moneta è il dollaro USA: porta banconote piccole, quelle da 50 e 100 spesso non le accettano.', 'The currency is the US dollar: bring small notes, 50s and 100s are often refused.'),
+      tx('Quito è a 2.850 metri: i primi giorni vai piano.', 'Quito is at 2,850 metres: take it easy the first days.'),
+    ],
+  },
+  BO: {
+    meals: { breakfast: '7:00–9:00', lunch: '12:00–14:00', dinner: '19:00–21:00', note: tx('Il pranzo è il pasto principale; a metà mattina si mangiano le salteñas.', 'Lunch is the main meal; mid-morning is salteña time.') },
+    tipping: tx('Non obbligatoria: 5-10% al ristorante, piccole mance a guide e autisti.', 'Not required: 5-10% at restaurants, small tips for guides and drivers.'),
+    law: [
+      tx(
+        'Le foglie di coca sono legali in Bolivia ma vietate in Italia e quasi ovunque: non portarle a casa, nemmeno in bustine di tè.',
+        "Coca leaves are legal in Bolivia but banned in Italy and almost everywhere: don't take them home, not even as tea bags."
+      ),
+      DRUGS,
+    ],
+    avoid: [tx('Chiedi prima di fotografare le persone, soprattutto le cholitas: spesso si aspettano una mancia.', 'Ask before photographing people, especially cholitas: they often expect a tip.')],
+    local: [
+      tx('La Paz è a oltre 3.600 metri: il mate de coca aiuta con l\'altitudine.', 'La Paz is over 3,600 metres up: coca tea helps with the altitude.'),
+      tx('Scioperi e blocchi stradali (bloqueos) sono frequenti: tieni margine negli spostamenti.', 'Strikes and roadblocks (bloqueos) are frequent: leave slack in your travel plans.'),
+    ],
+  },
+  UY: {
+    meals: { breakfast: '8:00–10:00', lunch: '12:30–14:30', dinner: '21:00–23:00' },
+    tipping: tx('Circa 10% al ristorante.', 'Around 10% at restaurants.'),
+    local: [
+      tx('Il mate è ovunque: la gente gira col thermos sotto il braccio. Se te lo offrono, "gracias" vuol dire "basta così".', 'Mate is everywhere: people walk around with a thermos under their arm. If offered, "gracias" means "no more".'),
+      tx('L\'asado della domenica è un rito familiare.', 'The Sunday barbecue (asado) is a family ritual.'),
+    ],
+    periods: [
+      {
+        name: tx('Semana de Turismo (Settimana Santa)', 'Semana de Turismo (Holy Week)'),
+        about: tx(
+          'In Uruguay, paese laico, la Settimana Santa si chiama "settimana del turismo": tutti vanno in vacanza.',
+          'In secular Uruguay, Holy Week is called "tourism week": everyone goes on holiday.'
+        ),
+        when: tx('La settimana prima di Pasqua', 'The week before Easter'),
+        note: tx('Uffici e molti negozi chiusi per tutta la settimana; località di mare e autobus pieni.', 'Offices and many shops closed all week; seaside towns and buses full.'),
+        dates: holyWeekRanges,
+      },
+      {
+        name: tx('Carnevale', 'Carnival'),
+        about: tx(
+          'Il carnevale più lungo del mondo: da fine gennaio a inizio marzo, con le murgas e il candombe nei quartieri di Montevideo.',
+          "The world's longest carnival: from late January to early March, with murgas and candombe in Montevideo's neighbourhoods."
+        ),
+        when: tx('Circa 40 giorni tra gennaio e marzo; festivo il lunedì e martedì di Carnevale', 'About 40 days between January and March; Carnival Monday and Tuesday are holidays'),
+        note: tx('Spettacoli ogni sera nei tablados; i due giorni festivi chiudono uffici e molti negozi.', 'Shows every night at the tablados; the two holidays close offices and many shops.'),
+        dates: carnivalRanges,
+      },
     ],
   },
 
@@ -1011,6 +1243,141 @@ export const CUSTOMS: Record<string, CountryCustoms> = {
     periods: [ramadan()],
   },
 
+  TW: {
+    meals: {
+      breakfast: '6:30–9:00',
+      lunch: '11:30–13:30',
+      dinner: '17:30–20:00',
+      note: tx('La colazione si fa nei "breakfast shop" di quartiere; la sera si va ai mercati notturni.', 'Breakfast is eaten at neighbourhood "breakfast shops"; in the evening people go to night markets.'),
+    },
+    tipping: tx('Non si usa: al ristorante spesso c\'è il 10% di servizio nel conto.', 'Not customary: restaurants often add a 10% service charge.'),
+    law: [
+      tx('Vietato mangiare, bere (anche acqua) e masticare gomme in metropolitana: multe salate.', 'No eating, drinking (even water) or chewing gum on the metro: hefty fines.'),
+      DRUGS,
+    ],
+    avoid: [
+      tx('Non regalare orologi (evocano la morte) né oggetti in gruppi di quattro: il 4 porta sfortuna.', "Don't give clocks (they evoke death) or anything in fours: 4 is unlucky."),
+      tx('Bacchette dritte nel riso: richiamano i funerali.', 'Chopsticks upright in rice: they recall funerals.'),
+    ],
+    local: [
+      tx('I camion della spazzatura suonano una melodia (Per Elisa): la gente scende a buttare i sacchi.', 'Garbage trucks play a tune (Für Elise): people come down to throw their bags in.'),
+      tx('Per i mezzi e i negozi si usa la EasyCard, ricaricabile nei minimarket.', 'For transport and shops you use the EasyCard, topped up at convenience stores.'),
+    ],
+    periods: [
+      {
+        name: tx('Capodanno lunare', 'Lunar New Year'),
+        about: tx(
+          "L'inizio dell'anno lunare: cenone in famiglia, buste rosse con soldi e visita ai templi.",
+          'The start of the lunar year: family reunion dinner, red envelopes with money and temple visits.'
+        ),
+        when: tx('Fine gennaio o febbraio, data lunare', 'Late January or February, lunar date'),
+        note: tx('Treni ad alta velocità esauriti; molti piccoli ristoranti chiudono per alcuni giorni.', 'High-speed trains sold out; many small restaurants close for a few days.'),
+        dates: lunarNewYearRanges,
+      },
+    ],
+  },
+  HK: {
+    meals: { breakfast: '7:00–9:00', lunch: '12:00–14:00', dinner: '19:00–21:00', note: tx('Il dim sum si mangia al mattino e a pranzo.', 'Dim sum is eaten in the morning and at lunch.') },
+    tipping: tx('Al ristorante il 10% di servizio è già nel conto; si lasciano solo gli spiccioli.', 'Restaurants add a 10% service charge; just leave the small change.'),
+    law: [
+      tx('Vietato mangiare e bere sulla metropolitana (MTR): multe salate.', 'No eating or drinking on the MTR: hefty fines.'),
+      DRUGS,
+    ],
+    avoid: [tx('Il 4 porta sfortuna: in molti palazzi i piani con il 4 non esistono.', '4 is unlucky: many buildings skip the floors with a 4.')],
+    local: [
+      tx('Si guida a sinistra e sulle scale mobili si sta a destra.', 'They drive on the left, and you stand on the right on escalators.'),
+      tx('Nei locali affollati è normale dividere il tavolo con sconosciuti.', 'In busy places it is normal to share a table with strangers.'),
+      tx('Con la carta Octopus paghi mezzi, minimarket e molti negozi.', 'The Octopus card pays for transport, convenience stores and many shops.'),
+    ],
+    periods: [
+      {
+        name: tx('Capodanno cinese', 'Chinese New Year'),
+        about: tx(
+          "L'inizio dell'anno lunare: mercati dei fiori, sfilata, fuochi d'artificio sul porto e buste rosse (lai see).",
+          'The start of the lunar year: flower markets, a parade, harbour fireworks and red envelopes (lai see).'
+        ),
+        when: tx('Fine gennaio o febbraio, data lunare', 'Late January or February, lunar date'),
+        note: tx('Tre giorni festivi: molti negozi e ristoranti locali chiusi, attrazioni e centri commerciali aperti e affollati.', 'Three public holidays: many local shops and restaurants close, sights and malls open and crowded.'),
+        dates: lunarNewYearRanges,
+      },
+    ],
+  },
+  NP: {
+    meals: {
+      breakfast: '6:00–8:00',
+      lunch: '10:00–11:00',
+      dinner: '19:00–20:30',
+      note: tx('Si fanno due pasti principali di dal bhat, a metà mattina e la sera; nel pomeriggio tè e spuntini.', 'Two main dal bhat meals, mid-morning and evening; tea and snacks in the afternoon.'),
+    },
+    weekend: tx('Il giorno di riposo è il sabato: la domenica uffici e banche lavorano', 'Saturday is the day off: offices and banks work on Sunday'),
+    tipping: tx('10% nei ristoranti turistici (se non già nel conto); a fine trekking mance a guide e portatori.', '10% at tourist restaurants (unless included); at the end of a trek tip guides and porters.'),
+    gestures: [LEFT_HAND, HEAD_FEET],
+    avoid: [
+      tx('Gira attorno a stupa e templi in senso orario.', 'Walk around stupas and temples clockwise.'),
+      tx('Non toccare cibo o bicchieri di altri dopo averli portati alla bocca (jutho): sono considerati impuri.', "Don't touch others' food or glasses once they've touched your lips (jutho): it is considered unclean."),
+      tx('Nei templi indù spesso non si entra con oggetti di pelle e alcuni sono vietati ai non induisti.', 'Hindu temples often ban leather items, and some are closed to non-Hindus.'),
+    ],
+    local: [tx('Il saluto è "Namaste" a mani giunte, più che la stretta di mano.', 'The greeting is "Namaste" with palms together, rather than a handshake.')],
+    periods: [
+      {
+        name: tx('Tihar (Festa delle luci)', 'Tihar (Festival of Lights)'),
+        about: tx(
+          "La versione nepalese di Diwali: cinque giorni in cui si onorano corvi, cani, mucche e la dea Lakshmi, con lumini e ghirlande.",
+          "Nepal's Diwali: five days honouring crows, dogs, cows and the goddess Lakshmi, with oil lamps and garlands."
+        ),
+        when: tx('Ottobre o novembre, data lunare (poche settimane dopo il Dashain, la festa più lunga)', 'October or November, lunar date (a few weeks after Dashain, the longest festival)'),
+        note: tx('Uffici chiusi e grandi spostamenti; in questo periodo i trekking sono molto frequentati.', 'Offices closed and lots of travel; treks are very busy at this time of year.'),
+        dates: (y) => diwaliRanges(y).map(([a, b]): [string, string] => [addDays(a, -2), addDays(b, 2)]),
+      },
+    ],
+  },
+  LA: {
+    meals: { breakfast: '6:30–8:30', lunch: '11:30–13:00', dinner: '18:00–20:00', note: tx('Si va a dormire presto: in molte città il coprifuoco dei locali è verso le 23.', 'People go to bed early: in many towns venues close around 11 pm.') },
+    tipping: tx('Non si usa, ma è apprezzata nei ristoranti turistici e con le guide.', 'Not customary, but appreciated at tourist restaurants and by guides.'),
+    law: [
+      DRUGS,
+      tx('Le relazioni sessuali tra stranieri e laotiani non sposati sono vietate dalla legge.', 'Sexual relations between foreigners and unmarried Lao nationals are prohibited by law.'),
+    ],
+    gestures: [HEAD_FEET],
+    avoid: [
+      TEMPLE_DRESS,
+      tx('Le donne non devono toccare i monaci né porgergli oggetti direttamente.', 'Women must not touch monks or hand them things directly.'),
+      tx(
+        'Al Tak Bat (elemosina ai monaci all\'alba) di Luang Prabang stai a distanza, in silenzio e senza flash.',
+        "At Luang Prabang's Tak Bat (dawn alms for the monks) keep your distance, stay silent and use no flash."
+      ),
+    ],
+    local: [tx('Il riso glutinoso si mangia con le mani, a palline.', 'Sticky rice is eaten by hand, rolled into balls.')],
+    periods: [
+      {
+        name: tx('Pi Mai (Capodanno laotiano)', 'Pi Mai (Lao New Year)'),
+        about: tx("Il capodanno buddista: si lavano le statue di Buddha e ci si bagna a vicenda con l'acqua.", 'The Buddhist New Year: Buddha statues are washed and people splash each other with water.'),
+        when: tx('13 – 16 aprile', '13 – 16 April'),
+        note: tx('Uscendo ti bagneranno di sicuro: proteggi telefono e documenti. Uffici chiusi.', "You'll get soaked when you go out: protect phone and documents. Offices closed."),
+        dates: yearly('04-13', '04-16'),
+      },
+    ],
+  },
+  UZ: {
+    meals: { breakfast: '7:00–9:00', lunch: '12:00–14:00', dinner: '18:30–21:00', note: tx('Il plov si mangia soprattutto a pranzo: la sera spesso è finito.', 'Plov is mostly a lunch dish: by evening it is often sold out.') },
+    tipping: tx('Spesso c\'è il 10-15% di servizio nel conto; altrimenti si arrotonda.', 'A 10-15% service charge is often on the bill; otherwise round up.'),
+    law: [
+      tx(
+        'Ogni straniero va registrato entro 3 giorni: lo fanno gli hotel, ma conserva le ricevute fino alla partenza.',
+        'Every foreigner must be registered within 3 days: hotels do it, but keep the slips until you leave.'
+      ),
+      tx('Alcuni farmaci comuni (es. con codeina) sono vietati: porta la ricetta.', 'Some common medicines (e.g. with codeine) are banned: carry your prescription.'),
+    ],
+    avoid: [
+      tx('Il pane (non) è sacro: non va messo capovolto, per terra o buttato.', "Bread (non) is sacred: don't put it upside down, on the ground or throw it away."),
+      MOSQUE_DRESS,
+    ],
+    local: [
+      tx('Ci si saluta con la mano destra sul cuore.', 'People greet with their right hand on their heart.'),
+      tx('Il tè si versa e si rimette nella teiera tre volte prima di servirlo; la tazza piena a metà è segno di rispetto.', 'Tea is poured and returned to the pot three times before serving; a half-full cup is a sign of respect.'),
+    ],
+  },
+
   // ----- Africa -----
   KE: {
     meals: { breakfast: '7:00–9:00', lunch: '13:00–14:00', dinner: '19:00–21:00' },
@@ -1062,6 +1429,71 @@ export const CUSTOMS: Record<string, CountryCustoms> = {
     ],
   },
 
+  GH: {
+    meals: { breakfast: '6:30–8:30', lunch: '12:00–14:00', dinner: '18:30–20:30' },
+    tipping: tx('Circa 10% al ristorante, se non già incluso; piccole mance a guide e facchini.', 'Around 10% at restaurants unless included; small tips for guides and porters.'),
+    gestures: [LEFT_HAND],
+    avoid: [
+      tx('Saluta sempre prima di chiedere qualcosa: andare dritti al punto è scortese.', 'Always greet before asking for something: getting straight to the point is rude.'),
+      tx('Chiedi prima di fotografare persone, mercati ed edifici pubblici.', 'Ask before photographing people, markets and public buildings.'),
+    ],
+    local: [
+      tx('Molti hanno il nome del giorno della settimana in cui sono nati (Kofi = venerdì, Kwame = sabato).', 'Many people are named after the weekday they were born on (Kofi = Friday, Kwame = Saturday).'),
+      tx('"Akwaaba" (benvenuto) lo sentirai spesso: l\'ospitalità è molto calorosa.', 'You\'ll often hear "Akwaaba" (welcome): hospitality is very warm.'),
+    ],
+  },
+  SN: {
+    meals: { breakfast: '7:00–9:00', lunch: '13:30–15:00', dinner: '20:00–22:00', note: tx('Il pasto principale è il pranzo, spesso mangiato tutti dallo stesso piatto.', 'Lunch is the main meal, often eaten by everyone from the same platter.') },
+    tipping: tx('Non obbligatoria: 5-10% al ristorante e piccole mance alle guide.', 'Not required: 5-10% at restaurants and small tips for guides.'),
+    gestures: [LEFT_HAND],
+    avoid: [tx('Chiedi sempre prima di fotografare le persone.', 'Always ask before photographing people.'), MODEST_DRESS],
+    local: [
+      tx('"Teranga" è l\'ospitalità senegalese: è normale essere invitati a mangiare.', '"Teranga" is Senegalese hospitality: being invited to eat is normal.'),
+      tx('Il tè (attaya) si beve in tre giri, dal più amaro al più dolce: andarsene prima è scortese.', 'Tea (attaya) is served in three rounds, from bitter to sweet: leaving early is rude.'),
+      tx('Il venerdì verso le 14 molte attività si fermano per la preghiera.', 'On Fridays around 2 pm many businesses stop for prayers.'),
+    ],
+    periods: [ramadan()],
+  },
+  RW: {
+    meals: { breakfast: '7:00–9:00', lunch: '12:00–14:00', dinner: '19:00–21:00' },
+    tipping: tx('Non attesa, ma apprezzata: 5-10% al ristorante, mance a guide e ranger.', 'Not expected but appreciated: 5-10% at restaurants, tips for guides and rangers.'),
+    law: [tx('Sacchetti di plastica vietati: vengono sequestrati anche dal bagaglio in aeroporto.', 'Plastic bags are banned: they are confiscated even from luggage at the airport.')],
+    avoid: [
+      tx('Non parlare di etnie (hutu, tutsi): è un tabù e la legge punisce il "divisionismo".', "Don't talk about ethnicity (Hutu, Tutsi): it's taboo and the law punishes \"divisionism\"."),
+      tx('Chiedi prima di fotografare persone ed edifici pubblici.', 'Ask before photographing people and public buildings.'),
+    ],
+    local: [
+      tx(
+        "L'ultimo sabato del mese c'è l'Umuganda: dalle 8 alle 11 lavori comunitari, traffico fermo e negozi chiusi.",
+        'On the last Saturday of the month there is Umuganda: community work from 8 to 11 am, traffic stops and shops close.'
+      ),
+      tx('Le strade sono pulitissime e il paese è molto ordinato.', 'Streets are spotless and the country is very orderly.'),
+    ],
+  },
+  UG: {
+    meals: { breakfast: '7:00–9:00', lunch: '13:00–14:30', dinner: '19:00–21:00' },
+    tipping: tx('10% al ristorante; ai safari e al trekking dei gorilla mance a guide, ranger e portatori.', '10% at restaurants; on safari and gorilla treks tip guides, rangers and porters.'),
+    law: [
+      tx('Le relazioni omosessuali sono punite con pene molto pesanti.', 'Same-sex relations are punished very severely.'),
+      tx('Vietato fotografare militari, polizia e edifici governativi.', 'Photographing soldiers, police and government buildings is forbidden.'),
+    ],
+    gestures: [LEFT_HAND],
+    local: [
+      tx('Si guida a sinistra.', 'They drive on the left.'),
+      tx('Il "rolex" non è un orologio: è uno spuntino di chapati arrotolato con la frittata.', 'A "rolex" is not a watch: it\'s a snack of chapati rolled with an omelette.'),
+    ],
+  },
+  NA: {
+    meals: { breakfast: '7:00–9:00', lunch: '12:00–14:00', dinner: '18:30–20:30' },
+    tipping: tx('10% al ristorante; qualche moneta ai benzinai che servono e ai "car guard".', '10% at restaurants; a few coins for petrol attendants and "car guards".'),
+    law: [tx('Nei parchi (Etosha) non si scende dall\'auto fuori dalle aree recintate.', "In parks (Etosha) you don't get out of the car outside fenced areas.")],
+    avoid: [tx('Chiedi prima di fotografare le persone, soprattutto gli Himba: spesso si concorda un compenso.', 'Ask before photographing people, especially the Himba: a fee is often agreed.')],
+    local: [
+      tx('Si guida a sinistra, spesso su sterrato: distanze enormi tra un distributore e l\'altro.', 'They drive on the left, often on gravel: huge distances between petrol stations.'),
+      tx('Il tedesco è ancora parlato e lo trovi in cucina e nei nomi delle città.', 'German is still spoken and shows up in the food and town names.'),
+    ],
+  },
+
   // ----- Oceania -----
   AU: {
     meals: { breakfast: '7:00–9:00', lunch: '12:00–14:00', dinner: '18:00–20:00' },
@@ -1110,6 +1542,10 @@ const NORDIC = tx(
 const EID = tx(
   'Alle feste nazionali chiudono uffici e banche. All\'Eid molte attività restano chiuse per 2-3 giorni e i trasporti sono pieni; i luoghi turistici restano aperti.',
   'On national holidays offices and banks close. At Eid many businesses stay closed for 2-3 days and transport is packed; tourist places stay open.'
+);
+const BALTIC = tx(
+  'Negozi e supermercati in genere aperti, uffici chiusi. A Mezza estate (23-24 giugno) e a Natale chiude quasi tutto.',
+  'Shops and supermarkets usually open, offices closed. At Midsummer (23-24 June) and Christmas almost everything closes.'
 );
 const SURCHARGE = tx(
   'Molti negozi aprono, ma caffè e ristoranti possono applicare un sovrapprezzo festivo del 10-15%. A Natale, Venerdì Santo e Anzac Day (mattina) chiude quasi tutto.',
@@ -1238,6 +1674,48 @@ export const HOLIDAY_NOTES: Record<string, LocalText> = {
   ET: OFFICES_CLOSED,
   AU: SURCHARGE,
   NZ: SURCHARGE,
+  EE: BALTIC,
+  LV: BALTIC,
+  LT: BALTIC,
+  MD: OFFICES_CLOSED,
+  OM: EID,
+  QA: EID,
+  CO: tx(
+    'Molte feste si spostano al lunedì ("puente festivo"): weekend lunghi con strade, bus e località turistiche pieni.',
+    'Many holidays move to Monday ("puente festivo"): long weekends with packed roads, buses and resorts.'
+  ),
+  CL: OFFICES_CLOSED,
+  EC: OFFICES_CLOSED,
+  BO: OFFICES_CLOSED,
+  UY: SHOPS_CLOSED_FOOD_OPEN,
+  TW: tx(
+    'Negozi e ristoranti aperti, uffici chiusi. Al Capodanno lunare molti piccoli locali chiudono per qualche giorno.',
+    'Shops and restaurants open, offices closed. At Lunar New Year many small places close for a few days.'
+  ),
+  HK: tx(
+    'Negozi, centri commerciali e attrazioni aperti; banche e uffici chiusi. Al Capodanno cinese chiudono molti negozi locali.',
+    'Shops, malls and sights open; banks and offices closed. At Chinese New Year many local shops close.'
+  ),
+  NP: OFFICES_CLOSED,
+  LA: OFFICES_CLOSED,
+  UZ: OFFICES_CLOSED,
+  GH: OFFICES_CLOSED,
+  SN: EID,
+  RW: OFFICES_CLOSED,
+  UG: OFFICES_CLOSED,
+  NA: OFFICES_CLOSED,
+};
+
+/**
+ * Paesi piccoli senza voce propria che seguono le usanze di un vicino (stessa lingua e abitudini):
+ * la scheda mostra quelle del paese indicato, con una nota.
+ */
+export const CUSTOMS_LIKE: Record<string, string> = {
+  MC: 'FR',
+  AD: 'ES',
+  LI: 'CH',
+  FO: 'DK',
+  AX: 'FI',
 };
 
 /** Vero se un periodo cade (anche in parte) tra le date del viaggio. Si guarda anche l'anno prima,

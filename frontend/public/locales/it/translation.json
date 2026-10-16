@@ -959,7 +959,8 @@
         "local": "Normale lì"
       },
       "disclaimer": "Leggi e regole cambiano: prima di partire verifica su Viaggiare Sicuri.",
-      "sources": "Usanze raccolte da JourneyAtlas (ottobre 2026) · Feste nazionali: Nager.Date",
+      "dishes": "Piatti tipici",
+      "likeCountry": "Usanze e piatti presi da un paese molto simile: {{like}}. Le feste qui sotto sono invece quelle locali.",
       "localYear": "Anno e calendario",
       "forTravellers": "Per chi viaggia:",
       "onHolidays": "Nei giorni di festa:",

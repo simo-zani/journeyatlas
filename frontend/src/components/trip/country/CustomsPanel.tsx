@@ -4,6 +4,7 @@ import {
   Ban,
   CalendarDays,
   CalendarRange,
+  ChefHat,
   ChevronDown,
   MapPin,
   ExternalLink,
@@ -21,7 +22,8 @@ import { CountryFlag } from '@/components/CountryFlag';
 import { loadRegions, regionAt } from '@/lib/atlasGeo';
 import { localYearsFor } from '@/lib/calendars';
 import { farnesinaUrl, fetchPublicHolidays, type CountryInfo, type PublicHoliday } from '@/lib/countryInfo';
-import { CUSTOMS, HOLIDAY_NOTES, periodOverlaps, type CountryCustoms, type LocalText } from '@/lib/customs';
+import { CUSTOMS, CUSTOMS_LIKE, HOLIDAY_NOTES, periodOverlaps, type CountryCustoms, type LocalText } from '@/lib/customs';
+import { DISHES } from '@/lib/dishes';
 import { holidayInfo } from '@/lib/holidayInfo';
 import { subdivisionForShape, subdivisionName } from '@/lib/subdivisions';
 import type { Destination } from '@/lib/types';
@@ -44,7 +46,7 @@ const tripYears = (start: string, end: string): number[] => {
 };
 
 const InfoTile: React.FC<{ icon: LucideIcon; label: string; children: React.ReactNode }> = ({ icon: Icon, label, children }) => (
-  <div className="relative overflow-hidden rounded-2xl ring-1 p-3 min-w-0 bg-gradient-to-br from-gold/15 to-gold/5 ring-gold/25">
+  <div className="relative overflow-hidden rounded-2xl ring-1 p-6 min-w-0 bg-gradient-to-br from-gold/15 to-gold/5 ring-gold/25">
     <Icon className="absolute -bottom-2 -right-2 w-14 h-14 opacity-10 text-gold" strokeWidth={1.5} />
     <p className="relative flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-gold">
       <Icon className="w-5 h-5 shrink-0" />
@@ -85,7 +87,6 @@ export const CustomsPanel: React.FC<CustomsPanelProps> = ({ countries, tripStart
           destinations={destinations.filter((d) => d.countryCode?.toUpperCase() === c.code)}
         />
       ))}
-      <p className="text-xs text-slate-500 dark:text-slate-400 text-center">{t('countryInfo.customs.sources')}</p>
     </div>
   );
 };
@@ -99,8 +100,11 @@ const CountryCustomsCard: React.FC<{
 }> = ({ country, tripStart, tripEnd, destinations }) => {
   const { t, i18n } = useTranslation();
   const lang: keyof LocalText = i18n.language?.startsWith('it') ? 'it' : 'en';
-  const data: CountryCustoms | undefined = CUSTOMS[country.code];
+  // Paesi piccoli senza voce propria: usanze e piatti del vicino a cui somigliano (le feste restano le loro)
+  const likeCode = CUSTOMS[country.code] ? undefined : CUSTOMS_LIKE[country.code];
+  const data: CountryCustoms | undefined = CUSTOMS[likeCode ?? country.code];
   const name = lang === 'it' ? country.nameIt : country.nameEn;
+  const likeName = likeCode && new Intl.DisplayNames([lang], { type: 'region' }).of(likeCode);
 
   // Regioni delle mete (codice ISO 3166-2 → città), per capire quali feste regionali le riguardano.
   // null finché non si sa (mete senza coordinate o paese senza confini regionali).
@@ -177,7 +181,7 @@ const CountryCustomsCard: React.FC<{
     const shownName = lang === 'it' ? info?.it ?? h.name : h.name;
     return (
       <li key={h.date + h.name} className="flex gap-3 text-sm">
-        <span className="w-24 shrink-0 font-semibold tabular-nums text-light-blue">{formatDay(h.date)}</span>
+        <span className="w-[96px] shrink-0 font-semibold tabular-nums text-light-blue">{formatDay(h.date)}</span>
         <div className="min-w-0">
           <p>
             <span className="font-semibold">{shownName}</span>
@@ -190,7 +194,9 @@ const CountryCustomsCard: React.FC<{
     );
   };
 
-  const periods = data?.periods ?? [];
+  // Periodi curati a mano (Ramadan, Oktoberfest...): solo quelli che toccano le date del viaggio
+  const periods = (data?.periods ?? []).filter((p) => periodOverlaps(p, tripStart, tripEnd));
+  const dishes = DISHES[likeCode ?? country.code] ?? [];
   const sections = SECTIONS.filter((s) => (data?.[s]?.length ?? 0) > 0);
   // Zodiaco, era o calendario locale alla partenza (o oggi, se il viaggio non ha date)
   const localYears = localYearsFor(country.code, tripStart ?? new Date().toISOString().slice(0, 10));
@@ -203,6 +209,13 @@ const CountryCustomsCard: React.FC<{
         <CountryFlag code={country.code} size="lg" />
         <h3 className="font-poppins font-bold text-2xl leading-tight break-words">{name}</h3>
       </div>
+
+      {likeName && (
+        <p className="flex items-start gap-2 text-sm text-slate-500 dark:text-slate-400">
+          <Info className="w-5 h-5 shrink-0" />
+          {t('countryInfo.customs.likeCountry', { like: likeName })}
+        </p>
+      )}
 
       {tileCount > 0 && (
         <div className={`grid grid-cols-1 ${tileCols} gap-3`}>
@@ -251,8 +264,25 @@ const CountryCustomsCard: React.FC<{
         </p>
       )}
 
-      {/* Feste: quelle nazionali nelle date del viaggio, più i periodi che cambiano il viaggio */}
-      <div className="rounded-2xl ring-1 ring-light-blue/25 bg-light-blue/10 p-4 space-y-3">
+      {dishes.length > 0 && (
+        <div className="rounded-2xl ring-1 ring-orange-500/25 bg-orange-500/10 p-6">
+          <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-orange-600 dark:text-orange-400">
+            <ChefHat className="w-5 h-5" />
+            {t('countryInfo.customs.dishes')}
+          </p>
+          <ul className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
+            {dishes.map((dish) => (
+              <li key={dish.name} className="min-w-0">
+                <p className="font-semibold">{dish.name}</p>
+                <p className="text-sm text-slate-500 dark:text-slate-400">{dish.about[lang]}</p>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Feste: quelle nazionali nelle date del viaggio, più i periodi che lo toccano */}
+      <div className="rounded-2xl ring-1 ring-light-blue/25 bg-light-blue/10 p-6 space-y-3">
         <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-light-blue">
           <PartyPopper className="w-5 h-5" />
           {t('countryInfo.customs.holidays')}
@@ -283,7 +313,7 @@ const CountryCustomsCard: React.FC<{
                       h,
                       h.regions && tripRegions && (
                         <p className="flex items-center gap-1 text-xs font-semibold text-gold">
-                          <MapPin className="w-4 h-4 shrink-0" />
+                          <MapPin className="w-[14px] h-[14px] shrink-0" />
                           {t('countryInfo.customs.appliesTo', {
                             places: h.regions
                               .filter((r) => tripRegions.has(r))
@@ -324,29 +354,21 @@ const CountryCustomsCard: React.FC<{
 
         {periods.length > 0 && (
           <div className="space-y-2 pt-1">
-            {periods.map((p) => {
-              const during = periodOverlaps(p, tripStart, tripEnd);
-              return (
-                <div
-                  key={p.name.en}
-                  className={`rounded-xl p-3 ring-1 ${during ? 'bg-gold/15 ring-gold/40' : 'bg-white/5 ring-white/10'}`}
-                >
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="font-semibold">{p.name[lang]}</p>
-                    {during && (
-                      <span className="rounded-full bg-gold px-2 py-0.5 text-[11px] font-bold text-slate-950">
-                        {t('countryInfo.customs.duringTrip')}
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">{p.when[lang]}</p>
-                  {p.about && <p className="mt-1 text-sm">{p.about[lang]}</p>}
-                  <p className="mt-1 text-sm">
-                    <span className="font-semibold">{t('countryInfo.customs.forTravellers')}</span> {p.note[lang]}
-                  </p>
+            {periods.map((p) => (
+              <div key={p.name.en} className="rounded-xl p-5 ring-1 bg-gold/15 ring-gold/40">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="font-semibold">{p.name[lang]}</p>
+                  <span className="rounded-full bg-gold px-2 py-0.5 text-[11px] font-bold text-slate-950">
+                    {t('countryInfo.customs.duringTrip')}
+                  </span>
                 </div>
-              );
-            })}
+                <p className="text-xs text-slate-500 dark:text-slate-400">{p.when[lang]}</p>
+                {p.about && <p className="mt-1 text-sm">{p.about[lang]}</p>}
+                <p className="mt-1 text-sm">
+                  <span className="font-semibold">{t('countryInfo.customs.forTravellers')}</span> {p.note[lang]}
+                </p>
+              </div>
+            ))}
           </div>
         )}
       </div>
@@ -357,7 +379,7 @@ const CountryCustomsCard: React.FC<{
             const tone = TONES[s];
             const Icon = tone.icon;
             return (
-              <div key={s} className={`rounded-2xl ring-1 p-4 ${tone.box}`}>
+              <div key={s} className={`rounded-2xl ring-1 p-6 ${tone.box}`}>
                 <p className={`flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider ${tone.head}`}>
                   <Icon className="w-5 h-5" />
                   {t(`countryInfo.customs.sections.${s}`)}

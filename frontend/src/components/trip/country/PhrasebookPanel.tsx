@@ -5,7 +5,6 @@ import {
   Plane,
   Apple,
   Banknote,
-  Beef,
   Bird,
   Carrot,
   ChevronDown,
@@ -14,7 +13,6 @@ import {
   Egg,
   Fish,
   GlassWater,
-  Ham,
   Shrimp,
   Soup,
   Utensils,
@@ -46,6 +44,7 @@ import {
   Wheat,
   type LucideIcon,
 } from 'lucide-react';
+import { CowIcon, PigIcon } from '@/components/AnimalIcons';
 import { BreadIcon } from '@/components/BreadIcon';
 import { CountryFlag } from '@/components/CountryFlag';
 import { Input } from '@/components/Input';
@@ -104,8 +103,8 @@ const PHRASE_ICONS: Record<string, LucideIcon | typeof BreadIcon> = {
   excuse: Hand,
   understand: EarOff,
   meat: Drumstick,
-  beef: Beef,
-  pork: Ham,
+  beef: CowIcon,
+  pork: PigIcon,
   chicken: Bird,
   fish: Fish,
   shellfish: Shrimp,
@@ -219,6 +218,8 @@ export const PhrasebookPanel: React.FC<{ countries: CountryInfo[]; stickyTop: nu
   if (!language || !active) return translateFallback;
 
   const bigEntry = shown ? language.phrases[shown.id] : null;
+  // Le pronunce sono scritte per chi legge italiano; solo quella del frasario italiano è per chi legge inglese
+  const showPron = active === 'it' ? !isItalian : isItalian;
   const BigIcon = shown ? (PHRASE_ICONS[shown.id] ?? CATEGORY_ICONS[shown.category]) : null;
 
   return (
@@ -305,7 +306,7 @@ export const PhrasebookPanel: React.FC<{ countries: CountryInfo[]; stickyTop: nu
                       >
                         {local}
                       </span>
-                      <span className="text-xs text-gold-dark dark:text-gold-light italic break-words">{pron}</span>
+                      {showPron && <span className="text-xs text-gold-dark dark:text-gold-light italic break-words">{pron}</span>}
                     </button>
                   );
                 })}
@@ -334,7 +335,7 @@ export const PhrasebookPanel: React.FC<{ countries: CountryInfo[]; stickyTop: nu
             >
               {bigEntry[0]}
             </p>
-            <p className="text-lg sm:text-2xl text-slate-600 italic">{bigEntry[1]}</p>
+            {showPron && <p className="text-lg sm:text-2xl text-slate-600 italic">{bigEntry[1]}</p>}
             <p className="text-sm sm:text-base text-slate-500">{phraseLabel(shown)}</p>
           </div>
         )}

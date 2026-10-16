@@ -26,7 +26,8 @@
     "closeSidebar": "Comprimi menu laterale",
     "collapseSidebar": "Comprimi menu laterale",
     "expandSidebar": "Espandi menu laterale",
-    "atlas": "Il Mio Atlante"
+    "atlas": "Il Mio Atlante",
+    "stats": "Statistiche"
   },
   "auth": {
     "email": "Email",
@@ -1105,5 +1106,119 @@
     "removeCountryBody_other": "Verranno tolte anche le {{count}} città inserite: {{cities}}.",
     "noCountry": "Senza paese",
     "itineraryHint": "Trascina le città per cambiare l’ordine dell’itinerario, anche tra paesi diversi; trascina un riquadro dalla maniglia per spostare tutta la tappa."
+  },
+  "stats": {
+    "title": "Statistiche",
+    "subtitle": "I tuoi viaggi in numeri: distanze, tempo e angoli di mondo raggiunti.",
+    "empty": {
+      "title": "Ancora nessun viaggio iniziato",
+      "body": "Le statistiche compaiono dal primo viaggio partito, o aggiungendo un viaggio-ricordo."
+    },
+    "trips_one": "{{count}} viaggio",
+    "trips_other": "{{count}} viaggi",
+    "days_one": "{{count}} giorno",
+    "days_other": "{{count}} giorni",
+    "nights_one": "{{count}} notte",
+    "nights_other": "{{count}} notti",
+    "hours_one": "{{value}} ora",
+    "hours_other": "{{value}} ore",
+    "tiles": {
+      "km": "Km percorsi",
+      "kmHint": "{{value}} volte il giro della Terra",
+      "days": "Giorni in viaggio",
+      "daysYears": "{{value}} anni della tua vita",
+      "daysMonths": "quasi {{value}} mesi della tua vita",
+      "daysWeeks": "{{value}} settimane della tua vita",
+      "countries": "Paesi visitati",
+      "trips": "Viaggi fatti",
+      "cities_one": "{{count}} città visitata",
+      "cities_other": "{{count}} città visitate"
+    },
+    "farthest": {
+      "title": "Il posto più lontano da casa",
+      "subtitle": "In linea d’aria, dalla tua città di casa",
+      "fromHome": "da {{city}}",
+      "trip": "Viaggio:",
+      "earthShare": "{{percent}}% della distanza massima sulla Terra",
+      "noHome": "Imposta la città di casa nel profilo per scoprire il posto più lontano che hai raggiunto."
+    },
+    "moon": {
+      "title": "Fino alla Luna",
+      "subtitle": "La Luna è a 384.400 km",
+      "progress": "della strada per la Luna",
+      "reached": "Sei arrivato sulla Luna, e oltre: {{value}} volte la distanza",
+      "laps": "Giri della Terra",
+      "missing": "Mancano alla Luna",
+      "perTrip": "Media per viaggio"
+    },
+    "compass": {
+      "title": "La tua bussola",
+      "subtitle": "I punti più estremi che hai raggiunto",
+      "north": "Nord",
+      "south": "Sud",
+      "east": "Est",
+      "west": "Ovest",
+      "dir": {
+        "N": "N",
+        "S": "S",
+        "E": "E",
+        "W": "O"
+      },
+      "empty": "Nessuna meta con coordinate, per ora."
+    },
+    "modes": {
+      "title": "Come ti sei spostato",
+      "subtitle": "Km per mezzo di trasporto",
+      "flight": "Aereo",
+      "train": "Treno",
+      "ferry": "Traghetto",
+      "estimated": "Stimati (viaggi senza spostamenti)",
+      "longestFlight": "Volo più lungo",
+      "flightTime": "Tempo in volo",
+      "flights_one": "{{count}} volo",
+      "flights_other": "{{count}} voli",
+      "topRoute": "Tratta preferita",
+      "times_one": "{{count}} volta",
+      "times_other": "{{count}} volte",
+      "empty": "Aggiungi gli spostamenti ai viaggi, o la città di casa nel profilo, per contare i km."
+    },
+    "byYear": {
+      "title": "Viaggi per anno",
+      "best_one": "Anno record: {{year}}, con {{count}} viaggio",
+      "best_other": "Anno record: {{year}}, con {{count}} viaggi"
+    },
+    "byMonth": {
+      "title": "Quando parti",
+      "best": "Il tuo mese preferito: {{month}}"
+    },
+    "curiosities": {
+      "title": "Curiosità",
+      "timezones": "Fusi orari",
+      "timezonesHint": "{{value}} ore di differenza tra gli estremi",
+      "hemispheres": "Emisferi toccati",
+      "hemisphere": {
+        "north": "Nord",
+        "south": "Sud",
+        "east": "Est",
+        "west": "Ovest"
+      },
+      "allHemispheres": "Li hai toccati tutti e quattro!",
+      "hemispheresHint_one": "{{count}} su 4",
+      "hemispheresHint_other": "{{count}} su 4",
+      "companion": "Compagno di viaggio",
+      "companionHint_one": "{{count}} viaggio insieme",
+      "companionHint_other": "{{count}} viaggi insieme",
+      "longestTrip": "Viaggio più lungo",
+      "shortestTrip": "Viaggio più breve",
+      "mostVisited": "Il paese del cuore",
+      "firstCountry": "Il primo paese",
+      "latestCountry": "L’ultimo sbloccato",
+      "nights": "Notti fuori casa",
+      "nightsHint": "{{hotel}} in hotel · {{apartment}} in appartamento",
+      "cities": "Città visitate",
+      "equator_one": "Equatore attraversato {{count}} volta",
+      "equator_other": "Equatore attraversato {{count}} volte"
+    },
+    "footnote": "Distanze in linea d’aria. Per i viaggi senza spostamenti il percorso è stimato da casa, passando per gli scali; i tempi di volo senza orari sono stimati dalla distanza."
   }
 }

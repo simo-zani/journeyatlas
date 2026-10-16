@@ -26,7 +26,8 @@
     "closeSidebar": "Collapse sidebar",
     "collapseSidebar": "Collapse sidebar",
     "expandSidebar": "Expand sidebar",
-    "atlas": "My Atlas"
+    "atlas": "My Atlas",
+    "stats": "Statistics"
   },
   "auth": {
     "email": "Email",
@@ -1105,5 +1106,119 @@
     "removeCountryBody_other": "The {{count}} cities you added will be removed too: {{cities}}.",
     "noCountry": "No country",
     "itineraryHint": "Drag cities to change the itinerary order, even across countries; drag a box by its handle to move the whole stop."
+  },
+  "stats": {
+    "title": "Statistics",
+    "subtitle": "Your travels in numbers: distances, time and the corners of the world you’ve reached.",
+    "empty": {
+      "title": "No trips started yet",
+      "body": "Statistics show up from your first trip under way, or once you add a memory trip."
+    },
+    "trips_one": "{{count}} trip",
+    "trips_other": "{{count}} trips",
+    "days_one": "{{count}} day",
+    "days_other": "{{count}} days",
+    "nights_one": "{{count}} night",
+    "nights_other": "{{count}} nights",
+    "hours_one": "{{value}} hour",
+    "hours_other": "{{value}} hours",
+    "tiles": {
+      "km": "Km travelled",
+      "kmHint": "{{value}} times around the Earth",
+      "days": "Days travelling",
+      "daysYears": "{{value}} years of your life",
+      "daysMonths": "almost {{value}} months of your life",
+      "daysWeeks": "{{value}} weeks of your life",
+      "countries": "Countries visited",
+      "trips": "Trips taken",
+      "cities_one": "{{count}} city visited",
+      "cities_other": "{{count}} cities visited"
+    },
+    "farthest": {
+      "title": "The farthest place from home",
+      "subtitle": "As the crow flies, from your home city",
+      "fromHome": "from {{city}}",
+      "trip": "Trip:",
+      "earthShare": "{{percent}}% of the greatest distance on Earth",
+      "noHome": "Set your home city in your profile to find the farthest place you’ve reached."
+    },
+    "moon": {
+      "title": "To the Moon",
+      "subtitle": "The Moon is 384,400 km away",
+      "progress": "of the way to the Moon",
+      "reached": "You’ve reached the Moon and beyond: {{value}} times the distance",
+      "laps": "Laps around the Earth",
+      "missing": "Left to the Moon",
+      "perTrip": "Average per trip"
+    },
+    "compass": {
+      "title": "Your compass",
+      "subtitle": "The most extreme points you’ve reached",
+      "north": "North",
+      "south": "South",
+      "east": "East",
+      "west": "West",
+      "dir": {
+        "N": "N",
+        "S": "S",
+        "E": "E",
+        "W": "W"
+      },
+      "empty": "No destinations with coordinates yet."
+    },
+    "modes": {
+      "title": "How you got around",
+      "subtitle": "Km by means of transport",
+      "flight": "Plane",
+      "train": "Train",
+      "ferry": "Ferry",
+      "estimated": "Estimated (trips without transport)",
+      "longestFlight": "Longest flight",
+      "flightTime": "Time in the air",
+      "flights_one": "{{count}} flight",
+      "flights_other": "{{count}} flights",
+      "topRoute": "Favourite route",
+      "times_one": "{{count}} time",
+      "times_other": "{{count}} times",
+      "empty": "Add transport to your trips, or your home city to your profile, to count the km."
+    },
+    "byYear": {
+      "title": "Trips per year",
+      "best_one": "Record year: {{year}}, with {{count}} trip",
+      "best_other": "Record year: {{year}}, with {{count}} trips"
+    },
+    "byMonth": {
+      "title": "When you leave",
+      "best": "Your favourite month: {{month}}"
+    },
+    "curiosities": {
+      "title": "Fun facts",
+      "timezones": "Time zones",
+      "timezonesHint": "{{value}} hours apart at the extremes",
+      "hemispheres": "Hemispheres reached",
+      "hemisphere": {
+        "north": "North",
+        "south": "South",
+        "east": "East",
+        "west": "West"
+      },
+      "allHemispheres": "You’ve been to all four!",
+      "hemispheresHint_one": "{{count}} of 4",
+      "hemispheresHint_other": "{{count}} of 4",
+      "companion": "Travel buddy",
+      "companionHint_one": "{{count}} trip together",
+      "companionHint_other": "{{count}} trips together",
+      "longestTrip": "Longest trip",
+      "shortestTrip": "Shortest trip",
+      "mostVisited": "Favourite country",
+      "firstCountry": "First country",
+      "latestCountry": "Latest unlocked",
+      "nights": "Nights away",
+      "nightsHint": "{{hotel}} in hotels · {{apartment}} in apartments",
+      "cities": "Cities visited",
+      "equator_one": "Crossed the equator {{count}} time",
+      "equator_other": "Crossed the equator {{count}} times"
+    },
+    "footnote": "Distances as the crow flies. For trips without transport the route is estimated from home via the stopovers; flight times without schedules are estimated from the distance."
   }
 }

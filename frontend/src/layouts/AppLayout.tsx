@@ -4,6 +4,7 @@ import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion, useIsPresent } from 'framer-motion';
 import {
   Earth,
+  ChartColumnBig,
   Globe,
   Map,
   Menu,
@@ -30,6 +31,7 @@ import { fetchProfile, countIncomingFriendRequests } from '@/lib/api';
 const NAV_ITEMS = [
   { key: 'myTrips', to: '/', icon: Map },
   { key: 'atlas', to: '/atlas', icon: Earth },
+  { key: 'stats', to: '/stats', icon: ChartColumnBig },
 ];
 
 const SIDEBAR_WIDTH = 256;

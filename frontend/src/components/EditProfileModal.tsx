@@ -12,6 +12,7 @@ import { MODAL_ICON_SIZE } from '@/lib/ui';
 import { compressImage } from '@/lib/image';
 import { supabase } from '@/lib/supabase';
 import { setHomeCityCache } from '@/lib/useHomeCity';
+import { markHomeOnAtlas } from '@/lib/atlasHome';
 import { setNationalityCache } from '@/lib/useNationality';
 import { countryOptions } from '@/lib/countryCodes';
 import type { Destination } from '@/lib/types';
@@ -196,6 +197,13 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
         // solo se cambiata: così il resto del profilo si salva anche prima della migrazione 0031
         ...(nationality !== (currentNationality ?? '') ? { nationality: nationality || null } : {}),
       });
+      // Casa vecchia e nuova restano sbloccate sull'atlante (in background: se
+      // non riesce, l'atlante la segna alla prossima apertura).
+      if (homeCityChanged) {
+        for (const c of [currentHomeCity?.coords, nextHomeCity?.coords]) {
+          if (c) void markHomeOnAtlas(c).catch(() => undefined);
+        }
+      }
       // Il form mezzo è spesso già montato: senza questo la nuova città
       // arriverebbe solo al prossimo reload della pagina.
       setHomeCityCache(userId, nextHomeCity);

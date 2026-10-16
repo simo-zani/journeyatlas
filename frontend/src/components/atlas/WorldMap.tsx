@@ -66,7 +66,11 @@ const MAX_ZOOM = 8;
 const MAX_ZOOM_SMALL = 28;
 const SPHERE = { type: 'Sphere' } as const;
 const GRATICULE = geoGraticule10();
-const INITIAL_ROTATION: [number, number] = [-12, -30];
+/** Inclinazione iniziale del globo: centro a 30° N, così si vede bene l'emisfero nord. */
+const INITIAL_PITCH = -30;
+/** Longitudine al centro della vista d'insieme: la casa se c'è, altrimenti Greenwich. */
+const centerLon = (home: Coordinates | null | undefined) => home?.lon ?? 0;
+const initialRotation = (home: Coordinates | null | undefined): [number, number] => [-centerLon(home), INITIAL_PITCH];
 /** Velocità della rotazione automatica, legata al giro vero della Terra (15° = un
  * fuso orario all'ora): qui 10 secondi = 1 ora reale, quindi un fuso ogni 10
  * secondi e un giro completo in 4 minuti. Il verso è quello reale, da ovest verso est. */
@@ -97,7 +101,11 @@ const angularRadius = (f: GeoFeature, center: [number, number]): number => {
 const prefersReducedMotion = () =>
   typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
-const makeProjection = (view: MapView, width: number, height: number, cam: Camera): GeoProjection => {
+/** Planisfero d'insieme (zoom 1), centrato sulla longitudine `lon`. */
+const flatBase = (width: number, height: number, lon: number) =>
+  geoNaturalEarth1().rotate([-lon, 0]).fitSize([width, height], SPHERE);
+
+const makeProjection = (view: MapView, width: number, height: number, cam: Camera, lon: number): GeoProjection => {
   if (view === 'globe') {
     const radius = (Math.min(width, height) / 2) * 0.92;
     return geoOrthographic()
@@ -107,7 +115,7 @@ const makeProjection = (view: MapView, width: number, height: number, cam: Camer
       .clipAngle(90)
       .precision(0.5);
   }
-  const p = geoNaturalEarth1().fitSize([width, height], SPHERE);
+  const p = flatBase(width, height, lon);
   const [tx, ty] = p.translate();
   // Zoom attorno al centro della mappa, più lo spostamento trascinato.
   return p
@@ -149,7 +157,7 @@ export const WorldMap: React.FC<WorldMapProps> = ({
   const [hover, setHover] = useState<{ code: string; x: number; y: number } | null>(null);
   const drag = useRef<{ x: number; y: number; moved: number } | null>(null);
 
-  const cam = useRef<Camera>({ rotation: INITIAL_ROTATION, zoom: 1, pan: [0, 0] });
+  const cam = useRef<Camera>({ rotation: initialRotation(homeCoords), zoom: 1, pan: [0, 0] });
   // La rotazione automatica vive in una ref (letta a ogni fotogramma); lo stato serve
   // solo all'icona del pulsante pausa/riprendi.
   const spinning = useRef(!prefersReducedMotion());
@@ -235,7 +243,7 @@ export const WorldMap: React.FC<WorldMapProps> = ({
   const draw = useCallback(() => {
     const { view: v, width: w, height: h, tinyCountries: tiny, visitedCities: vc, labeledCities: lc, homeCoords: home, capital: cap, features } =
       latest.current;
-    const projection = makeProjection(v, w, h, cam.current);
+    const projection = makeProjection(v, w, h, cam.current, centerLon(home));
     const path = geoPath(projection);
     sphereEl.current?.setAttribute('d', path(SPHERE) ?? '');
     graticuleEl.current?.setAttribute('d', path(GRATICULE) ?? '');
@@ -317,6 +325,19 @@ export const WorldMap: React.FC<WorldMapProps> = ({
     draw();
   }, [view, draw, cancelZoom]);
 
+  // La casa può arrivare dopo il primo disegno (profilo letto in ritardo): se la
+  // vista è ancora quella d'insieme, il globo si porta sulla sua longitudine.
+  const homeLon = centerLon(homeCoords);
+  const appliedLon = useRef(homeLon);
+  useEffect(() => {
+    if (appliedLon.current === homeLon) return;
+    appliedLon.current = homeLon;
+    if (selected || cam.current.zoom !== 1) return;
+    cam.current = { ...cam.current, rotation: initialRotation(homeCoords) };
+    draw();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [homeLon]);
+
   // Rotazione lenta del globo finché l'utente non lo tocca.
   useEffect(() => {
     if (view !== 'globe') return;
@@ -365,7 +386,7 @@ export const WorldMap: React.FC<WorldMapProps> = ({
         const a = f ? angularRadius(f, c) : 0.03;
         toZoom = clamp(0.85 / Math.sin(Math.min(a, Math.PI / 2)), MIN_ZOOM, maxZoom.current);
       } else {
-        const base = geoNaturalEarth1().fitSize([w, h], SPHERE);
+        const base = flatBase(w, h, centerLon(latest.current.homeCoords));
         const pt = base(c) ?? [w / 2, h / 2];
         const b = f ? geoPath(base).bounds(f) : [[pt[0] - 4, pt[1] - 4], [pt[0] + 4, pt[1] + 4]];
         const bw = Math.max(b[1][0] - b[0][0], 1);
@@ -502,7 +523,7 @@ export const WorldMap: React.FC<WorldMapProps> = ({
 
   const resetView = () => {
     cancelZoom();
-    cam.current = { rotation: INITIAL_ROTATION, zoom: 1, pan: [0, 0] };
+    cam.current = { rotation: initialRotation(latest.current.homeCoords), zoom: 1, pan: [0, 0] };
     draw();
     onSelect(null);
   };

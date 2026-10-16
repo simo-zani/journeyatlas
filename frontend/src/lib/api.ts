@@ -379,6 +379,14 @@ export interface AccommodationInput {
   notes?: string | null;
 }
 
+/** Alloggi di più viaggi in una sola richiesta (statistiche: notti in hotel e appartamento). */
+export const fetchAccommodationsForTrips = async (tripIds: string[]): Promise<AccommodationRow[]> => {
+  if (tripIds.length === 0) return [];
+  const { data, error } = await supabase.from('accommodations').select('*').in('trip_id', tripIds);
+  if (error) throw error;
+  return (data ?? []) as AccommodationRow[];
+};
+
 export const fetchAccommodations = async (tripId: string): Promise<AccommodationRow[]> => {
   const { data, error } = await supabase
     .from('accommodations')
@@ -529,6 +537,13 @@ export const setAtlasMark = async (countryCode: string, regionKey: string, marke
   const { error } = marked
     ? await supabase.from('atlas_marks').insert({ country_code: countryCode, region_key: regionKey })
     : await supabase.from('atlas_marks').delete().eq('country_code', countryCode).eq('region_key', regionKey);
+  if (error) throw error;
+};
+
+/** Aggiunge i segni che mancano, lasciando com'è chi c'è già (nessun errore sui doppioni). */
+export const ensureAtlasMarks = async (marks: { country_code: string; region_key: string }[]): Promise<void> => {
+  if (marks.length === 0) return;
+  const { error } = await supabase.from('atlas_marks').upsert(marks, { ignoreDuplicates: true });
   if (error) throw error;
 };
 
@@ -1078,6 +1093,42 @@ export const fetchSharedTripCounts = async (userId: string): Promise<Map<string,
     if (r.user_id) counts.set(r.user_id, (counts.get(r.user_id) ?? 0) + 1);
   }
   return counts;
+};
+
+export interface CompanionCount {
+  name: string;
+  avatarUrl: string | null;
+  trips: number;
+}
+
+/**
+ * Compagno di viaggio più frequente tra `tripIds` (escluso l'utente): con account
+ * o senza (contato per nome). Nome e avatar arrivano dall'RPC dei partecipanti di
+ * uno dei viaggi in comune, perché i profili altrui non sono leggibili direttamente.
+ */
+export const fetchTopCompanion = async (userId: string, tripIds: string[]): Promise<CompanionCount | null> => {
+  if (tripIds.length === 0) return null;
+  const { data, error } = await supabase
+    .from('trip_participants')
+    .select('trip_id, user_id, display_name')
+    .in('trip_id', tripIds)
+    .eq('status', 'accepted');
+  if (error) throw error;
+  const byKey = new Map<string, { trips: Set<string>; userId: string | null; name: string | null }>();
+  for (const r of data ?? []) {
+    if (r.user_id === userId) continue;
+    const key = r.user_id ?? `name:${(r.display_name ?? '').trim().toLowerCase()}`;
+    if (key === 'name:') continue;
+    const e = byKey.get(key) ?? { trips: new Set<string>(), userId: r.user_id, name: r.display_name };
+    e.trips.add(r.trip_id);
+    byKey.set(key, e);
+  }
+  const top = [...byKey.values()].sort((a, b) => b.trips.size - a.trips.size)[0];
+  if (!top) return null;
+  if (!top.userId) return { name: top.name ?? '', avatarUrl: null, trips: top.trips.size };
+  const rows = await fetchTripParticipants([...top.trips][0]);
+  const p = rows.find((r) => r.user_id === top.userId);
+  return { name: p?.username ?? p?.display_name ?? '', avatarUrl: p?.avatar_url ?? null, trips: top.trips.size };
 };
 
 export const fetchFriends = async (): Promise<TravelerSearchResult[]> => {

@@ -15,6 +15,7 @@ const TravelerProfilePage = lazy(() =>
   import('@/pages/TravelerProfilePage').then((m) => ({ default: m.TravelerProfilePage }))
 );
 const AtlasPage = lazy(() => import('@/pages/AtlasPage').then((m) => ({ default: m.AtlasPage })));
+const StatsPage = lazy(() => import('@/pages/StatsPage').then((m) => ({ default: m.StatsPage })));
 
 export default function App() {
   return (
@@ -48,6 +49,7 @@ export default function App() {
             <Route path="/" element={<DashboardPage />} />
             <Route path="/trips/:tripId" element={<TripDetailPage />} />
             <Route path="/atlas" element={<AtlasPage />} />
+            <Route path="/stats" element={<StatsPage />} />
             <Route path="/travelers" element={<TravelersPage />} />
             <Route path="/travelers/:userId" element={<TravelerProfilePage />} />
           </Route>

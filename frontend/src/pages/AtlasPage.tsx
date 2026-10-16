@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -28,13 +28,10 @@ import {
   clearAtlasMarks,
   fetchAtlasMarks,
   fetchCountryContinents,
-  fetchMyTrips,
-  fetchTransportsForTrips,
   setAtlasMark,
 } from '@/lib/api';
 import {
   buildAtlas,
-  isTripStarted,
   WORLD_COUNTRY_COUNT,
   type AtlasCity,
   type AtlasCountry,
@@ -45,10 +42,8 @@ import {
 import {
   BREAKAWAY_PARENT,
   countryKind,
-  limitedEntityAt,
   loadRegionIndex,
   loadRegions,
-  loadWorldGeo,
   regionAt,
   SOVEREIGN_OF,
   type CountryKind,
@@ -56,14 +51,16 @@ import {
   type RegionIndexEntry,
   type WorldGeo,
 } from '@/lib/atlasGeo';
-import { isShapedRegionFlag, resolveCountryFlags } from '@/lib/flags';
-import { loadTransportPlaces, transitPlacesFromRows } from '@/lib/tripCountries';
+import { isShapedRegionFlag } from '@/lib/flags';
 import { useHomeCity } from '@/lib/useHomeCity';
+import { markHomeOnAtlas } from '@/lib/atlasHome';
+import { loadAtlasTrips } from '@/lib/atlasLoad';
+import { useCountryName } from '@/lib/useCountryName';
 import { useNationality } from '@/lib/useNationality';
 import { formatMonthRange } from '@/lib/tripDates';
 import { useLocalizedCityNames } from '@/lib/cityNames';
 import { useCapital } from '@/lib/capitals';
-import type { AtlasMarkRow, TransportRow } from '@/lib/types';
+import type { AtlasMarkRow } from '@/lib/types';
 
 const CONTINENTS = ['europe', 'asia', 'africa', 'north-america', 'south-america', 'oceania', 'antarctica'] as const;
 const NO_CITIES: AtlasCity[] = [];
@@ -75,8 +72,6 @@ const SWAP_MOTION = {
   transition: { duration: 0.25, ease: [0.16, 1, 0.3, 1] },
 } as const;
 const LIST_ORDER: CountryStatus[] = ['visited', 'transit', 'planned'];
-/** Paesi mostrati con il nome completo invece di quello breve del browser. */
-const NAME_OVERRIDES = new Set(['US']);
 /** Regioni mostrate ma escluse dal conteggio "x / N" (nome originale → sigla). Washington D.C.
  * non è uno stato: gli USA contano 50 stati e il distretto si aggiunge a parte. */
 const UNCOUNTED_REGIONS: Record<string, Record<string, string>> = {
@@ -136,6 +131,7 @@ export const AtlasPage: React.FC = () => {
   const [geo, setGeo] = useState<WorldGeo | null>(null);
   const [inputs, setInputs] = useState<AtlasTripInput[] | null>(null);
   const [marks, setMarks] = useState<AtlasMarkRow[]>([]);
+  const [marksLoaded, setMarksLoaded] = useState(false);
   const [regionIndex, setRegionIndex] = useState<Record<string, RegionIndexEntry>>({});
   const [continents, setContinents] = useState<Map<string, string>>(new Map());
   const [error, setError] = useState<string | null>(null);
@@ -160,48 +156,7 @@ export const AtlasPage: React.FC = () => {
     let cancelled = false;
     const load = async () => {
       try {
-        const [world, trips] = await Promise.all([loadWorldGeo(), fetchMyTrips(user.id)]);
-        // Codice di un luogo: quello salvato (o ricavato dal nome), sostituito dall'entità
-        // a riconoscimento limitato se le coordinate cadono lì dentro.
-        const placeCode = (code: string, coords: { lat: number; lon: number } | null) =>
-          (coords && limitedEntityAt(world, coords.lat, coords.lon)) || code.toUpperCase();
-
-        const startedIds = trips.filter((tr) => isTripStarted(tr, today)).map((tr) => tr.id);
-        let rowsByTrip = new Map<string, TransportRow[]>();
-        let places: Awaited<ReturnType<typeof loadTransportPlaces>> | null = null;
-        try {
-          const [rows, p] = await Promise.all([fetchTransportsForTrips(startedIds), loadTransportPlaces()]);
-          places = p;
-          rowsByTrip = rows.reduce((m, r) => m.set(r.trip_id, [...(m.get(r.trip_id) ?? []), r]), new Map<string, TransportRow[]>());
-        } catch {
-          // senza anagrafiche dei mezzi la mappa mostra solo le mete
-        }
-
-        const built: AtlasTripInput[] = await Promise.all(
-          trips.map(async (trip) => {
-            const destinations = (
-              await Promise.all(
-                (trip.destinations ?? []).map(async (d) => {
-                  const code = d.countryCode || (await resolveCountryFlags([d]))[0] || '';
-                  return code ? { code: placeCode(code, d.coords ?? null), city: d.city, coords: d.coords ?? null } : null;
-                })
-              )
-            ).filter((d): d is NonNullable<typeof d> => d !== null);
-            const transit =
-              places && rowsByTrip.has(trip.id)
-                ? transitPlacesFromRows(
-                    rowsByTrip.get(trip.id) ?? [],
-                    destinations.map((d) => d.code),
-                    homeCity?.coords,
-                    places
-                  ).map((p) => ({ code: placeCode(p.code, p), city: p.city, coords: { lat: p.lat, lon: p.lon } }))
-                : [];
-            for (const s of trip.stopovers ?? []) {
-              transit.push({ code: placeCode(s.countryCode, s), city: s.city, coords: { lat: s.lat, lon: s.lon } });
-            }
-            return { trip, destinations, transit };
-          })
-        );
+        const { world, inputs: built } = await loadAtlasTrips(user.id, homeCity?.coords, today);
         if (cancelled) return;
         setGeo(world);
         setInputs(built);
@@ -212,7 +167,11 @@ export const AtlasPage: React.FC = () => {
     void load();
     // Dati accessori: se mancano, l'atlante funziona lo stesso.
     fetchAtlasMarks()
-      .then((m) => !cancelled && setMarks(m))
+      .then((m) => {
+        if (cancelled) return;
+        setMarks(m);
+        setMarksLoaded(true);
+      })
       .catch(() => undefined);
     loadRegionIndex().then((idx) => !cancelled && setRegionIndex(idx));
     fetchCountryContinents()
@@ -224,27 +183,33 @@ export const AtlasPage: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, homeKey, t]);
 
+  // Paese e regione di casa sono sempre sbloccati: si salvano come segni a mano, così
+  // restano visitati anche dopo un trasloco. Una volta per casa e per visita alla
+  // pagina: se l'utente toglie il segno, non ricompare finché non ricarica.
+  const homeMarked = useRef('');
+  useEffect(() => {
+    if (!marksLoaded || !homeCity?.coords || homeMarked.current === homeKey) return;
+    homeMarked.current = homeKey;
+    const coords = homeCity.coords;
+    void markHomeOnAtlas(coords)
+      .then((added) =>
+        setMarks((prev) => [
+          ...prev,
+          ...added
+            .filter((a) => !prev.some((m) => m.country_code === a.country_code && m.region_key === a.region_key))
+            .map((a) => ({ ...a, user_id: user?.id ?? '', created_at: new Date().toISOString() })),
+        ])
+      )
+      .catch(() => undefined);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [marksLoaded, homeKey]);
+
   const atlas = useMemo(
     () => (inputs ? buildAtlas(inputs, today, new Set(marks.map((m) => m.country_code))) : null),
     [inputs, marks, today]
   );
 
-  const regionNames = useMemo(() => {
-    try {
-      return new Intl.DisplayNames([i18n.language], { type: 'region' });
-    } catch {
-      return null;
-    }
-  }, [i18n.language]);
-  // Nomi dal browser (forma breve: "Stati Uniti"); le entità senza ISO e le poche
-  // eccezioni con la forma completa (atlas.entity.*) dalle traduzioni dell'app.
-  const countryName = useCallback(
-    (code: string) =>
-      code.startsWith('X-') || NAME_OVERRIDES.has(code)
-        ? t(`atlas.entity.${code}`)
-        : (regionNames?.of(code) ?? code),
-    [regionNames, t]
-  );
+  const countryName = useCountryName();
   const kindOf = useCallback((code: string): CountryKind => (geo ? countryKind(code, geo.index) : 'sovereign'), [geo]);
   const continentOf = (code: string) => continents.get(BREAKAWAY_PARENT[code] ?? code);
 

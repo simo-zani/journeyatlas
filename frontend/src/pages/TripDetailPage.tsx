@@ -346,7 +346,7 @@ export const TripDetailPage: React.FC = () => {
 
           {/* ── Section Tabs ── */}
           <nav
-            className="sticky top-0 z-30 flex gap-1 sm:gap-1.5 mb-6 w-full items-center overflow-x-auto overflow-y-hidden p-1.5 rounded-full backdrop-blur-xl backdrop-saturate-150 bg-[var(--surface-0)]/65 border border-slate-200/50 dark:border-white/10 shadow-lg shadow-black/15 dark:border-white/20 transition-all"
+            className="sticky top-0 z-30 flex gap-1 sm:gap-1.5 mb-6 w-full items-center overflow-x-auto overflow-y-hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden p-1.5 rounded-full backdrop-blur-xl backdrop-saturate-150 bg-[var(--surface-0)]/65 border border-slate-200/50 dark:border-white/10 shadow-lg shadow-black/15 dark:border-white/20 transition-all"
             aria-label="Trip sections"
           >
             {SECTIONS.map((section) => {
